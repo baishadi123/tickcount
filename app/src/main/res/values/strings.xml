@@ -4,7 +4,7 @@
       The launcher label. Chinese devices show 倒数日 (see values-zh); this is
       the fallback for every other language.
     -->
-    <string name="app_name">TickCount</string>
+    <string name="app_name">LiuYing</string>
 
     <!-- Actions -->
     <string name="action_today">Today</string>
@@ -115,12 +115,26 @@
     <string name="detail_days">%1$d days</string>
     <string name="period_ymd">%1$d years %2$d months %3$d days</string>
     <string name="period_md">%1$d months %2$d days</string>
+
+    <!-- Days together, and the wish list (the things tab) -->
+    <string name="page_days">days</string>
+    <string name="page_things">things</string>
+    <string name="anniversary_together">Day %1$d together</string>
+    <string name="anniversary_set">Set an anniversary to count the days together</string>
+    <string name="things_summary">%1$d of %2$d done</string>
+    <string name="things_empty">No wishes yet. What do you want to do together?</string>
+    <string name="things_done_section">Done</string>
+    <string name="things_done_on">Done %1$s</string>
+    <string name="things_new_title">What do you want to do?</string>
+    <string name="things_edit_title">Rename</string>
+    <string name="things_title_hint">e.g. see the sea together</string>
     <!-- A line of text followed by a time: a card's date, or a widget's day word -->
     <string name="text_with_time">%1$s %2$s</string>
     <string name="time_format">HH:mm</string>
 
     <!-- The drawer, and the screens behind it -->
-    <string name="drawer_home">Home</string>
+    <string name="drawer_home">days</string>
+    <string name="drawer_things">things</string>
     <string name="drawer_calendar">Calendar</string>
     <string name="drawer_language">Language</string>
     <string name="drawer_changelog">Changelog</string>

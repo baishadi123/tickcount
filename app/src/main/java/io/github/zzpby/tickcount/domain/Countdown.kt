@@ -125,6 +125,14 @@ fun calendarSplit(from: LocalDate, to: LocalDate): TimeParts {
 }
 
 /**
+ * 第几天：纪念日当天算第 1 天，第二天算第 2 天，以此类推。
+ *
+ * 按日历算，所以跨过午夜就翻一天，与列表的读法一致。
+ */
+fun dayNumberOf(anniversary: LocalDate, today: LocalDate): Long =
+    ChronoUnit.DAYS.between(anniversary, today) + 1
+
+/**
  * Splits the interval `from..to` into years, months, days, hours, minutes and
  * seconds.
  *

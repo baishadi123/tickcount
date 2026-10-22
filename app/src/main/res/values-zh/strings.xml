@@ -5,7 +5,7 @@
       倒数日 on a Chinese device, TickCount everywhere else. The icon artwork
       says 倒数日, so this keeps the icon and the label consistent.
     -->
-    <string name="app_name">倒数日</string>
+    <string name="app_name">留莹</string>
 
     <!-- 操作 -->
     <string name="action_today">今天</string>
@@ -107,12 +107,26 @@
     <string name="detail_days">%1$d天</string>
     <string name="period_ymd">%1$d年%2$d个月%3$d天</string>
     <string name="period_md">%1$d个月%2$d天</string>
+
+    <!-- 在一起的第 N 天，与心愿清单（things 页签） -->
+    <string name="page_days">留莹</string>
+    <string name="page_things">作陪</string>
+    <string name="anniversary_together">在一起第 %1$d 天</string>
+    <string name="anniversary_set">设置纪念日，看到在一起的第几天</string>
+    <string name="things_summary">已完成 %1$d / %2$d</string>
+    <string name="things_empty">还没有心愿。想一起做什么？</string>
+    <string name="things_done_section">已完成</string>
+    <string name="things_done_on">完成于 %1$s</string>
+    <string name="things_new_title">想一起做什么？</string>
+    <string name="things_edit_title">改个名字</string>
+    <string name="things_title_hint">比如：一起去看海</string>
     <!-- 一行文字后面接一个时刻：主页卡片是「日期 时间」，小组件那行是「明天 09:30」 -->
     <string name="text_with_time">%1$s %2$s</string>
     <string name="time_format">HH:mm</string>
 
     <!-- 抽屉，以及它打开的各个画面 -->
-    <string name="drawer_home">主页</string>
+    <string name="drawer_home">留莹</string>
+    <string name="drawer_things">作陪</string>
     <string name="drawer_calendar">日历</string>
     <string name="drawer_language">语言</string>
     <string name="drawer_changelog">更新日志</string>

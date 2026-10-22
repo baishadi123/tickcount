@@ -583,10 +583,18 @@ fun EventEditorScreen(
             initial = date,
             onPick = {
                 epochDay = it.toEpochDay()
-                // Chosen as a solar day, so there is no lunar day left to name.
-                lunarMonth = 0
-                lunarDay = 0
-                lunarLeap = false
+                // The lunar day follows the solar day: the two are the same day
+                // written two ways, so picking either brings the other out.
+                Lunar.fromSolar(it)?.let { lunar ->
+                    lunarMonth = lunar.month
+                    lunarDay = lunar.day
+                    lunarLeap = lunar.leap
+                } ?: run {
+                    // Past the tables (1900–2100): no lunar day to name.
+                    lunarMonth = 0
+                    lunarDay = 0
+                    lunarLeap = false
+                }
                 datePickerOpen = false
             },
             onDismiss = { datePickerOpen = false },
@@ -734,7 +742,7 @@ private fun FieldRow(label: String, value: String, onClick: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DatePickerSheet(initial: LocalDate, onPick: (LocalDate) -> Unit, onDismiss: () -> Unit) {
+internal fun DatePickerSheet(initial: LocalDate, onPick: (LocalDate) -> Unit, onDismiss: () -> Unit) {
     // The Material picker speaks in UTC milliseconds, so the conversion has to go
     // through UTC in both directions or the day shifts by the zone offset.
     val state = rememberDatePickerState(

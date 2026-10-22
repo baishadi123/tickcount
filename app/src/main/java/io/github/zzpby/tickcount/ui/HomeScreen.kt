@@ -42,6 +42,7 @@ import io.github.zzpby.tickcount.domain.matchesQuery
 import io.github.zzpby.tickcount.domain.searchText
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.Gutter
+import io.github.zzpby.tickcount.ui.theme.XingKai
 import io.github.zzpby.tickcount.ui.theme.hairline
 import io.github.zzpby.tickcount.ui.theme.tintWash
 import java.time.LocalDate
@@ -224,8 +225,9 @@ private fun HomeHeader(entries: List<CountdownListEntry>, today: LocalDate) {
             .padding(start = Gutter, end = Gutter, top = 2.dp, bottom = 16.dp),
     ) {
         Text(
-            text = stringResource(R.string.app_name),
+            text = stringResource(R.string.drawer_home),
             style = MaterialTheme.typography.displaySmall,
+            fontFamily = XingKai,
             color = MaterialTheme.colorScheme.onSurface,
         )
         if (line.isNotEmpty()) {

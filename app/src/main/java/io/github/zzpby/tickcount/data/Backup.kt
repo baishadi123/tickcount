@@ -38,8 +38,13 @@ data class ImportPreview(
     val discarded: Int,
 )
 
-/** Everything a backup carries: the countdowns, and how the app was set up. */
-data class Backup(val events: List<CountdownEvent>, val settings: AppSettings)
+/** Everything a backup carries: the countdowns, the wishes, and how the app was set up. */
+data class Backup(
+    val events: List<CountdownEvent>,
+    val settings: AppSettings,
+    /** The wish list, which travels with the countdowns — it is half the app's content. */
+    val wishes: List<Wish> = emptyList(),
+)
 
 /**
  * What putting [backup] back would do to [existing], for the dialog to say before the
@@ -77,6 +82,7 @@ object BackupCodec {
     private const val KEY_FORMAT = "format"
     private const val KEY_EXPORTED_AT = "exportedAt"
     private const val KEY_EVENTS = "events"
+    private const val KEY_WISHES = "wishes"
     private const val KEY_SETTINGS = "settings"
 
     /** [exportedAt] is a parameter rather than read here, so that encoding is repeatable. */
@@ -86,6 +92,7 @@ object BackupCodec {
             .put(KEY_FORMAT, FORMAT)
             .put(KEY_EXPORTED_AT, exportedAt)
             .put(KEY_EVENTS, EventCodec.toJson(backup.events))
+            .put(KEY_WISHES, WishCodec.encode(backup.wishes))
             .put(KEY_SETTINGS, settingsToJson(backup.settings))
             // Indented: a backup written in plain text is meant to be legible, and one
             // that is not is encrypted before it is written anyway.
@@ -97,6 +104,7 @@ object BackupCodec {
         require(root.optString(KEY_APP) == APP) { "not a TickCount backup" }
         return Backup(
             events = root.optJSONArray(KEY_EVENTS)?.let(EventCodec::fromJson) ?: emptyList(),
+            wishes = root.optJSONArray(KEY_WISHES)?.let(WishCodec::decode) ?: emptyList(),
             // An older backup may predate a setting; the defaults are the right answer
             // for anything it does not carry.
             settings = root.optJSONObject(KEY_SETTINGS)?.let(::settingsFromJson) ?: AppSettings(),

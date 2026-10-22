@@ -2,8 +2,9 @@
 <resources>
     <!-- The window behind the first frame, matching the page's warm paper. -->
     <color name="window_background">#FFF7F5F0</color>
-    <!-- The launcher icon is white with black text, as requested. -->
-    <color name="ic_launcher_background">#FFFFFFFF</color>
+    <!-- The launcher icon's backdrop, sampled off the artwork's own paper by
+      .tools/图标生成/IconGen.java — keep in step with its printed value. -->
+    <color name="ic_launcher_background">#F9F4EE</color>
 
     <!--
       The home-screen widget. These repeat the theme's card and ink values because a widget

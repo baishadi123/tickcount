@@ -41,6 +41,7 @@ import io.github.zzpby.tickcount.data.AppLanguage
  */
 enum class AppScreen(val labelRes: Int) {
     HOME(R.string.drawer_home),
+    THINGS(R.string.drawer_things),
     CALENDAR(R.string.drawer_calendar),
     REMINDERS(R.string.settings_notifications),
     APPEARANCE(R.string.settings_appearance),

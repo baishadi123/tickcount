@@ -5,7 +5,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import io.github.zzpby.tickcount.R
+
+/**
+ * The brush the two names are written with: 华文行楷, bundled with the app —
+ * Android does not ship it, and a downloaded font would not follow the backup.
+ */
+val XingKai = FontFamily(Font(R.font.xingkai))
 
 /**
  * The shapes the app is cut from, in one place.

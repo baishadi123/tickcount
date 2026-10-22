@@ -28,6 +28,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,6 +76,7 @@ fun TickCountApp(
     openRequests: Flow<String> = emptyFlow(),
 ) {
     val events by viewModel.events.collectAsStateWithLifecycle()
+    val wishes by viewModel.wishes.collectAsStateWithLifecycle()
     val now by viewModel.now.collectAsStateWithLifecycle()
     val visibleMonth by viewModel.visibleMonth.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -118,6 +120,9 @@ fun TickCountApp(
         runCatching { AppScreen.valueOf(screenName) }.getOrDefault(AppScreen.HOME)
     }
     val today = now.toLocalDate()
+    // A request counter rather than a flag: minted once per tap, and the wish screen
+    // opens its own dialog each time the count moves.
+    var wishNewCount by rememberSaveable { mutableIntStateOf(0) }
     // A repeating countdown marks the same month and day in the years around today, not
     // only the year it was entered in — that is what repeating means on a calendar. The
     // range matches the ±10 years the month picker can reach in a single step.
@@ -201,7 +206,8 @@ fun TickCountApp(
                         detailEvent != null -> detailEvent.title
                         // These set their own name large in the content, so the bar keeps
                         // only the buttons.
-                        screen == AppScreen.HOME || screen == AppScreen.REMINDERS -> null
+                        screen == AppScreen.HOME || screen == AppScreen.REMINDERS ||
+                            screen == AppScreen.THINGS -> null
                         else -> stringResource(screen.labelRes)
                     },
                     // Editing a countdown is a step into it, like its own screen: the button
@@ -233,6 +239,12 @@ fun TickCountApp(
                         // where the list it orders can see it.
                         screen == AppScreen.HOME -> {
                             IconButton(onClick = { startNewEvent(today) }) { PlusIcon() }
+                        }
+
+                        // A wish is added the same way: the slot mints a new one, and
+                        // the wish screen's own dialog collects the name.
+                        screen == AppScreen.THINGS -> {
+                            IconButton(onClick = { wishNewCount++ }) { PlusIcon() }
                         }
 
                         // On the calendar the plus belongs to the chosen day, and
@@ -283,10 +295,10 @@ fun TickCountApp(
                         onTogglePin = { viewModel.togglePin(detailEvent.id) },
                     )
 
-                    screen == AppScreen.HOME -> HomeScreen(
-                        entries = countdownList(events, today, settings.sortOrder),
-                        today = today,
-                        query = searchQuery,
+                     screen == AppScreen.HOME -> HomeScreen(
+                         entries = countdownList(events, today, settings.sortOrder),
+                         today = today,
+                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
                         scope = searchScope,
                         onScopeChange = { searchScopeName = it.name },
@@ -294,6 +306,15 @@ fun TickCountApp(
                         onSortChange = viewModel::chooseSortOrder,
                         onOpen = { detailId = it },
                         onLongPress = { actionsForId = it },
+                    )
+
+                    screen == AppScreen.THINGS -> ThingsScreen(
+                        wishes = wishes,
+                        today = today,
+                        newRequest = wishNewCount,
+                        onToggle = viewModel::toggleWish,
+                        onSave = viewModel::saveWish,
+                        onDelete = viewModel::removeWish,
                     )
 
                     screen == AppScreen.CALENDAR -> CalendarScreen(

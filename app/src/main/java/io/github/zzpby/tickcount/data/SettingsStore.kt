@@ -85,6 +85,11 @@ data class AppSettings(
     val widgetPanel: WidgetPanel = WidgetPanel.SYSTEM,
     /** How large the list widget's text is, as a multiple of the layout's own sizes. */
     val widgetTextSize: WidgetTextSize = WidgetTextSize.STANDARD,
+    /**
+     * The day the two of you got together, as epoch days — the anchor 「在一起第 N 天」
+     * counts from. Null until it is set; the count shows the way there.
+     */
+    val anniversaryEpochDay: Long? = null,
 )
 
 /**
@@ -133,6 +138,11 @@ class SettingsStore(context: Context) {
             remindLeadMinutes = prefs.getInt(KEY_REMIND_LEAD, 0),
             widgetPanel = widgetPanel,
             widgetTextSize = widgetTextSize,
+            anniversaryEpochDay = if (prefs.contains(KEY_ANNIVERSARY)) {
+                prefs.getLong(KEY_ANNIVERSARY, 0L)
+            } else {
+                null
+            },
         )
     }
 
@@ -147,6 +157,7 @@ class SettingsStore(context: Context) {
             putInt(KEY_REMIND_LEAD, settings.remindLeadMinutes)
             putString(KEY_WIDGET_PANEL, settings.widgetPanel.name)
             putString(KEY_WIDGET_TEXT_SIZE, settings.widgetTextSize.name)
+            settings.anniversaryEpochDay?.let { putLong(KEY_ANNIVERSARY, it) }
         }
     }
 
@@ -170,5 +181,6 @@ class SettingsStore(context: Context) {
         const val KEY_REMIND = "remind"
         const val KEY_WIDGET_PANEL = "widget_panel"
         const val KEY_WIDGET_TEXT_SIZE = "widget_text_size"
+        const val KEY_ANNIVERSARY = "anniversary_epoch_day"
     }
 }

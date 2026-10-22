@@ -14,6 +14,8 @@ import io.github.zzpby.tickcount.data.ImportMode
 import io.github.zzpby.tickcount.data.ReadOutcome
 import io.github.zzpby.tickcount.data.SettingsStore
 import io.github.zzpby.tickcount.data.ThemePreset
+import io.github.zzpby.tickcount.data.Wish
+import io.github.zzpby.tickcount.data.WishStore
 import io.github.zzpby.tickcount.data.WidgetPanel
 import io.github.zzpby.tickcount.data.WidgetTextSize
 import io.github.zzpby.tickcount.data.previewOf
@@ -58,6 +60,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _events = MutableStateFlow(store.load())
     val events: StateFlow<List<CountdownEvent>> = _events.asStateFlow()
+
+    private val wishStore = WishStore(application)
+    private val _wishes = MutableStateFlow(wishStore.load())
+    val wishes: StateFlow<List<Wish>> = _wishes.asStateFlow()
 
     private val _settings = MutableStateFlow(settingsStore.load())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
@@ -163,15 +169,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * The id is minted here rather than on save so that the editor, the delete
      * confirmation and the widget all refer to the same thing from the start. The
      * colour is left unset: the default is the theme's own, and nothing is assigned
-     * on the user's behalf. The added-at stamp is taken now, because that is the
-     * moment it is being added.
+     * on the user's behalf. The lunar day follows the solar date — the two are the
+     * same day written two ways — and reads as unset past the tables (1900–2100).
+     * The added-at stamp is taken now, because that is the moment it is being added.
      */
-    fun draftEvent(date: LocalDate): CountdownEvent = CountdownEvent(
-        id = CountdownEvent.newId(),
-        date = date,
-        title = "",
-        createdAt = System.currentTimeMillis(),
-    )
+    fun draftEvent(date: LocalDate): CountdownEvent {
+        val lunar = io.github.zzpby.tickcount.domain.Lunar.fromSolar(date)
+        return CountdownEvent(
+            id = CountdownEvent.newId(),
+            date = date,
+            title = "",
+            createdAt = System.currentTimeMillis(),
+            lunarMonth = lunar?.month,
+            lunarDay = lunar?.day,
+            lunarLeap = lunar?.leap ?: false,
+        )
+    }
 
     private fun persist(events: List<CountdownEvent>) {
         _events.value = events
@@ -200,7 +213,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * recover it from.
      */
     fun exportBackup(password: String?): String {
-        val document = BackupCodec.encode(Backup(_events.value, _settings.value))
+        val document = BackupCodec.encode(Backup(_events.value, _settings.value, _wishes.value))
         return if (password.isNullOrEmpty()) {
             document
         } else {
@@ -267,11 +280,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         persist(events)
         _settings.value = backup.settings
         settingsStore.save(backup.settings)
+        _wishes.value = backup.wishes
+        wishStore.save(backup.wishes)
         // The restored settings decide the widgets' panel and text size too, and the
         // refresh inside persist() ran before they were saved.
         refreshAllWidgets(getApplication())
 
         return events.size
+    }
+
+    // ------------------------------------------------------------------ wishes
+
+    /** Adds a wish, or replaces the stored one carrying the same id. */
+    fun saveWish(wish: Wish) {
+        val index = _wishes.value.indexOfFirst { it.id == wish.id }
+        val updated = if (index >= 0) {
+            _wishes.value.toMutableList().also { it[index] = wish }
+        } else {
+            _wishes.value + wish
+        }
+        _wishes.value = updated
+        wishStore.save(updated)
+    }
+
+    /** Ticks or unticks a wish, which stamps the day it was done on. */
+    fun toggleWish(id: String) {
+        val wish = _wishes.value.firstOrNull { it.id == id } ?: return
+        val updated = if (wish.done) {
+            wish.copy(done = false, doneEpochDay = null)
+        } else {
+            wish.copy(done = true, doneEpochDay = LocalDate.now().toEpochDay())
+        }
+        saveWish(updated)
+    }
+
+    fun removeWish(id: String) {
+        if (_wishes.value.none { it.id == id }) return
+        val updated = _wishes.value.filterNot { it.id == id }
+        _wishes.value = updated
+        wishStore.save(updated)
     }
 
     // ------------------------------------------------------------------ theme
@@ -294,6 +341,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun chooseSortOrder(order: SortOrder) {
         updateSettings(_settings.value.copy(sortOrder = order))
+    }
+
+    /** The day 「在一起第 N 天」 counts from; null clears it. */
+    fun chooseAnniversary(epochDay: Long?) {
+        updateSettings(_settings.value.copy(anniversaryEpochDay = epochDay))
     }
 
     /**

@@ -31,6 +31,8 @@ local.properties
 keystore.properties
 *.jks
 *.keystore
+# The one-click install script, which carries this machine's JDK and adb paths.
+run.bat
 
 # Local AI-agent instructions, not part of the published project.
 AGENTS.md

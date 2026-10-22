@@ -1,6 +1,8 @@
 package io.github.zzpby.tickcount.ui
 
 import android.annotation.SuppressLint
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import io.github.zzpby.tickcount.domain.Lunar
 import androidx.compose.material3.AlertDialog
@@ -53,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -61,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.data.CountdownEvent
+import io.github.zzpby.tickcount.data.EventBackgrounds
 import io.github.zzpby.tickcount.domain.MAX_BATCH_COUNT
 import io.github.zzpby.tickcount.domain.MAX_BATCH_STEP_DAYS
 import io.github.zzpby.tickcount.domain.batchOf
@@ -129,7 +133,30 @@ fun EventEditorScreen(
     var lunarMonth by rememberSaveable(initial.id) { mutableIntStateOf(initial.lunarMonth ?: 0) }
     var lunarDay by rememberSaveable(initial.id) { mutableIntStateOf(initial.lunarDay ?: 0) }
     var lunarLeap by rememberSaveable(initial.id) { mutableStateOf(initial.lunarLeap) }
+    var yearlyRepeat by rememberSaveable(initial.id) { mutableStateOf(initial.yearlyRepeat) }
     var timePickerOpen by rememberSaveable { mutableStateOf(false) }
+
+    // The detail screen's own background. The image is copied into the app's private
+    // directory the moment it is picked, so what travels through [filledIn] is a file
+    // name rather than a content URI that could be revoked.
+    var backgroundName by rememberSaveable(initial.id) { mutableStateOf(initial.backgroundUri) }
+    val context = LocalContext.current
+    val pickBackground = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            val saved = EventBackgrounds.save(context, initial.id, uri)
+            if (saved != null) {
+                // The previous file is ours to clean up once the new name is in hand.
+                if (backgroundName != null && backgroundName != saved) {
+                    EventBackgrounds.delete(context, backgroundName)
+                }
+                backgroundName = saved
+            }
+        }
+    }
+
+    // Pinning is set here rather than on the detail screen, along with everything else
+    // a countdown is: the detail screen shows it, the editor is where it changes.
+    var pinned by rememberSaveable(initial.id) { mutableStateOf(initial.pinned) }
 
     // Null means "no colour of its own". Kept separately from the hue so that
     // unticking the box and ticking it again returns the colour last mixed.
@@ -157,6 +184,9 @@ fun EventEditorScreen(
         date = date,
         time = if (timed) LocalTime.of(minuteOfDay / 60, minuteOfDay % 60) else null,
         colorHue = hue.takeIf { coloured },
+        yearlyRepeat = yearlyRepeat,
+        backgroundUri = backgroundName,
+        pinned = pinned,
         lunarMonth = lunarMonth.takeIf { it in 1..12 },
         lunarDay = lunarDay.takeIf { it in 1..30 },
         lunarLeap = lunarLeap && lunarMonth in 1..12,
@@ -365,6 +395,41 @@ fun EventEditorScreen(
                     )
                 }
 
+                // The repeat is about the day too, not about how the countdown looks, so
+                // it sits with the day's settings rather than with the colour. A countdown
+                // that repeats every year always counts to the next time the day comes
+                // round, and never lands in the past section of a list. One entered as a
+                // lunar date repeats by the lunar calendar, so the solar day moves.
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.field_yearly),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(checked = yearlyRepeat, onCheckedChange = { yearlyRepeat = it })
+                }
+
+                // Pinning leads whatever list the countdown sits in; set here with
+                // everything else a countdown is, and shown on the detail screen.
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.field_pinned),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(checked = pinned, onCheckedChange = { pinned = it })
+                }
+
                 // Colour comes after the day is settled: it says how the countdown looks,
                 // not which day it is.
                 Spacer(Modifier.height(12.dp))
@@ -382,6 +447,35 @@ fun EventEditorScreen(
                 }
                 if (coloured) {
                     HueSlider(hue = hue, onHueChange = { hue = it })
+                }
+
+                // The detail screen's own background, picked from the gallery and copied
+                // into the app's private directory — no storage permission, and nothing
+                // the system can take back. Colour is how the countdown is tinted; this
+                // is the picture the detail screen sits on.
+                Spacer(Modifier.height(12.dp))
+                FieldRow(
+                    label = stringResource(R.string.field_background),
+                    value = stringResource(
+                        if (backgroundName != null) R.string.background_set else R.string.background_unset
+                    ),
+                    onClick = { pickBackground.launch("image/*") },
+                )
+                if (backgroundName != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        TextButton(onClick = {
+                            EventBackgrounds.delete(context, backgroundName)
+                            backgroundName = null
+                        }) {
+                            Text(
+                                text = stringResource(R.string.action_remove_background),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
                 }
 
                 if (!isNew) {

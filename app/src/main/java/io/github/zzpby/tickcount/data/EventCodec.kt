@@ -29,6 +29,8 @@ object EventCodec {
     private const val KEY_PINNED = "p"
     private const val KEY_LEGACY_COLOR = "c"
     private const val KEY_LEAD = "r"
+    private const val KEY_YEARLY = "y"
+    private const val KEY_BACKGROUND = "bg"
     private const val KEY_LUNAR_MONTH = "lm"
     private const val KEY_LUNAR_DAY = "ld"
     private const val KEY_LUNAR_LEAP = "ll"
@@ -66,6 +68,11 @@ object EventCodec {
                     .put(KEY_TAGS, JSONArray(event.tags))
                     .put(KEY_CREATED, event.createdAt)
                     .put(KEY_PINNED, event.pinned)
+                    // Only written when the countdown repeats: like the lead, the field is
+                    // new, and a default that was never chosen need not take up space in a
+                    // document that is rewritten on every save.
+                    .apply { if (event.yearlyRepeat) put(KEY_YEARLY, true) }
+                    .apply { event.backgroundUri?.let { put(KEY_BACKGROUND, it) } }
                     .apply { event.colorHue?.let { put(KEY_HUE, it.toDouble()) } }
                     // Only written when this countdown overrides the app-wide lead: the
                     // field is new, and a default that was never chosen need not take up
@@ -102,6 +109,8 @@ object EventCodec {
                     // back to the date from there.
                     createdAt = obj.optLong(KEY_CREATED, 0L),
                     pinned = obj.optBoolean(KEY_PINNED, false),
+                    yearlyRepeat = obj.optBoolean(KEY_YEARLY, false),
+                    backgroundUri = obj.optString(KEY_BACKGROUND).takeIf { it.isNotEmpty() },
                     remindLeadMinutes = readLead(obj),
                     lunarMonth = obj.optInt(KEY_LUNAR_MONTH, 0).takeIf { it in 1..12 },
                     lunarDay = obj.optInt(KEY_LUNAR_DAY, 0).takeIf { it in 1..30 },

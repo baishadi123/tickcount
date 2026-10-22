@@ -65,6 +65,19 @@ class IcsTest {
     }
 
     @Test
+    fun `a repeating countdown carries a yearly rule, a plain one does not`() {
+        val repeating = event(id = "r", title = "生日")
+            .copy(yearlyRepeat = true)
+        val plain = event(id = "p", title = "一次")
+
+        val repeatingOut = icsFor(listOf(repeating), zone, now)
+        assertTrue("RRULE:FREQ=YEARLY" in repeatingOut)
+
+        val plainOut = icsFor(listOf(plain), zone, now)
+        assertTrue("RRULE" !in plainOut)
+    }
+
+    @Test
     fun `every line fits in 75 octets, Chinese included`() {
         val title = "很".repeat(60)
         val out = icsFor(listOf(event(title = title)), zone, now)

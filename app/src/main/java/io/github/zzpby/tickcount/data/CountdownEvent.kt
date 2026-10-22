@@ -40,6 +40,27 @@ data class CountdownEvent(
     /** Pinned countdowns lead the list whatever order it is in. */
     val pinned: Boolean = false,
     /**
+     * True for a countdown that comes round every year — a birthday or an anniversary —
+     * which always counts to the *next* occurrence of its day and never shows as past.
+     *
+     * The date stays as entered; the repeat is applied where the countdown is read, through
+     * [io.github.zzpby.tickcount.domain.effectiveDate]. One entered as a lunar date repeats
+     * by the lunar calendar, so the solar day it counts to moves every year. A 29th of
+     * February lands on the 28th of a common year, and a lunar 30th folds into the month's
+     * last day. Records written before the field existed load as false.
+     */
+    val yearlyRepeat: Boolean = false,
+    /**
+     * The detail screen's own background image, as a file name inside the app's private
+     * backgrounds directory — the image itself is copied there when it is picked, so the
+     * app still needs no storage permission and the file cannot be revoked by the system.
+     *
+     * The name rather than the path, so the directory can move; null for no background.
+     * A backup carries the name but not the pixels, so a restored countdown whose image
+     * was not copied along renders without one.
+     */
+    val backgroundUri: String? = null,
+    /**
      * How early to be reminded about this one, in minutes, or null to follow the app-wide
      * setting.
      *

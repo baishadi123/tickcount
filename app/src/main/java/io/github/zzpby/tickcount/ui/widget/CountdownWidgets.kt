@@ -24,8 +24,11 @@ import io.github.zzpby.tickcount.domain.WidgetCountdown
 import io.github.zzpby.tickcount.domain.WidgetShape
 import io.github.zzpby.tickcount.domain.breakdownOf
 import io.github.zzpby.tickcount.domain.countdownTo
+import io.github.zzpby.tickcount.domain.effectiveDate
+import io.github.zzpby.tickcount.domain.effectiveTarget
 import io.github.zzpby.tickcount.domain.widgetCountdownFor
 import io.github.zzpby.tickcount.domain.widgetShapeFor
+import java.time.LocalDate
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
@@ -174,8 +177,12 @@ object CountdownWidgets {
         shape: WidgetShape,
     ) {
         val now = ZonedDateTime.now()
-        val countdown = widgetCountdownFor(event.date, now, event.time)
-        val target = event.target(now.zone)
+        val today = now.toLocalDate()
+        // A repeating countdown counts to its next occurrence, which is the day every
+        // number and label below is about.
+        val shown = event.effectiveDate(today)
+        val countdown = widgetCountdownFor(shown, now, event.time)
+        val target = event.effectiveTarget(now.zone, today)
         val time = event.time?.format(widgetFormatter(context, R.string.time_format))
 
         views.setTextViewText(R.id.row_name, event.title)
@@ -192,7 +199,7 @@ object CountdownWidgets {
                 time.takeIf { shape != WidgetShape.STACK },
             ),
         )
-        views.setTextViewText(R.id.col_date, dateLabel(context, event, time))
+        views.setTextViewText(R.id.col_date, dateLabel(context, event, today, time))
 
         // The Chronometer is anchored to the nearer midnight, never to the target
         // itself: counting to a date months away would render as thousands of
@@ -215,14 +222,22 @@ object CountdownWidgets {
      *
      * The weekday gives way to the time rather than sitting beside it. A widget is short of
      * width, and for a countdown set to half past nine, "09:30" says more than "Friday".
+     *
+     * The date shown is the day the countdown counts to — the next occurrence, for one
+     * that repeats — so the label and the arithmetic never disagree.
      */
-    private fun dateLabel(context: Context, event: CountdownEvent, time: String?): String =
+    private fun dateLabel(
+        context: Context,
+        event: CountdownEvent,
+        today: LocalDate,
+        time: String?,
+    ): String =
         if (time == null) {
-            event.date.format(widgetFormatter(context, R.string.date_format_full))
+            event.effectiveDate(today).format(widgetFormatter(context, R.string.date_format_full))
         } else {
             context.getString(
                 R.string.text_with_time,
-                event.date.format(widgetFormatter(context, R.string.date_format_short)),
+                event.effectiveDate(today).format(widgetFormatter(context, R.string.date_format_short)),
                 time,
             )
         }

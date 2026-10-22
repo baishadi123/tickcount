@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.domain.CountdownListEntry
 import io.github.zzpby.tickcount.domain.daysFromToday
+import io.github.zzpby.tickcount.domain.effectiveDate
 import io.github.zzpby.tickcount.ui.theme.CardGap
 import io.github.zzpby.tickcount.ui.theme.CardShape
 import io.github.zzpby.tickcount.ui.theme.EVENT_WASH_ALPHA
@@ -90,7 +91,7 @@ fun EventCard(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         DayCount(
-            days = daysFromToday(event.date, today),
+            days = daysFromToday(event.effectiveDate(today), today),
             isPast = entry.isPast,
             accent = accent,
         )
@@ -103,6 +104,12 @@ fun EventCard(
                 // that it keeps turning up first, which looks like a bug.
                 if (event.pinned) {
                     PinnedBadge()
+                    Spacer(Modifier.width(6.dp))
+                }
+                // A repeating countdown says so too: its day is the same as last year's
+                // card, and only the badge explains why the number never counts past.
+                if (event.yearlyRepeat) {
+                    YearlyBadge()
                     Spacer(Modifier.width(6.dp))
                 }
                 Text(
@@ -211,6 +218,21 @@ private fun PinnedBadge() {
         modifier = Modifier
             .clip(PillShape)
             .background(MaterialTheme.colorScheme.primaryContainer)
+            .padding(horizontal = 7.dp, vertical = 1.dp),
+    )
+}
+
+/** The pill that says a countdown comes round every year. */
+@Composable
+private fun YearlyBadge() {
+    Text(
+        text = stringResource(R.string.label_yearly),
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSecondaryContainer,
+        modifier = Modifier
+            .clip(PillShape)
+            .background(MaterialTheme.colorScheme.secondaryContainer)
             .padding(horizontal = 7.dp, vertical = 1.dp),
     )
 }

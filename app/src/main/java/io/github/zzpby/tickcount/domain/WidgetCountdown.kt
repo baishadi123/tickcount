@@ -78,6 +78,9 @@ fun upcomingRowsFor(heightDp: Int): Int = when {
  * ignored. A widget has four rows and no scrolling, so a row spent on something that has
  * happened is a row taken from something that has not; and the order that matters on a
  * home screen is the calendar's, since there is no way to change it from there.
+ *
+ * The day a countdown counts to is [effectiveDate]: a repeating countdown is always to
+ * come, which is why it is never filtered out.
  */
 fun upcomingCountdowns(
     events: List<CountdownEvent>,
@@ -85,8 +88,8 @@ fun upcomingCountdowns(
     count: Int,
 ): List<CountdownEvent> =
     events
-        .filterNot { it.date.isBefore(today) }
-        .sortedWith(compareBy({ it.epochDay }, { it.time }, { it.title }))
+        .filterNot { it.effectiveDate(today).isBefore(today) }
+        .sortedWith(compareBy({ it.effectiveDate(today).toEpochDay() }, { it.time }, { it.title }))
         .take(count)
 
 /** How many of one calendar unit a countdown is worth. */

@@ -14,6 +14,7 @@ import io.github.zzpby.tickcount.data.EventStore
 import io.github.zzpby.tickcount.data.SettingsStore
 import io.github.zzpby.tickcount.domain.UPCOMING_WIDGET_ROWS
 import io.github.zzpby.tickcount.domain.daysFromToday
+import io.github.zzpby.tickcount.domain.effectiveDate
 import io.github.zzpby.tickcount.domain.upcomingCountdowns
 import io.github.zzpby.tickcount.domain.upcomingRowsFor
 import java.time.LocalDate
@@ -168,7 +169,7 @@ object UpcomingWidgets {
      * countdown is set to half past nine rather than to the whole day.
      */
     private fun daysLabel(context: Context, event: CountdownEvent, today: LocalDate): String {
-        val days = daysFromToday(event.date, today)
+        val days = daysFromToday(event.effectiveDate(today), today)
         val day = when (days) {
             0L -> context.getString(R.string.widget_today)
             1L -> context.getString(R.string.widget_tomorrow)

@@ -66,6 +66,11 @@
     <string name="lunar_lands">Falls on %1$s</string>
     <string name="field_hue">Hue</string>
     <string name="field_pinned">Pin to the top</string>
+    <string name="field_yearly">Repeat yearly</string>
+    <string name="field_background">Detail background</string>
+    <string name="background_set">Set</string>
+    <string name="background_unset">Not set</string>
+    <string name="action_remove_background">Remove background</string>
 
     <!--
       Adding several countdowns at once. The time of day chosen above is carried by every
@@ -88,6 +93,7 @@
     </plurals>
     <string name="action_add">Add</string>
     <string name="label_pinned">PINNED</string>
+    <string name="label_yearly">YEARLY</string>
     <string name="dialog_clear_hint">Clearing the name removes this countdown.</string>
 
     <!--
@@ -105,6 +111,10 @@
     <string name="month_year_format">MMMM yyyy</string>
     <string name="date_format_full">EEEE, MMMM d, yyyy</string>
     <string name="date_format_short">MMM d, yyyy</string>
+    <!-- The bottom line reads the same distance as a date; the big count keeps the days. -->
+    <string name="detail_days">%1$d days</string>
+    <string name="period_ymd">%1$d years %2$d months %3$d days</string>
+    <string name="period_md">%1$d months %2$d days</string>
     <!-- A line of text followed by a time: a card's date, or a widget's day word -->
     <string name="text_with_time">%1$s %2$s</string>
     <string name="time_format">HH:mm</string>

@@ -21,6 +21,7 @@ import io.github.zzpby.tickcount.data.CountdownEvent
 import io.github.zzpby.tickcount.domain.SearchScope
 import io.github.zzpby.tickcount.domain.SortOrder
 import io.github.zzpby.tickcount.domain.countdownList
+import io.github.zzpby.tickcount.domain.effectiveDate
 import io.github.zzpby.tickcount.domain.matchesQuery
 import io.github.zzpby.tickcount.domain.searchText
 import io.github.zzpby.tickcount.ui.calendar.MonthCalendar
@@ -103,8 +104,10 @@ fun CalendarScreen(
                     event = entry.event,
                     scope = scope,
                     // Every card here is the same date, so the line under the name
-                    // carries the time instead — the date is the grid above.
-                    dateText = entry.event.date.format(dateFormatter),
+                    // carries the time instead — the date is the grid above. The date
+                    // a repeating countdown is searched by is its next occurrence, the
+                    // same day its card counts to.
+                    dateText = entry.event.effectiveDate(today).format(dateFormatter),
                     timeText = entry.event.time?.format(timeFormatter) ?: allDay,
                 ),
                 query = query,

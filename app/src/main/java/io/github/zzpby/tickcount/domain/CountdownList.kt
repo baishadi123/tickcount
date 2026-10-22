@@ -55,6 +55,10 @@ enum class SortOrder {
  * A countdown counts as past only once its *day* is behind us. Today's own countdown is
  * not past, which matches [CountdownPhase.TODAY] and is why the comparison is against
  * [today] rather than the current instant.
+ *
+ * The day a countdown counts to is [effectiveDate], not the stored date: a countdown that
+ * repeats every year counts to its next occurrence, so it always leads the list as
+ * something still to come and never lands in the past section at all.
  */
 fun countdownList(
     events: List<CountdownEvent>,
@@ -62,17 +66,17 @@ fun countdownList(
     order: SortOrder = SortOrder.DATE_ASC,
 ): List<CountdownListEntry> {
     val pinned = events.filter { it.pinned }
-    val (past, ahead) = events.filterNot { it.pinned }.partition { it.date.isBefore(today) }
+    val (past, ahead) = events.filterNot { it.pinned }.partition { it.effectiveDate(today).isBefore(today) }
 
-    val ordered = pinned.sortedWith(byOrder(order)) +
-        ahead.sortedWith(byOrder(order)) +
+    val ordered = pinned.sortedWith(byOrder(order, today)) +
+        ahead.sortedWith(byOrder(order, today)) +
         past.sortedWith(PAST_ORDER)
 
     val pastStart = pinned.size + ahead.size
     return ordered.mapIndexed { index, event ->
         CountdownListEntry(
             event = event,
-            isPast = event.date.isBefore(today),
+            isPast = event.effectiveDate(today).isBefore(today),
             opensPastSection = past.isNotEmpty() && index == pastStart,
         )
     }
@@ -92,7 +96,9 @@ private val PAST_ORDER: Comparator<CountdownEvent> =
         .thenBy { it.title }
 
 /**
- * The comparator for [order].
+ * The comparator for [order], with the day a countdown counts to read through
+ * [effectiveDate]: a repeating countdown sorts by its next occurrence, which is
+ * the day it actually leads the list for.
  *
  * Each order ends in the same date-and-title tie-break, so a list never shuffles between
  * two draws for a reason the user cannot see.
@@ -101,15 +107,15 @@ private val PAST_ORDER: Comparator<CountdownEvent> =
  * stamp existed all carry zero, and the fallback keeps those in date order rather than in
  * whatever order the store happened to read them back in.
  */
-private fun byOrder(order: SortOrder): Comparator<CountdownEvent> = when (order) {
-    SortOrder.DATE_ASC -> compareBy({ it.epochDay }, { it.time }, { it.title })
+private fun byOrder(order: SortOrder, today: LocalDate): Comparator<CountdownEvent> = when (order) {
+    SortOrder.DATE_ASC -> compareBy({ it.effectiveDate(today).toEpochDay() }, { it.time }, { it.title })
 
-    SortOrder.DATE_DESC -> compareByDescending<CountdownEvent> { it.epochDay }
+    SortOrder.DATE_DESC -> compareByDescending<CountdownEvent> { it.effectiveDate(today).toEpochDay() }
         .thenByDescending { it.time }
         .thenBy { it.title }
 
     SortOrder.ADDED -> compareByDescending<CountdownEvent> { it.createdAt }
-        .thenBy { it.epochDay }
+        .thenBy { it.effectiveDate(today).toEpochDay() }
         .thenBy { it.time }
         .thenBy { it.title }
 }

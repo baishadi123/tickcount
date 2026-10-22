@@ -118,7 +118,23 @@ fun TickCountApp(
         runCatching { AppScreen.valueOf(screenName) }.getOrDefault(AppScreen.HOME)
     }
     val today = now.toLocalDate()
-    val byDate = remember(events) { events.groupBy { it.date } }
+    // A repeating countdown marks the same month and day in the years around today, not
+    // only the year it was entered in — that is what repeating means on a calendar. The
+    // range matches the ±10 years the month picker can reach in a single step.
+    val byDate = remember(events, today.year) {
+        buildMap {
+            events.forEach { event ->
+                val dates = if (event.yearlyRepeat) {
+                    (today.year - 10..today.year + 10).map { event.date.withYear(it) }
+                } else {
+                    listOf(event.date)
+                }
+                dates.forEach { date ->
+                    getOrPut(date) { mutableListOf() }.add(event)
+                }
+            }
+        }.mapValues { (_, onDay) -> onDay.sortedWith(compareBy({ it.time }, { it.title })) }
+    }
     val detailEvent = viewModel.event(detailId)
     val calendarDate = calendarEpochDay.takeIf { it != NO_DAY }?.let(LocalDate::ofEpochDay)
 

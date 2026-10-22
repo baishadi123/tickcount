@@ -58,6 +58,11 @@ fun icsFor(
             }
 
             append("SUMMARY:").append(escape(event.title)).append(CRLF)
+            // A repeating countdown hands the repetition to the reader, so the calendar
+            // keeps reminding about it year after year without anything new to import.
+            if (event.yearlyRepeat) {
+                append("RRULE:FREQ=YEARLY").append(CRLF)
+            }
             if (event.tags.isNotEmpty()) {
                 append("CATEGORIES:").append(escape(event.tags.joinToString(","))).append(CRLF)
             }

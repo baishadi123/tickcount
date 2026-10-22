@@ -55,6 +55,20 @@ class BackupTest {
     }
 
     @Test
+    fun `the yearly repeat travels with it, and a record without one loads as false`() {
+        val withRepeat = listOf(
+            CountdownEvent(id = "r", date = LocalDate.of(2026, 2, 14), title = "生日", yearlyRepeat = true),
+            CountdownEvent(id = "p", date = LocalDate.of(2026, 3, 1), title = "一次"),
+        )
+        val restored = BackupCodec.decode(
+            BackupCodec.encode(Backup(withRepeat, settings), exportedAt = 1L),
+        )
+
+        assertTrue(restored.events[0].yearlyRepeat)
+        assertFalse(restored.events[1].yearlyRepeat)
+    }
+
+    @Test
     fun `the settings travel with it`() {
         val restored = BackupCodec.decode(BackupCodec.encode(backup(), exportedAt = 1L))
 

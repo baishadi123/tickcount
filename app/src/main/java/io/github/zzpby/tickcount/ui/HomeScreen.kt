@@ -37,6 +37,7 @@ import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.domain.CountdownListEntry
 import io.github.zzpby.tickcount.domain.SearchScope
 import io.github.zzpby.tickcount.domain.SortOrder
+import io.github.zzpby.tickcount.domain.effectiveDate
 import io.github.zzpby.tickcount.domain.matchesQuery
 import io.github.zzpby.tickcount.domain.searchText
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
@@ -82,7 +83,9 @@ fun HomeScreen(
         entries.flatMap { it.event.tags }.distinct().sorted()
     }
 
-    fun dateText(entry: CountdownListEntry) = entry.event.date.format(dateFormatter)
+    // The date a card says underneath is the day it counts to: a repeating countdown
+    // shows its next occurrence, which is the day the number on its left refers to.
+    fun dateText(entry: CountdownListEntry) = entry.event.effectiveDate(today).format(dateFormatter)
 
     fun timeText(entry: CountdownListEntry) = entry.event.time?.format(timeFormatter) ?: allDay
 
@@ -90,7 +93,7 @@ fun HomeScreen(
         .filter { tagFilter == null || tagFilter in it.event.tags }
         .filter {
             !withinWeek ||
-                (!it.isPast && ChronoUnit.DAYS.between(today, it.event.date) in 0..7)
+                (!it.isPast && ChronoUnit.DAYS.between(today, it.event.effectiveDate(today)) in 0..7)
         }
         .filter { entry ->
             matchesQuery(
@@ -131,8 +134,8 @@ fun HomeScreen(
 
         // A reminder that needs no permission and no service: it is here when the app is
         // open, and it resets itself the next day because it is keyed to the date.
-        val todays = entries.filter { !it.isPast && it.event.date == today }
-        val tomorrow = entries.filter { !it.isPast && it.event.date == today.plusDays(1) }
+        val todays = entries.filter { !it.isPast && it.event.effectiveDate(today) == today }
+        val tomorrow = entries.filter { !it.isPast && it.event.effectiveDate(today) == today.plusDays(1) }
         var reminderDismissed by rememberSaveable(today.toEpochDay()) { mutableStateOf(false) }
         if (!reminderDismissed && (todays.isNotEmpty() || tomorrow.isNotEmpty())) {
             val due = if (todays.isNotEmpty()) todays else tomorrow
@@ -200,8 +203,9 @@ fun HomeScreen(
 private fun HomeHeader(entries: List<CountdownListEntry>, today: LocalDate) {
     val upcoming = entries.count { !it.isPast }
     // How many of those land in the current year, which is the time horizon most people
-    // plan a birthday or a deadline against.
-    val thisYear = entries.count { !it.isPast && it.event.date.year == today.year }
+    // plan a birthday or a deadline against. A repeating countdown counts by its next
+    // occurrence, which is the year its row is about.
+    val thisYear = entries.count { !it.isPast && it.event.effectiveDate(today).year == today.year }
     val summary = when {
         entries.isEmpty() -> null
         upcoming > 0 -> pluralStringResource(R.plurals.home_summary, upcoming, upcoming)

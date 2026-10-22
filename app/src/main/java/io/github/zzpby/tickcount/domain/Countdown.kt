@@ -109,6 +109,22 @@ fun countdownTo(target: ZonedDateTime, now: ZonedDateTime): Countdown = when {
 }
 
 /**
+ * Splits the whole calendar days between two dates into years, months and days, at
+ * *date* level: each step takes the largest whole number of units that fits, and the
+ * three components add back up to exactly what [ChronoUnit.DAYS.between] reports —
+ * so the small line under the clock agrees with the big count above it. [from] must
+ * not be after [to].
+ */
+fun calendarSplit(from: LocalDate, to: LocalDate): TimeParts {
+    val years = ChronoUnit.YEARS.between(from, to)
+    val afterYears = from.plusYears(years)
+    val months = ChronoUnit.MONTHS.between(afterYears, to)
+    val afterMonths = afterYears.plusMonths(months)
+    val days = ChronoUnit.DAYS.between(afterMonths, to)
+    return TimeParts(years, months, days, 0, 0, 0)
+}
+
+/**
  * Splits the interval `from..to` into years, months, days, hours, minutes and
  * seconds.
  *

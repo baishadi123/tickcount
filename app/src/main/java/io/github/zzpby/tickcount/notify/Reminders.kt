@@ -14,7 +14,9 @@ import io.github.zzpby.tickcount.MainActivity
 import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.data.CountdownEvent
 import io.github.zzpby.tickcount.data.EventStore
+import io.github.zzpby.tickcount.domain.effectiveDate
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 
@@ -62,20 +64,25 @@ object Reminders {
             PackageManager.PERMISSION_GRANTED
 
     /**
-     * When the reminder for [event] falls, in [zone].
+     * When the reminder for [event] falls, in [zone], as seen from [now].
      *
      * Anchored to the countdown itself — its own time when it names one, the reminder time
      * of day when it is all day — and then moved back by its own offset if it has one, or by
-     * the app-wide [leadMinutes] if it does not.
+     * the app-wide [leadMinutes] if it does not. The day it anchors to is
+     * [effectiveDate]: a repeating countdown is reminded about its next occurrence, which
+     * is what keeps a birthday reminded about every year.
      */
     fun momentOf(
         event: CountdownEvent,
         minutes: Int,
         leadMinutes: Int,
         zone: ZoneId = ZoneId.systemDefault(),
+        now: Instant = Instant.now(),
     ): Instant {
+        val today = now.atZone(zone).toLocalDate()
+        val date = event.effectiveDate(today)
         val fallback = LocalTime.of(minutes / 60, minutes % 60)
-        val base = event.time?.let { event.date.atTime(it) } ?: event.date.atTime(fallback)
+        val base = event.time?.let { date.atTime(it) } ?: date.atTime(fallback)
         return base.minusMinutes((event.remindLeadMinutes ?: leadMinutes).toLong())
             .atZone(zone).toInstant()
     }
@@ -90,9 +97,10 @@ object Reminders {
         // testing a different question. The app always passes its own zone.
         zone: ZoneId = ZoneId.systemDefault(),
     ): Planned? {
+        val today = now.atZone(zone).toLocalDate()
         return events
-            .sortedBy { it.date }
-            .map { event -> Planned(event, momentOf(event, minutes, leadMinutes, zone)) }
+            .sortedBy { it.effectiveDate(today) }
+            .map { event -> Planned(event, momentOf(event, minutes, leadMinutes, zone, now)) }
             .firstOrNull { it.at.isAfter(now) }
     }
 
@@ -128,9 +136,12 @@ object Reminders {
     fun deliver(context: Context, event: CountdownEvent) {
         val host = context.applicationContext
         ensureChannel(host)
+        val now = Instant.now()
+        val today = now.atZone(host.zone()).toLocalDate()
+        val due = event.effectiveDate(today)
         val text = when {
-            event.date.atStartOfDay(host.zone()).toInstant().isAfter(Instant.now()) ->
-                host.getString(R.string.notify_later, event.date.toString())
+            due.atStartOfDay(host.zone()).toInstant().isAfter(now) ->
+                host.getString(R.string.notify_later, due.toString())
             else -> host.getString(R.string.notify_today)
         }
         post(host, event.id.hashCode(), event.title, text)

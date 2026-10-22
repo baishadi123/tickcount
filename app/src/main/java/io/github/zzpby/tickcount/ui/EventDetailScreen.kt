@@ -2,6 +2,7 @@ package io.github.zzpby.tickcount.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,18 +15,25 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -34,6 +42,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.data.CountdownEvent
 import io.github.zzpby.tickcount.data.EventBackgrounds
@@ -45,6 +55,9 @@ import io.github.zzpby.tickcount.domain.effectiveDate
 import io.github.zzpby.tickcount.domain.effectiveTarget
 import io.github.zzpby.tickcount.domain.widgetCountdownFor
 import kotlin.math.abs
+import io.github.zzpby.tickcount.ui.components.BackgroundCrop
+import io.github.zzpby.tickcount.ui.components.BackgroundScrimAlpha
+import io.github.zzpby.tickcount.ui.components.PhotoStack
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.CardShape
 import io.github.zzpby.tickcount.ui.theme.CountdownLineTextStyle
@@ -141,17 +154,24 @@ fun EventDetailScreen(
         val background = remember(event.backgroundUri, event.id) {
             EventBackgrounds.bitmap(context, event.backgroundUri)
         }
+        // The pile is thumbnails rather than full decodes: nine of those would
+        // hold more pixels than the rest of the app ever does at once.
+        val photoThumbnails = remember(event.photoUris, event.id) {
+            event.photoUris.mapNotNull { EventBackgrounds.thumbnail(context, it) }
+        }
+        var viewerOpen by rememberSaveable { mutableStateOf(false) }
         if (background != null) {
-            Image(
-                bitmap = background.asImageBitmap(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
+            BackgroundCrop(
+                bitmap = background,
+                zoom = event.backgroundZoom,
+                focusX = event.backgroundFocusX,
+                focusY = event.backgroundFocusY,
                 modifier = Modifier.matchParentSize(),
             )
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(Color.Black.copy(alpha = BACKGROUND_SCRIM)),
+                    .background(Color.Black.copy(alpha = BackgroundScrimAlpha)),
             )
         }
 
@@ -224,6 +244,24 @@ fun EventDetailScreen(
                 }
             }
 
+            // The associated gallery photos, as one stacked pile: a tap flips
+            // through them full-screen. The pile sits directly under the count
+            // it belongs to, ahead of the smaller print below.
+            if (event.photoUris.isNotEmpty()) {
+                Spacer(Modifier.height(18.dp))
+                DetailCard {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        PhotoStack(
+                            photos = photoThumbnails,
+                            onClick = { viewerOpen = true },
+                        )
+                    }
+                }
+            }
+
             if (event.tags.isNotEmpty()) {
                 Spacer(Modifier.height(10.dp))
                 // The heading goes inside the card with the tags rather than above it, so
@@ -246,11 +284,70 @@ fun EventDetailScreen(
 
             Spacer(Modifier.height(28.dp))
         }
+
+        // The flip-through the pile opens: full-screen, one photo at a time,
+        // the count at the top, a tap anywhere to leave.
+        if (event.photoUris.isNotEmpty() && viewerOpen) {
+            PhotoViewer(
+                photos = event.photoUris,
+                onDismiss = { viewerOpen = false },
+            )
+        }
     }
 }
 
-/** How dark the scrim over a background image is, which keeps the words above readable. */
-private const val BACKGROUND_SCRIM = 0.35f
+/**
+ * The photos one at a time, full-screen on black.
+ *
+ * A plain horizontal pager rather than a zoomable one: the pile is for
+ * remembering a day, and a tap on either side of the pager is the whole
+ * gesture the flip-through needs.
+ */
+@Composable
+private fun PhotoViewer(
+    photos: List<String>,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    val pagerState = rememberPagerState(initialPage = 0) { photos.size }
+
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .pointerInput(Unit) {
+                    detectTapGestures { onDismiss() }
+                },
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+            ) { page ->
+                val photo = remember(photos[page]) {
+                    EventBackgrounds.bitmap(context, photos[page])
+                }
+                if (photo != null) {
+                    Image(
+                        bitmap = photo.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+
+            Text(
+                text = "${pagerState.currentPage + 1} / ${photos.size}",
+                style = MaterialTheme.typography.labelLarge,
+                color = Color.White.copy(alpha = 0.85f),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 36.dp),
+            )
+        }
+    }
+}
 
 /** The rounded panel both kinds of detail card are cut from. */
 @Composable

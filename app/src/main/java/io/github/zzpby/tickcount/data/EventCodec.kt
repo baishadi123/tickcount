@@ -31,6 +31,10 @@ object EventCodec {
     private const val KEY_LEAD = "r"
     private const val KEY_YEARLY = "y"
     private const val KEY_BACKGROUND = "bg"
+    private const val KEY_BACKGROUND_ZOOM = "bz"
+    private const val KEY_BACKGROUND_FOCUS_X = "fx"
+    private const val KEY_BACKGROUND_FOCUS_Y = "fy"
+    private const val KEY_PHOTOS = "ph"
     private const val KEY_LUNAR_MONTH = "lm"
     private const val KEY_LUNAR_DAY = "ld"
     private const val KEY_LUNAR_LEAP = "ll"
@@ -73,6 +77,22 @@ object EventCodec {
                     // document that is rewritten on every save.
                     .apply { if (event.yearlyRepeat) put(KEY_YEARLY, true) }
                     .apply { event.backgroundUri?.let { put(KEY_BACKGROUND, it) } }
+                    .apply {
+                        // Only written when a background exists to frame, and only
+                        // when it differs from the plain cover — same reasoning as
+                        // the yearly-repeat field above.
+                        if (event.backgroundUri != null) {
+                            if (event.backgroundZoom != CountdownEvent.DEFAULT_BACKGROUND_ZOOM) {
+                                put(KEY_BACKGROUND_ZOOM, event.backgroundZoom.toDouble())
+                            }
+                            if (event.backgroundFocusX != CountdownEvent.DEFAULT_BACKGROUND_FOCUS) {
+                                put(KEY_BACKGROUND_FOCUS_X, event.backgroundFocusX.toDouble())
+                            }
+                            if (event.backgroundFocusY != CountdownEvent.DEFAULT_BACKGROUND_FOCUS) {
+                                put(KEY_BACKGROUND_FOCUS_Y, event.backgroundFocusY.toDouble())
+                            }
+                        }
+                    }
                     .apply { event.colorHue?.let { put(KEY_HUE, it.toDouble()) } }
                     // Only written when this countdown overrides the app-wide lead: the
                     // field is new, and a default that was never chosen need not take up
@@ -83,6 +103,8 @@ object EventCodec {
                         event.lunarDay?.let { put(KEY_LUNAR_DAY, it) }
                         if (event.lunarMonth != null) put(KEY_LUNAR_LEAP, event.lunarLeap)
                     }
+                    // The associated gallery photos, again only when there are any.
+                    .apply { if (event.photoUris.isNotEmpty()) put(KEY_PHOTOS, JSONArray(event.photoUris)) }
             )
         }
         return array
@@ -111,6 +133,10 @@ object EventCodec {
                     pinned = obj.optBoolean(KEY_PINNED, false),
                     yearlyRepeat = obj.optBoolean(KEY_YEARLY, false),
                     backgroundUri = obj.optString(KEY_BACKGROUND).takeIf { it.isNotEmpty() },
+                    backgroundZoom = readZoom(obj),
+                    backgroundFocusX = readFocus(obj, KEY_BACKGROUND_FOCUS_X),
+                    backgroundFocusY = readFocus(obj, KEY_BACKGROUND_FOCUS_Y),
+                    photoUris = readPhotos(obj.optJSONArray(KEY_PHOTOS)),
                     remindLeadMinutes = readLead(obj),
                     lunarMonth = obj.optInt(KEY_LUNAR_MONTH, 0).takeIf { it in 1..12 },
                     lunarDay = obj.optInt(KEY_LUNAR_DAY, 0).takeIf { it in 1..30 },
@@ -148,8 +174,45 @@ object EventCodec {
      */
     private fun migratedId(epochDay: Long, index: Int) = "day-$epochDay-$index"
 
-    private fun readTime(minuteOfDay: Int): LocalTime? =
-        if (minuteOfDay == NO_TIME || minuteOfDay !in 0..MINUTES_PER_DAY - 1) {
+    /**
+     * The manual framing of a record's background, or the plain cover when the
+     * record says nothing about it. Out-of-range values come only from hand-edited
+     * documents, so they are replaced outright rather than clamped into range.
+     */
+    private fun readZoom(obj: JSONObject): Float =
+        if (!obj.has(KEY_BACKGROUND_ZOOM)) {
+            CountdownEvent.DEFAULT_BACKGROUND_ZOOM
+        } else {
+            obj.optDouble(KEY_BACKGROUND_ZOOM, CountdownEvent.DEFAULT_BACKGROUND_ZOOM.toDouble())
+                .toFloat()
+                .takeIf { it.isFinite() }
+                ?.coerceIn(CountdownEvent.DEFAULT_BACKGROUND_ZOOM, CountdownEvent.MAX_BACKGROUND_ZOOM)
+                ?: CountdownEvent.DEFAULT_BACKGROUND_ZOOM
+        }
+
+    private fun readFocus(obj: JSONObject, key: String): Float =
+        if (!obj.has(key)) {
+            CountdownEvent.DEFAULT_BACKGROUND_FOCUS
+        } else {
+            obj.optDouble(key, CountdownEvent.DEFAULT_BACKGROUND_FOCUS.toDouble())
+                .toFloat()
+                .takeIf { it.isFinite() }
+                ?.coerceIn(0f, 1f)
+                ?: CountdownEvent.DEFAULT_BACKGROUND_FOCUS
+        }
+
+    /** The gallery photos, de-duplicated and capped at the ceiling the editor offers. */
+    private fun readPhotos(array: JSONArray?): List<String> {
+        if (array == null) return emptyList()
+        return buildList {
+            for (i in 0 until array.length()) {
+                val name = array.optString(i).trim()
+                if (name.isNotEmpty() && name !in this) add(name)
+            }
+        }.take(CountdownEvent.MAX_PHOTOS)
+    }
+
+    private fun readTime(minuteOfDay: Int): LocalTime? =        if (minuteOfDay == NO_TIME || minuteOfDay !in 0..MINUTES_PER_DAY - 1) {
             null
         } else {
             LocalTime.of(minuteOfDay / 60, minuteOfDay % 60)

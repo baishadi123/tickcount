@@ -3,7 +3,6 @@ package io.github.zzpby.tickcount.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,14 +16,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -33,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.zzpby.tickcount.R
@@ -42,7 +42,9 @@ import io.github.zzpby.tickcount.domain.daysFromToday
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.CardGap
 import io.github.zzpby.tickcount.ui.theme.CardShape
+import io.github.zzpby.tickcount.ui.theme.FieldShape
 import io.github.zzpby.tickcount.ui.theme.Gutter
+import io.github.zzpby.tickcount.ui.theme.PillShape
 import io.github.zzpby.tickcount.ui.theme.XingKai
 import io.github.zzpby.tickcount.ui.theme.hairline
 import java.time.LocalDate
@@ -53,18 +55,16 @@ import java.time.LocalDate
  *
  * What is still to do leads, what has been done is kept and dimmed under its own
  * heading, together with the day it was done. A tap on the ring ticks it; a long
- * press edits or removes it. The count under the title is the only summary: how
- * many of the things are done.
+ * press opens its editor — the same screen the title bar's plus opens for a new
+ * one, so renaming and removing live there. The count under the title is the only
+ * summary: how many of the things are done.
  */
 @Composable
 fun ThingsScreen(
     wishes: List<Wish>,
     today: LocalDate,
-    /** Bumped each time the title bar's plus is tapped, which mints a new wish. */
-    newRequest: Int,
     onToggle: (String) -> Unit,
-    onSave: (Wish) -> Unit,
-    onDelete: (String) -> Unit,
+    onEdit: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val dateFormatter = rememberDateFormatter(R.string.date_format_short)
@@ -72,17 +72,6 @@ fun ThingsScreen(
     val (open, done) = wishes.partition { !it.done }
     val orderedOpen = open.sortedByDescending { it.createdAt }
     val orderedDone = done.sortedByDescending { it.doneEpochDay ?: 0L }
-
-    var editorWish by rememberSaveable { mutableStateOf<Wish?>(null) }
-    var editorIsNew by rememberSaveable { mutableStateOf(false) }
-    var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(newRequest) {
-        if (newRequest > 0) {
-            editorWish = Wish(id = Wish.newId(), title = "", createdAt = System.currentTimeMillis())
-            editorIsNew = true
-        }
-    }
 
     Column(modifier = modifier.fillMaxSize()) {
         Column(
@@ -119,10 +108,7 @@ fun ThingsScreen(
                         today = today,
                         dateFormatter = dateFormatter,
                         onToggle = { onToggle(wish.id) },
-                        onLongClick = {
-                            editorWish = wish
-                            editorIsNew = false
-                        },
+                        onLongClick = { onEdit(wish.id) },
                     )
                 }
 
@@ -142,65 +128,11 @@ fun ThingsScreen(
                         today = today,
                         dateFormatter = dateFormatter,
                         onToggle = { onToggle(wish.id) },
-                        onLongClick = {
-                            editorWish = wish
-                            editorIsNew = false
-                        },
+                        onLongClick = { onEdit(wish.id) },
                     )
                 }
             }
         }
-    }
-
-    if (editorWish != null) {
-        WishEditorDialog(
-            initial = editorWish!!,
-            isNew = editorIsNew,
-            onSave = { saved ->
-                onSave(saved)
-                editorWish = null
-            },
-            onDelete = if (!editorIsNew) {
-                {
-                    pendingDeleteId = editorWish!!.id
-                    editorWish = null
-                }
-            } else {
-                null
-            },
-            onDismiss = { editorWish = null },
-        )
-    }
-
-    if (pendingDeleteId != null) {
-        AlertDialog(
-            onDismissRequest = { pendingDeleteId = null },
-            title = { Text(stringResource(R.string.dialog_delete_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        R.string.dialog_delete_message,
-                        wishes.firstOrNull { it.id == pendingDeleteId }?.title ?: "",
-                    )
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    onDelete(pendingDeleteId!!)
-                    pendingDeleteId = null
-                }) {
-                    Text(
-                        text = stringResource(R.string.action_delete),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDeleteId = null }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            },
-        )
     }
 }
 
@@ -275,38 +207,52 @@ private fun WishCard(
     }
 }
 
-/** The light dialog that adds or renames a wish: a name, and the way out of it. */
+/**
+ * The wish editor: a screen of its own, the way the countdown's editor is, opened
+ * either by the title bar's plus or by a long press on a card.
+ *
+ * A screen rather than a dialog for the same reason the countdown's editor stopped
+ * being one: the keyboard owns a share of the window, and a dialog sized by its
+ * content jumps under it. The header row is the countdown editor's own — delete on
+ * the left, cancel and the one filled control (the saving pill) on the right — and
+ * below the divider just the one thing a wish is: a name.
+ */
 @Composable
-private fun WishEditorDialog(
+fun WishEditorScreen(
     initial: Wish,
     isNew: Boolean,
     onSave: (Wish) -> Unit,
     onDelete: (() -> Unit)?,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var title by rememberSaveable(initial.id) { mutableStateOf(initial.title) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                stringResource(
-                    if (isNew) R.string.things_new_title else R.string.things_edit_title
-                )
-            )
-        },
-        text = {
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it.take(Wish.MAX_TITLE_LENGTH) },
-                label = { Text(stringResource(R.string.field_name)) },
-                placeholder = { Text(stringResource(R.string.things_title_hint)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        },
-        confirmButton = {
-            TextButton(
+    Column(modifier = modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (onDelete != null) {
+                TextButton(onClick = onDelete) {
+                    Text(
+                        text = stringResource(R.string.action_delete),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+
+            Spacer(Modifier.weight(1f))
+
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+
+            Spacer(Modifier.width(6.dp))
+
+            Button(
                 enabled = title.isNotBlank(),
                 onClick = {
                     onSave(
@@ -316,27 +262,30 @@ private fun WishEditorDialog(
                         )
                     )
                 },
+                shape = PillShape,
+                contentPadding = PaddingValues(horizontal = 22.dp, vertical = 10.dp),
             ) {
-                Text(
-                    stringResource(
-                        if (isNew) R.string.action_add else R.string.action_save
-                    )
-                )
+                Text(stringResource(if (isNew) R.string.action_add else R.string.action_save))
             }
-        },
-        dismissButton = {
-            if (onDelete != null) {
-                TextButton(onClick = onDelete) {
-                    Text(
-                        text = stringResource(R.string.action_delete),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            } else {
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            }
-        },
-    )
+        }
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+        ) {
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it.take(Wish.MAX_TITLE_LENGTH) },
+                label = { Text(stringResource(R.string.field_name)) },
+                placeholder = { Text(stringResource(R.string.things_title_hint)) },
+                singleLine = true,
+                shape = FieldShape,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
 }

@@ -71,6 +71,9 @@
     <string name="background_set">Set</string>
     <string name="background_unset">Not set</string>
     <string name="action_remove_background">Remove background</string>
+    <string name="background_adjust_hint">Drag or pinch the preview to choose what the detail screen shows.</string>
+    <string name="field_photos">Gallery photos</string>
+    <string name="photos_count">%1$d photos</string>
 
     <!--
       Adding several countdowns at once. The time of day chosen above is carried by every

@@ -60,7 +60,10 @@ object EventBackgrounds {
                 BitmapFactory.decodeStream(it, null, scaled)
             } ?: return null
 
-            val file = File(dir(context), "$PREFIX$eventId-${System.currentTimeMillis()}.jpg")
+            // The clock is the nano one: a multi-pick lands several saves inside
+            // the same millisecond, and two files under one name would mean the
+            // second copy silently replacing the first.
+            val file = File(dir(context), "$PREFIX$eventId-${System.nanoTime()}.jpg")
             file.outputStream().use { out ->
                 bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
             }
@@ -81,5 +84,33 @@ object EventBackgrounds {
         val file = File(dir(context), name)
         if (!file.isFile) return null
         return BitmapFactory.decodeFile(file.absolutePath)
+    }
+
+    /**
+     * The same picture, sampled down to at most [maxEdge] on its long side.
+     *
+     * The full decode is what the detail screen's one big backdrop wants; a stack
+     * of nine thumbnails at full size would hold the better part of a hundred
+     * megabytes of pixels for what is two hundred of them on screen.
+     */
+    fun thumbnail(context: Context, name: String?, maxEdge: Int = 512): Bitmap? {
+        if (name == null || !name.startsWith(PREFIX)) return null
+        val file = File(dir(context), name)
+        if (!file.isFile) return null
+
+        return runCatching {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(file.absolutePath, bounds)
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+            val longest = maxOf(bounds.outWidth, bounds.outHeight)
+            var sample = 1
+            while (longest / (sample * 2) >= maxEdge) sample *= 2
+
+            BitmapFactory.decodeFile(
+                file.absolutePath,
+                BitmapFactory.Options().apply { inSampleSize = sample },
+            )
+        }.getOrNull()
     }
 }

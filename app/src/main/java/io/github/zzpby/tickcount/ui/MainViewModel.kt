@@ -291,6 +291,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // ------------------------------------------------------------------ wishes
 
+    fun wish(id: String?): Wish? =
+        id?.let { wanted -> _wishes.value.firstOrNull { it.id == wanted } }
+
+    /** A new wish: an id minted once per editing session, and nothing said yet. */
+    fun draftWish(): Wish = Wish(id = Wish.newId(), title = "", createdAt = System.currentTimeMillis())
+
     /** Adds a wish, or replaces the stored one carrying the same id. */
     fun saveWish(wish: Wish) {
         val index = _wishes.value.indexOfFirst { it.id == wish.id }

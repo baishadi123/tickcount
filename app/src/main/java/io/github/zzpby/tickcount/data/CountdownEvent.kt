@@ -61,6 +61,26 @@ data class CountdownEvent(
      */
     val backgroundUri: String? = null,
     /**
+     * The manual framing of the [backgroundUri], set by dragging and pinching the
+     * editor's preview: [backgroundZoom] multiplies the cover crop the detail
+     * screen draws, and the point at [backgroundFocusX] [backgroundFocusY] of the
+     * picture is the one the screen centres on. Defaults mean "plain cover",
+     * which is what a freshly picked picture shows.
+     */
+    val backgroundZoom: Float = DEFAULT_BACKGROUND_ZOOM,
+    val backgroundFocusX: Float = DEFAULT_BACKGROUND_FOCUS,
+    val backgroundFocusY: Float = DEFAULT_BACKGROUND_FOCUS,
+    /**
+     * The gallery photos associated with this countdown, as file names inside the
+     * app's private directory — copied in by the same route as [backgroundUri], so
+     * the app still asks for no permission and nothing can be revoked.
+     *
+     * The detail page shows them as one stacked pile, WeChat-style, and opens the
+     * full-screen flip-through on a tap. Empty, as every record written before
+     * the field existed reads, means no pile at all.
+     */
+    val photoUris: List<String> = emptyList(),
+    /**
      * How early to be reminded about this one, in minutes, or null to follow the app-wide
      * setting.
      *
@@ -93,6 +113,16 @@ data class CountdownEvent(
         const val MAX_TITLE_LENGTH = 60
         const val MAX_TAG_LENGTH = 24
         const val MAX_TAG_COUNT = 8
+
+        /** The plain-cover framing every fresh background starts at. */
+        const val DEFAULT_BACKGROUND_ZOOM = 1f
+        const val DEFAULT_BACKGROUND_FOCUS = 0.5f
+
+        /** How far the manual framing may enlarge a background. */
+        const val MAX_BACKGROUND_ZOOM = 5f
+
+        /** How many gallery photos one countdown may carry, WeChat's own ceiling. */
+        const val MAX_PHOTOS = 9
 
         fun newId(): String = UUID.randomUUID().toString()
     }

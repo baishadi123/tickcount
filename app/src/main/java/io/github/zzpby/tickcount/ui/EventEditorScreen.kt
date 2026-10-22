@@ -1,14 +1,19 @@
 package io.github.zzpby.tickcount.ui
 
 import android.annotation.SuppressLint
+import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import io.github.zzpby.tickcount.domain.Lunar
 import androidx.compose.material3.AlertDialog
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -21,7 +26,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AssistChip
@@ -44,6 +52,7 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -55,11 +64,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import io.github.zzpby.tickcount.R
@@ -68,7 +83,10 @@ import io.github.zzpby.tickcount.data.EventBackgrounds
 import io.github.zzpby.tickcount.domain.MAX_BATCH_COUNT
 import io.github.zzpby.tickcount.domain.MAX_BATCH_STEP_DAYS
 import io.github.zzpby.tickcount.domain.batchOf
+import io.github.zzpby.tickcount.ui.components.BackgroundCrop
+import io.github.zzpby.tickcount.ui.components.BackgroundScrimAlpha
 import io.github.zzpby.tickcount.ui.components.HueSlider
+import io.github.zzpby.tickcount.ui.components.PhotoStack
 import io.github.zzpby.tickcount.ui.components.PlusIcon
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.FieldShape
@@ -79,6 +97,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneOffset
+import kotlin.math.max
 
 /**
  * Names a countdown, gives it any number of tags, and picks the moment it counts
@@ -140,6 +159,22 @@ fun EventEditorScreen(
     // directory the moment it is picked, so what travels through [filledIn] is a file
     // name rather than a content URI that could be revoked.
     var backgroundName by rememberSaveable(initial.id) { mutableStateOf(initial.backgroundUri) }
+
+    // The manual framing of the background, as the two drag/pinch states the
+    // preview adjusts. Held as state objects rather than delegated vars because
+    // the gesture handler in the preview reads them at event time, not at
+    // composition time — a float captured into the closure there would be stale
+    // towards the end of the very gesture that changed it.
+    val backgroundZoomState = rememberSaveable(initial.id) {
+        mutableFloatStateOf(initial.backgroundZoom)
+    }
+    val backgroundFocusXState = rememberSaveable(initial.id) {
+        mutableFloatStateOf(initial.backgroundFocusX)
+    }
+    val backgroundFocusYState = rememberSaveable(initial.id) {
+        mutableFloatStateOf(initial.backgroundFocusY)
+    }
+
     val context = LocalContext.current
     val pickBackground = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
@@ -150,6 +185,27 @@ fun EventEditorScreen(
                     EventBackgrounds.delete(context, backgroundName)
                 }
                 backgroundName = saved
+                // A fresh picture gets the plain cover back: the old framing said
+                // where the old picture's subject sat, and says nothing of this one.
+                backgroundZoomState.floatValue = CountdownEvent.DEFAULT_BACKGROUND_ZOOM
+                backgroundFocusXState.floatValue = CountdownEvent.DEFAULT_BACKGROUND_FOCUS
+                backgroundFocusYState.floatValue = CountdownEvent.DEFAULT_BACKGROUND_FOCUS
+            }
+        }
+    }
+
+    // The gallery photos, as the pile the detail page shows. An ArrayList for the
+    // same reason the tags are one: it is what a Bundle carries across a rotation.
+    var photoNames by rememberSaveable(initial.id) { mutableStateOf(ArrayList(initial.photoUris)) }
+
+    val pickPhotos = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(maxItems = CountdownEvent.MAX_PHOTOS),
+    ) { uris ->
+        uris.forEach { uri ->
+            if (photoNames.size >= CountdownEvent.MAX_PHOTOS) return@forEach
+            val saved = EventBackgrounds.save(context, initial.id, uri)
+            if (saved != null && saved !in photoNames) {
+                photoNames = ArrayList(photoNames + saved)
             }
         }
     }
@@ -186,6 +242,10 @@ fun EventEditorScreen(
         colorHue = hue.takeIf { coloured },
         yearlyRepeat = yearlyRepeat,
         backgroundUri = backgroundName,
+        backgroundZoom = backgroundZoomState.floatValue,
+        backgroundFocusX = backgroundFocusXState.floatValue,
+        backgroundFocusY = backgroundFocusYState.floatValue,
+        photoUris = photoNames.toList(),
         pinned = pinned,
         lunarMonth = lunarMonth.takeIf { it in 1..12 },
         lunarDay = lunarDay.takeIf { it in 1..30 },
@@ -210,6 +270,11 @@ fun EventEditorScreen(
         minuteOfDay,
         hue,
         coloured,
+        backgroundName,
+        backgroundZoomState.floatValue,
+        backgroundFocusXState.floatValue,
+        backgroundFocusYState.floatValue,
+        photoNames,
         initial,
     ) {
         if (batchStepText.isEmpty() || batchCountText.isEmpty()) {
@@ -462,6 +527,28 @@ fun EventEditorScreen(
                     onClick = { pickBackground.launch("image/*") },
                 )
                 if (backgroundName != null) {
+                    Spacer(Modifier.height(8.dp))
+
+                    // The preview is the detail screen's own drawing, small: the
+                    // same component, the same crop, the same scrim. Drag or pinch
+                    // inside it to say what the big screen frames.
+                    val previewBitmap = remember(backgroundName) {
+                        EventBackgrounds.bitmap(context, backgroundName)
+                    }
+                    BackgroundAdjustPreview(
+                        bitmap = previewBitmap,
+                        zoom = backgroundZoomState,
+                        focusX = backgroundFocusXState,
+                        focusY = backgroundFocusYState,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.background_adjust_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End,
@@ -469,10 +556,62 @@ fun EventEditorScreen(
                         TextButton(onClick = {
                             EventBackgrounds.delete(context, backgroundName)
                             backgroundName = null
+                            backgroundZoomState.floatValue = CountdownEvent.DEFAULT_BACKGROUND_ZOOM
+                            backgroundFocusXState.floatValue = CountdownEvent.DEFAULT_BACKGROUND_FOCUS
+                            backgroundFocusYState.floatValue = CountdownEvent.DEFAULT_BACKGROUND_FOCUS
                         }) {
                             Text(
                                 text = stringResource(R.string.action_remove_background),
                                 color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
+                }
+
+                // The gallery photos: several at once from the picker, kept as the
+                // pile the detail page shows. Managed here by thumbnail, because
+                // the pile itself is one thing and one photo is one thing.
+                Spacer(Modifier.height(12.dp))
+                FieldRow(
+                    label = stringResource(R.string.field_photos),
+                    value = if (photoNames.isEmpty()) {
+                        stringResource(R.string.background_unset)
+                    } else {
+                        stringResource(R.string.photos_count, photoNames.size)
+                    },
+                    onClick = {
+                        if (photoNames.size < CountdownEvent.MAX_PHOTOS) {
+                            pickPhotos.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        }
+                    },
+                )
+                if (photoNames.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    val pilePreviews = remember(photoNames) {
+                        photoNames.mapNotNull { EventBackgrounds.thumbnail(context, it) }
+                    }
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        PhotoStack(photos = pilePreviews)
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        photoNames.forEach { name ->
+                            PhotoThumb(
+                                name = name,
+                                onDelete = {
+                                    EventBackgrounds.delete(context, name)
+                                    photoNames = ArrayList(photoNames - name)
+                                },
                             )
                         }
                     }
@@ -610,6 +749,130 @@ fun EventEditorScreen(
             },
             onDismiss = { timePickerOpen = false },
         )
+    }
+}
+
+/**
+ * The answer to "where on this picture do the words sit".
+ *
+ * The preview draws the detail screen's own [BackgroundCrop] at editor scale and
+ * lets the drag and the pinch speak: the pinch multiplies the zoom, the drag
+ * walks the focus. Both stay numbers the [BackgroundCrop] can hold — the zoom
+ * inside [CountdownEvent.MAX_BACKGROUND_ZOOM], the focus inside the frame —
+ * because a framing the detail screen would have to correct is not the framing
+ * the user asked for.
+ *
+ * The states are handed over as [MutableFloatState]s rather than as plain floats
+ * so the gesture handler reads this frame's value, not the one it captured when
+ * the gesture began.
+ */
+@Composable
+private fun BackgroundAdjustPreview(
+    bitmap: Bitmap?,
+    zoom: MutableFloatState,
+    focusX: MutableFloatState,
+    focusY: MutableFloatState,
+    modifier: Modifier = Modifier,
+) {
+    if (bitmap == null) {
+        // A file that has gone — a backup restored on another device — has
+        // nothing to frame and the panel says so by simply not showing up.
+        return
+    }
+
+    var viewport by remember { mutableStateOf(IntSize.Zero) }
+    Box(
+        modifier = modifier
+            .height(200.dp)
+            .clip(FieldShape)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .hairline(FieldShape)
+            .onSizeChanged { viewport = it }
+            .pointerInput(Unit) {
+                detectTransformGestures { _, pan, gestureZoom, _ ->
+                    val newZoom = (zoom.floatValue * gestureZoom)
+                        .coerceIn(CountdownEvent.DEFAULT_BACKGROUND_ZOOM, CountdownEvent.MAX_BACKGROUND_ZOOM)
+                    zoom.floatValue = newZoom
+
+                    // The drag walks the focus point across the picture at the
+                    // scale it is being shown at, so a full drag of the picture
+                    // walks the focus a full half-and-half either way.
+                    val cover = max(
+                        viewport.width.toFloat() / bitmap.width,
+                        viewport.height.toFloat() / bitmap.height,
+                    )
+                    val drawnWidth = bitmap.width * cover * newZoom
+                    val drawnHeight = bitmap.height * cover * newZoom
+                    if (drawnWidth > 0f && drawnHeight > 0f) {
+                        focusX.floatValue = (focusX.floatValue - pan.x / drawnWidth).coerceIn(0f, 1f)
+                        focusY.floatValue = (focusY.floatValue - pan.y / drawnHeight).coerceIn(0f, 1f)
+                    }
+                }
+            },
+    ) {
+        BackgroundCrop(
+            bitmap = bitmap,
+            zoom = zoom.floatValue,
+            focusX = focusX.floatValue,
+            focusY = focusY.floatValue,
+            modifier = Modifier.matchParentSize(),
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(Color.Black.copy(alpha = BackgroundScrimAlpha)),
+        )
+    }
+}
+
+/**
+ * One photo of the pile, as a manage-by-hand thumbnail: a square of the picture
+ * with its own ✕ in the corner, the way a pile is sorted from the back.
+ */
+@Composable
+private fun PhotoThumb(
+    name: String,
+    onDelete: () -> Unit,
+) {
+    val context = LocalContext.current
+    val photo = remember(name) { EventBackgrounds.thumbnail(context, name, 256) }
+
+    Box(modifier = Modifier.size(64.dp)) {
+        if (photo != null) {
+            Image(
+                bitmap = photo.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(8.dp)),
+            )
+        } else {
+            // A file that has gone still keeps its place in the row: the ✕ is
+            // what removes the name from the record, pixelated or not.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .hairline(RoundedCornerShape(8.dp)),
+            )
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size(22.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.55f))
+                .clickable(onClick = onDelete),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "×",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+            )
+        }
     }
 }
 

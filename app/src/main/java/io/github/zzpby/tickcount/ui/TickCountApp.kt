@@ -120,9 +120,33 @@ fun TickCountApp(
         runCatching { AppScreen.valueOf(screenName) }.getOrDefault(AppScreen.HOME)
     }
     val today = now.toLocalDate()
-    // A request counter rather than a flag: minted once per tap, and the wish screen
-    // opens its own dialog each time the count moves.
-    var wishNewCount by rememberSaveable { mutableIntStateOf(0) }
+    // The wish editor, wired the way the countdown's is: the title bar's plus opens
+    // it on a new mint, the wish screen's long press opens it on one wish, and what
+    // it edits is described by an id rather than by a copy of the wish.
+    var wishEditorOpen by rememberSaveable { mutableStateOf(false) }
+    var wishEditorIsNew by rememberSaveable { mutableStateOf(false) }
+    var wishEditorId by rememberSaveable { mutableStateOf("") }
+    var pendingWishDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val wishEditorWish = remember(wishEditorOpen, wishEditorIsNew, wishEditorId) {
+        when {
+            !wishEditorOpen -> null
+            wishEditorIsNew -> viewModel.draftWish()
+            else -> viewModel.wish(wishEditorId)
+        }
+    }
+
+    fun startNewWish() {
+        wishEditorIsNew = true
+        wishEditorId = ""
+        wishEditorOpen = true
+    }
+
+    fun startEditWish(id: String) {
+        wishEditorIsNew = false
+        wishEditorId = id
+        wishEditorOpen = true
+    }
     // A repeating countdown marks the same month and day in the years around today, not
     // only the year it was entered in — that is what repeating means on a calendar. The
     // range matches the ±10 years the month picker can reach in a single step.
@@ -203,6 +227,9 @@ fun TickCountApp(
                         editorOpen -> stringResource(
                             if (editorIsNew) R.string.dialog_new_title else R.string.dialog_edit_title
                         )
+                        wishEditorOpen -> stringResource(
+                            if (wishEditorIsNew) R.string.things_new_title else R.string.things_edit_title
+                        )
                         detailEvent != null -> detailEvent.title
                         // These set their own name large in the content, so the bar keeps
                         // only the buttons.
@@ -212,7 +239,7 @@ fun TickCountApp(
                     },
                     // Editing a countdown is a step into it, like its own screen: the button
                     // goes back to whatever list it came from rather than opening the drawer.
-                    navigation = if (detailEvent != null || editorOpen) {
+                    navigation = if (detailEvent != null || editorOpen || wishEditorOpen) {
                         TitleBarNavigation.BACK
                     } else {
                         TitleBarNavigation.MENU
@@ -220,6 +247,7 @@ fun TickCountApp(
                     onNavigate = {
                         when {
                             editorOpen -> editorOpen = false
+                            wishEditorOpen -> wishEditorOpen = false
                             detailEvent != null -> detailId = null
                             else -> drawerOpen = true
                         }
@@ -227,9 +255,10 @@ fun TickCountApp(
                     modifier = Modifier.padding(horizontal = 12.dp),
                 ) {
                     when {
-                        // The editor saves from its own header row: it is a whole screen now,
-                        // and the slot here belongs to one action over a list.
+                        // Both editors save from their own header row: each is a whole
+                        // screen now, and the slot here belongs to one action over a list.
                         editorOpen -> Unit
+                        wishEditorOpen -> Unit
 
                         detailEvent != null -> TextButton(onClick = { startEditEvent(detailEvent.id) }) {
                             Text(stringResource(R.string.action_edit))
@@ -241,10 +270,10 @@ fun TickCountApp(
                             IconButton(onClick = { startNewEvent(today) }) { PlusIcon() }
                         }
 
-                        // A wish is added the same way: the slot mints a new one, and
-                        // the wish screen's own dialog collects the name.
+                        // A wish is added the same way: the slot opens the wish editor,
+                        // a screen of its own like the countdown's.
                         screen == AppScreen.THINGS -> {
-                            IconButton(onClick = { wishNewCount++ }) { PlusIcon() }
+                            IconButton(onClick = { startNewWish() }) { PlusIcon() }
                         }
 
                         // On the calendar the plus belongs to the chosen day, and
@@ -289,6 +318,27 @@ fun TickCountApp(
                         onDismiss = { editorOpen = false },
                     )
 
+                    // The wish editor takes its turn as a screen of its own too, before
+                    // the list: saving closes it, deleting hands the id to the same
+                    // confirmation the countdowns use, over the list underneath.
+                    wishEditorWish != null -> WishEditorScreen(
+                        initial = wishEditorWish!!,
+                        isNew = wishEditorIsNew,
+                        onSave = {
+                            viewModel.saveWish(it)
+                            wishEditorOpen = false
+                        },
+                        onDelete = if (!wishEditorIsNew) {
+                            {
+                                wishEditorOpen = false
+                                pendingWishDeleteId = wishEditorWish!!.id
+                            }
+                        } else {
+                            null
+                        },
+                        onDismiss = { wishEditorOpen = false },
+                    )
+
                     detailEvent != null -> EventDetailScreen(
                         event = detailEvent,
                         now = now,
@@ -311,10 +361,8 @@ fun TickCountApp(
                     screen == AppScreen.THINGS -> ThingsScreen(
                         wishes = wishes,
                         today = today,
-                        newRequest = wishNewCount,
                         onToggle = viewModel::toggleWish,
-                        onSave = viewModel::saveWish,
-                        onDelete = viewModel::removeWish,
+                        onEdit = { startEditWish(it) },
                     )
 
                     screen == AppScreen.CALENDAR -> CalendarScreen(
@@ -475,6 +523,20 @@ fun TickCountApp(
                 pendingDeleteId = null
             },
             onDismiss = { pendingDeleteId = null },
+        )
+    }
+
+    // The wish editor asks the same question on its way out, over the list it came from.
+    val pendingWishDeleteName = wishes.firstOrNull { it.id == pendingWishDeleteId }?.title
+
+    if (pendingWishDeleteId != null && pendingWishDeleteName != null) {
+        DeleteConfirmDialog(
+            name = pendingWishDeleteName,
+            onConfirm = {
+                viewModel.removeWish(pendingWishDeleteId!!)
+                pendingWishDeleteId = null
+            },
+            onDismiss = { pendingWishDeleteId = null },
         )
     }
 

@@ -173,8 +173,8 @@ android {
         // A calendar version: year.month.day.sequence, the sequence counting the updates made
         // that day. The version code stays one increasing integer for Play: the date squeezed
         // together with the sequence in the last two digits — 2026.10.18.2 becomes 26101802.
-        versionCode = 26101802
-        versionName = "2026.10.18.2"
+        versionCode = 26102201
+        versionName = "2026.10.22.1"
     }
 
     signingConfigs {

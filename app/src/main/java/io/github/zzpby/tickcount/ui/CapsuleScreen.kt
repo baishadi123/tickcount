@@ -465,6 +465,8 @@ fun CapsuleEditorScreen(
                     photoNames.forEach { name ->
                         PhotoThumb(
                             name = name,
+                            onPick = {},
+                            selected = false,
                             onDelete = {
                                 EventBackgrounds.delete(context, name)
                                 photoNames = ArrayList(photoNames - name)

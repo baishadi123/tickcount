@@ -81,6 +81,13 @@ data class CountdownEvent(
      */
     val photoUris: List<String> = emptyList(),
     /**
+     * The photo the pile shows on top, as a file name from [photoUris] — chosen by
+     * tapping its thumbnail in the editor, because which photo leads is a decision,
+     * not a coincidence of the order they were picked in. Null keeps the default:
+     * the last one picked sits on top.
+     */
+    val photoCover: String? = null,
+    /**
      * How early to be reminded about this one, in minutes, or null to follow the app-wide
      * setting.
      *

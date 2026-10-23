@@ -35,6 +35,7 @@ object EventCodec {
     private const val KEY_BACKGROUND_FOCUS_X = "fx"
     private const val KEY_BACKGROUND_FOCUS_Y = "fy"
     private const val KEY_PHOTOS = "ph"
+    private const val KEY_PHOTO_COVER = "pc"
     private const val KEY_ENTERED_LUNAR = "el"
     private const val KEY_LUNAR_MONTH = "lm"
     private const val KEY_LUNAR_DAY = "ld"
@@ -107,6 +108,8 @@ object EventCodec {
                     }
                     // The associated gallery photos, again only when there are any.
                     .apply { if (event.photoUris.isNotEmpty()) put(KEY_PHOTOS, JSONArray(event.photoUris)) }
+                    // The pile's own top photo, again only when one was chosen.
+                    .apply { event.photoCover?.let { put(KEY_PHOTO_COVER, it) } }
             )
         }
         return array
@@ -120,6 +123,11 @@ object EventCodec {
             if (epochDay == Long.MIN_VALUE) continue
 
             val lunarMonth = obj.optInt(KEY_LUNAR_MONTH, 0).takeIf { it in 1..12 }
+
+            // The photos first, so the cover can be dropped when the file it
+            // names is not among them.
+            val photos = readPhotos(obj.optJSONArray(KEY_PHOTOS))
+            val photoCover = obj.optString(KEY_PHOTO_COVER).takeIf { it.isNotEmpty() && it in photos }
 
             add(
                 CountdownEvent(
@@ -144,6 +152,8 @@ object EventCodec {
                     // Absent on records written before the field existed: what the lunar
                     // fields suggest is what the code assumed before it existed.
                     enteredAsLunar = obj.optBoolean(KEY_ENTERED_LUNAR, lunarMonth != null),
+                    photoUris = photos,
+                    photoCover = photoCover,
                 )
             )
         }

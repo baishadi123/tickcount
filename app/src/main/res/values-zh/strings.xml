@@ -92,6 +92,7 @@
     <string name="background_adjust_hint">拖动或双指捏合预览图，手动调整详情页的画面。</string>
     <string name="field_photos">相册照片</string>
     <string name="photos_count">%1$d 张</string>
+    <string name="photos_cover_hint">点按缩略图，选择叠放在最上方的照片。</string>
 
     <!--
       一键批量添加。上面选的时间会由每一条一起带走，所以这里只问隔多久、要几条。
@@ -127,6 +128,10 @@
     <string name="date_format_short">yyyy年M月d日</string>
     <!-- 下面小字的年月日换算：与上方的总天数出自同一段距离，满一年带年，满一月带月 -->
     <string name="detail_days">%1$d天</string>
+    <string name="detail_days_unit">天</string>
+    <string name="detail_row_repeat">重复</string>
+    <string name="detail_repeat_lunar">每年 · 农历</string>
+    <string name="detail_repeat_solar">每年 · 公历</string>
     <string name="period_ymd">%1$d年%2$d个月%3$d天</string>
     <string name="period_md">%1$d个月%2$d天</string>
 

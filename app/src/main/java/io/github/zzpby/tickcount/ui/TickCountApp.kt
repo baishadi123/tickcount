@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
@@ -59,6 +60,7 @@ import io.github.zzpby.tickcount.domain.solarLunarDay
 import io.github.zzpby.tickcount.notify.Reminders
 import io.github.zzpby.tickcount.domain.countdownList
 import io.github.zzpby.tickcount.ui.calendar.MonthYearPickerDialog
+import io.github.zzpby.tickcount.ui.components.EditIcon
 import io.github.zzpby.tickcount.ui.components.PlusIcon
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.XingKai
@@ -287,7 +289,7 @@ fun TickCountApp(
                             if (wishEditorIsNew) R.string.things_new_title else R.string.things_edit_title
                         )
                         capsuleEditorOpen -> stringResource(R.string.capsule_editor_title)
-                        detailEvent != null -> detailEvent.title
+                        detailEvent != null -> null
                         // These set their own name large in the content, so the bar keeps
                         // only the buttons.
                         screen == AppScreen.HOME || screen == AppScreen.REMINDERS ||
@@ -323,8 +325,8 @@ fun TickCountApp(
                         wishEditorOpen -> Unit
                         capsuleEditorOpen -> Unit
 
-                        detailEvent != null -> TextButton(onClick = { startEditEvent(detailEvent.id) }) {
-                            Text(stringResource(R.string.action_edit))
+                        detailEvent != null -> IconButton(onClick = { startEditEvent(detailEvent.id) }) {
+                            EditIcon()
                         }
 
                         // The order is chosen from a pill next to the search box, which is
@@ -760,12 +762,18 @@ private fun GuideDialog(onDismiss: () -> Unit) {
 }
 
 /**
- * The launch page: the mark the launcher wears, and under it the line the app is
- * really about — the two names the whole thing counts for, in the brush the
- * pages write them with.
+ * The launch page: the deer, drawn in a few lines, and under it the line the
+ * app is really about — the two names the whole thing counts for, in the brush
+ * the pages write them with. The deer settles first, the line follows.
  */
 @Composable
 private fun LaunchPage(modifier: Modifier = Modifier) {
+    var textIn by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(450)
+        textIn = true
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -774,16 +782,20 @@ private fun LaunchPage(modifier: Modifier = Modifier) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Image(
-                painter = painterResource(R.drawable.ic_launcher_foreground),
+                painter = painterResource(R.drawable.launch_deer),
                 contentDescription = null,
-                modifier = Modifier.size(118.dp),
+                modifier = Modifier.size(190.dp),
             )
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(10.dp))
             Text(
                 text = stringResource(R.string.launch_line),
                 style = MaterialTheme.typography.headlineSmall,
                 fontFamily = XingKai,
                 color = Color(0xFF3A3226),
+                modifier = Modifier.graphicsLayer {
+                    alpha = if (textIn) 1f else 0f
+                    translationY = if (textIn) 0f else 14.dp.toPx()
+                },
             )
         }
     }

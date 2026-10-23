@@ -2,7 +2,8 @@ package io.github.zzpby.tickcount.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,15 +16,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -33,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -55,16 +62,10 @@ import io.github.zzpby.tickcount.domain.effectiveDate
 import io.github.zzpby.tickcount.domain.effectiveTarget
 import io.github.zzpby.tickcount.domain.widgetCountdownFor
 import kotlin.math.abs
-import io.github.zzpby.tickcount.ui.components.BackgroundCrop
-import io.github.zzpby.tickcount.ui.components.BackgroundScrimAlpha
-import io.github.zzpby.tickcount.ui.components.PhotoStack
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.CardShape
 import io.github.zzpby.tickcount.ui.theme.CountdownLineTextStyle
-import io.github.zzpby.tickcount.ui.theme.PanelShape
 import io.github.zzpby.tickcount.ui.theme.eventAccent
-import io.github.zzpby.tickcount.ui.theme.hairline
-import io.github.zzpby.tickcount.ui.theme.tintWash
 import java.time.ZonedDateTime
 
 /**
@@ -93,6 +94,7 @@ fun EventDetailScreen(
     }
     val accent = eventAccent(event.colorHue)
     val context = LocalContext.current
+    val dateFormatter = rememberDateFormatter(R.string.date_format_full)
 
     val heading = when (countdown.phase) {
         CountdownPhase.FUTURE -> stringResource(R.string.label_countdown_left)
@@ -149,31 +151,32 @@ fun EventDetailScreen(
         else -> null
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        // The countdown's own background, under everything: image, scrim, then content.
-        val background = remember(event.backgroundUri, event.id) {
-            EventBackgrounds.bitmap(context, event.backgroundUri)
+    // The target day, written out in full: the solar date with its weekday, and
+    // the lunar day named after it when the date was entered that way.
+    val dateLine = remember(bottomDate, event) {
+        val solar = bottomDate.format(dateFormatter)
+        val lunar = if (event.enteredAsLunar && event.lunarMonth != null && event.lunarDay != null) {
+            val leap = if (event.lunarLeap) "闰" else ""
+            " · 农历${leap}${event.lunarMonth}月${event.lunarDay}日"
+        } else {
+            ""
         }
+        solar + lunar
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
         // The pile is thumbnails rather than full decodes: nine of those would
-        // hold more pixels than the rest of the app ever does at once.
-        val photoThumbnails = remember(event.photoUris, event.id) {
-            event.photoUris.mapNotNull { EventBackgrounds.thumbnail(context, it) }
+        // hold more pixels than the rest of the app ever does at once. The
+        // chosen photo leads the carousel.
+        val photoThumbnails = remember(event.photoUris, event.photoCover, event.id) {
+            val loaded = event.photoUris.mapNotNull { name ->
+                EventBackgrounds.thumbnail(context, name)?.let { name to it }
+            }
+            loaded.sortedByDescending { it.first == event.photoCover }
         }
         var viewerOpen by rememberSaveable { mutableStateOf(false) }
-        if (background != null) {
-            BackgroundCrop(
-                bitmap = background,
-                zoom = event.backgroundZoom,
-                focusX = event.backgroundFocusX,
-                focusY = event.backgroundFocusY,
-                modifier = Modifier.matchParentSize(),
-            )
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(Color.Black.copy(alpha = BackgroundScrimAlpha)),
-            )
-        }
+        var viewerPage by rememberSaveable { mutableIntStateOf(0) }
+        val carouselState = rememberPagerState { photoThumbnails.size }
 
         Column(
             modifier = Modifier
@@ -182,42 +185,48 @@ fun EventDetailScreen(
                 .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
 
             Text(
                 text = event.title,
                 style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
-                color = accent,
+                color = MaterialTheme.colorScheme.onSurface,
             )
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(20.dp))
 
-            // The countdown itself, bare on the page: the number reads as the subject
-            // rather than as another row of information.
+            // The countdown itself, in the iOS register: a small spaced label, a
+            // huge light number — the one place the countdown's colour lives —
+            // with its unit riding the baseline, and the clock quiet and grey.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 22.dp),
+                    .padding(vertical = 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
                     text = heading,
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = 3.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Spacer(Modifier.height(10.dp))
-
-                // Every phase reads the same way: the big count with its unit in large
-                // type, the clock that completes it ticking under it, and the separate,
-                // date-based reading in small type at the bottom — nothing under a
-                // month, where the big count already says the days.
-                Text(
-                    text = stringResource(R.string.detail_days, totalDays),
-                    style = MaterialTheme.typography.displayLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = accent,
-                )
+                Spacer(Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = totalDays.toString(),
+                        style = MaterialTheme.typography.displayLarge.copy(fontSize = 86.sp),
+                        fontWeight = FontWeight.Light,
+                        color = accent,
+                    )
+                    Text(
+                        text = stringResource(R.string.detail_days_unit),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 6.dp, bottom = 18.dp),
+                    )
+                }
                 Spacer(Modifier.height(6.dp))
                 Text(
                     text = "%02d:%02d:%02d".format(
@@ -226,13 +235,12 @@ fun EventDetailScreen(
                         clockSeconds % 60,
                     ),
                     style = CountdownLineTextStyle.copy(
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
                     ),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (periodLine != null) {
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(12.dp))
                     Text(
                         text = periodLine,
                         style = MaterialTheme.typography.bodyMedium,
@@ -241,51 +249,129 @@ fun EventDetailScreen(
                 }
             }
 
-            // The associated gallery photos, as one stacked pile: a tap flips
-            // through them full-screen. The pile sits directly on the page, no
-            // card behind it — the photos themselves are the thing.
-            if (event.photoUris.isNotEmpty()) {
-                Spacer(Modifier.height(18.dp))
-                Box(
+            // The associated gallery photos, one large rounded card each, the
+            // chosen photo first; a tap opens that photo full-screen. The pages
+            // away from the finger sit back a little, the carousel's depth.
+            if (photoThumbnails.isNotEmpty()) {
+                Spacer(Modifier.height(16.dp))
+                HorizontalPager(
+                    state = carouselState,
+                    pageSpacing = 12.dp,
                     modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    PhotoStack(
-                        photos = photoThumbnails,
-                        onClick = { viewerOpen = true },
+                ) { page ->
+                    val away = abs((carouselState.currentPage - page) + carouselState.currentPageOffsetFraction)
+                    Image(
+                        bitmap = photoThumbnails[page].second.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(240.dp)
+                            .graphicsLayer {
+                                val settle = 1f - (away.coerceIn(0f, 1f)) * 0.06f
+                                scaleX = settle
+                                scaleY = settle
+                                alpha = 1f - (away.coerceIn(0f, 1f)) * 0.35f
+                            }
+                            .clip(RoundedCornerShape(20.dp))
+                            .clickable {
+                                viewerPage = page
+                                viewerOpen = true
+                            },
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                PageDots(
+                    count = photoThumbnails.size,
+                    current = carouselState.currentPage,
+                )
+            }
+
+            // The facts, as one grouped card: the day it counts to — with the
+            // lunar day named when the date was entered that way — and how it
+            // repeats, if it repeats.
+            Spacer(Modifier.height(26.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(CardShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .padding(horizontal = 18.dp, vertical = 6.dp),
+            ) {
+                InfoRow(
+                    label = stringResource(R.string.field_date),
+                    value = dateLine,
+                )
+                if (event.yearlyRepeat) {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        modifier = Modifier.padding(vertical = 12.dp),
+                    )
+                    InfoRow(
+                        label = stringResource(R.string.detail_row_repeat),
+                        value = stringResource(
+                            if (event.enteredAsLunar && event.lunarMonth != null) {
+                                R.string.detail_repeat_lunar
+                            } else {
+                                R.string.detail_repeat_solar
+                            }
+                        ),
                     )
                 }
             }
 
             if (event.tags.isNotEmpty()) {
-                Spacer(Modifier.height(10.dp))
-                // The heading goes inside the card with the tags rather than above it, so
-                // the whole block reads as one thing: these are the tags.
-                DetailCard {
-                    Text(
-                        text = stringResource(R.string.field_tags),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        event.tags.forEach { tag -> TagPill(tag) }
-                    }
+                Spacer(Modifier.height(26.dp))
+                // The tags as a quiet footnote: a hairline, then the pills centred
+                // under it — no card, so the page stays one column of air.
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.62f)
+                        .height(1.dp)
+                        .background(MaterialTheme.colorScheme.outlineVariant),
+                )
+                Spacer(Modifier.height(16.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    event.tags.forEach { tag -> TagPill(tag) }
                 }
             }
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(40.dp))
         }
 
-        // The flip-through the pile opens: full-screen, one photo at a time,
-        // the count at the top, a tap anywhere to leave.
+        // The flip-through the carousel opens, at the photo that was tapped.
         if (event.photoUris.isNotEmpty() && viewerOpen) {
             PhotoViewer(
-                photos = event.photoUris,
+                photos = photoThumbnails.map { it.first },
+                initialPage = viewerPage,
                 onDismiss = { viewerOpen = false },
+            )
+        }
+    }
+}
+
+/** The row of small dots under a carousel: the current page filled. */
+@Composable
+private fun PageDots(count: Int, current: Int, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        repeat(count) { index ->
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (index == current) {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f)
+                        }
+                    ),
             )
         }
     }
@@ -294,86 +380,135 @@ fun EventDetailScreen(
 /**
  * The photos one at a time, full-screen on black.
  *
- * A plain horizontal pager rather than a zoomable one: the pile is for
- * remembering a day, and a tap on either side of the pager is the whole
- * gesture the flip-through needs.
+ * The iOS reading gestures: a close button that is always where the thumb
+ * expects it, a pull-down that carries the whole stack away, and dots that say
+ * where in the pile you are. A tap does nothing — a stray touch should not end
+ * the reading.
  */
 @Composable
 private fun PhotoViewer(
     photos: List<String>,
+    initialPage: Int,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val pagerState = rememberPagerState(initialPage = 0) { photos.size }
+    val pagerState = rememberPagerState(initialPage = initialPage.coerceIn(0, photos.size - 1)) {
+        photos.size
+    }
+    // The pull-down: the whole stack follows the finger, and past a threshold
+    // the release ends the reading rather than snapping home.
+    var pull by remember { mutableFloatStateOf(0f) }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black)
-                .pointerInput(Unit) {
-                    detectTapGestures { onDismiss() }
-                },
+                .background(Color.Black),
         ) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-            ) { page ->
-                val photo = remember(photos[page]) {
-                    EventBackgrounds.bitmap(context, photos[page])
-                }
-                if (photo != null) {
-                    Image(
-                        bitmap = photo.asImageBitmap(),
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize(),
-                    )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        translationY = pull
+                        val settle = 1f - (pull / 1400f).coerceIn(0f, 0.4f)
+                        scaleX = settle
+                        scaleY = settle
+                    }
+                    .pointerInput(Unit) {
+                        detectVerticalDragGestures(
+                            onDragEnd = {
+                                if (pull > 380f) onDismiss() else pull = 0f
+                            },
+                            onDragCancel = { pull = 0f },
+                        ) { change, dragAmount ->
+                            change.consume()
+                            pull = (pull + dragAmount).coerceAtLeast(0f)
+                        }
+                    },
+            ) {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                ) { page ->
+                    val photo = remember(photos[page]) {
+                        EventBackgrounds.bitmap(context, photos[page])
+                    }
+                    if (photo != null) {
+                        Image(
+                            bitmap = photo.asImageBitmap(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
             }
 
+            // The count, top centre.
             Text(
                 text = "${pagerState.currentPage + 1} / ${photos.size}",
                 style = MaterialTheme.typography.labelLarge,
                 color = Color.White.copy(alpha = 0.85f),
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(top = 36.dp),
+                    .padding(top = 40.dp),
             )
+
+            // The close button, top right, above the drag layer.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 34.dp, end = 18.dp)
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.14f))
+                    .clickable(onClick = onDismiss),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "×",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White.copy(alpha = 0.9f),
+                )
+            }
+
+            // The dots, bottom centre.
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 30.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                repeat(photos.size) { index ->
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (index == pagerState.currentPage) {
+                                    Color.White.copy(alpha = 0.9f)
+                                } else {
+                                    Color.White.copy(alpha = 0.3f)
+                                }
+                            ),
+                    )
+                }
+            }
         }
     }
 }
 
-/** The rounded panel both kinds of detail card are cut from. */
+/** A label on the left, its value on the right, both on one row. */
 @Composable
-private fun DetailCard(
-    modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(CardShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .hairline(CardShape)
-            .padding(horizontal = 18.dp, vertical = 15.dp),
-        content = content,
-    )
-}
-
-/** A label on the left, its value on the right, both inside one panel. */
-@Composable
-private fun DetailCard(label: String, value: String) {
-    DetailCard {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.weight(1f))
-            Text(text = value, style = MaterialTheme.typography.bodyLarge)
-        }
+private fun InfoRow(label: String, value: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.weight(1f))
+        Text(text = value, style = MaterialTheme.typography.bodyLarge)
     }
 }
 

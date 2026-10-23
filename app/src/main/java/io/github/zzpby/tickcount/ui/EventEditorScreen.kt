@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -204,6 +205,10 @@ fun EventEditorScreen(
     // same reason the tags are one: it is what a Bundle carries across a rotation.
     var photoNames by rememberSaveable(initial.id) { mutableStateOf(ArrayList(initial.photoUris)) }
 
+    // The photo the pile leads with, picked by tapping its thumbnail: which photo
+    // is on top is a decision, not the order they arrived in.
+    var photoCover by rememberSaveable(initial.id) { mutableStateOf(initial.photoCover) }
+
     val pickPhotos = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(maxItems = CountdownEvent.MAX_PHOTOS),
     ) { uris ->
@@ -253,6 +258,7 @@ fun EventEditorScreen(
         backgroundFocusX = backgroundFocusXState.floatValue,
         backgroundFocusY = backgroundFocusYState.floatValue,
         photoUris = photoNames.toList(),
+        photoCover = photoCover?.takeIf { it in photoNames },
         pinned = pinned,
         lunarMonth = lunarMonth.takeIf { it in 1..12 },
         lunarDay = lunarDay.takeIf { it in 1..30 },
@@ -283,6 +289,7 @@ fun EventEditorScreen(
         backgroundFocusXState.floatValue,
         backgroundFocusYState.floatValue,
         photoNames,
+        photoCover,
         initial,
     ) {
         if (batchStepText.isEmpty() || batchCountText.isEmpty()) {
@@ -619,14 +626,18 @@ fun EventEditorScreen(
                 )
                 if (photoNames.isNotEmpty()) {
                     Spacer(Modifier.height(10.dp))
-                    val pilePreviews = remember(photoNames) {
-                        photoNames.mapNotNull { EventBackgrounds.thumbnail(context, it) }
+                    // The pile as it will read, the chosen photo on top.
+                    val pilePreviews = remember(photoNames, photoCover) {
+                        val loaded = photoNames.mapNotNull { name ->
+                            EventBackgrounds.thumbnail(context, name)?.let { name to it }
+                        }
+                        loaded.sortedBy { it.first == photoCover }
                     }
                     Box(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.Center,
                     ) {
-                        PhotoStack(photos = pilePreviews)
+                        PhotoStack(photos = pilePreviews.map { it.second })
                     }
                     Spacer(Modifier.height(10.dp))
                     Row(
@@ -638,13 +649,22 @@ fun EventEditorScreen(
                         photoNames.forEach { name ->
                             PhotoThumb(
                                 name = name,
+                                onPick = { photoCover = name },
+                                selected = photoCover == name,
                                 onDelete = {
                                     EventBackgrounds.delete(context, name)
                                     photoNames = ArrayList(photoNames - name)
+                                    if (photoCover == name) photoCover = null
                                 },
                             )
                         }
                     }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.photos_cover_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
 
                 if (!isNew) {
@@ -874,25 +894,39 @@ private fun BackgroundAdjustPreview(
 
 /**
  * One photo of the pile, as a manage-by-hand thumbnail: a square of the picture
- * with its own ✕ in the corner, the way a pile is sorted from the back.
+ * with its own ✕ in the corner, the way a pile is sorted from the back — and a
+ * tap on the square itself chooses it as the photo the pile leads with, which
+ * the lifted border says.
  */
 @Composable
 internal fun PhotoThumb(
     name: String,
+    onPick: () -> Unit,
+    selected: Boolean,
     onDelete: () -> Unit,
 ) {
     val context = LocalContext.current
     val photo = remember(name) { EventBackgrounds.thumbnail(context, name, 256) }
 
-    Box(modifier = Modifier.size(64.dp)) {
+    Box(
+        modifier = Modifier
+            .size(64.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .then(
+                if (selected) {
+                    Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                } else {
+                    Modifier
+                }
+            )
+            .clickable(onClick = onPick),
+    ) {
         if (photo != null) {
             Image(
                 bitmap = photo.asImageBitmap(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(8.dp)),
+                modifier = Modifier.fillMaxSize(),
             )
         } else {
             // A file that has gone still keeps its place in the row: the ✕ is
@@ -900,7 +934,6 @@ internal fun PhotoThumb(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(8.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainer)
                     .hairline(RoundedCornerShape(8.dp)),
             )

@@ -48,6 +48,7 @@ enum class AppScreen(val labelRes: Int) {
     THINGS(R.string.drawer_things),
     CAPSULE(R.string.drawer_capsule),
     CALENDAR(R.string.drawer_calendar),
+    VOYAGE(R.string.drawer_voyage),
     SETTINGS(R.string.drawer_settings),
     REMINDERS(R.string.settings_notifications),
     APPEARANCE(R.string.settings_appearance),
@@ -62,7 +63,7 @@ enum class AppScreen(val labelRes: Int) {
 /** The pages the drawer itself offers: the ones you browse, and the gear behind them. */
 internal val AppScreen.inDrawer: Boolean
     get() = this == AppScreen.HOME || this == AppScreen.THINGS ||
-        this == AppScreen.CAPSULE || this == AppScreen.CALENDAR
+        this == AppScreen.CAPSULE || this == AppScreen.CALENDAR || this == AppScreen.VOYAGE
 
 /** The pages the settings screen lists: everything below it in the enum. */
 internal val AppScreen.inSettings: Boolean

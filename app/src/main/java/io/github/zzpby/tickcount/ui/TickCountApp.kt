@@ -497,6 +497,12 @@ fun TickCountApp(
                         onLongPressEvent = { actionsForId = it },
                     )
 
+                    screen == AppScreen.VOYAGE -> VoyageScreen(
+                        events = events,
+                        today = today,
+                        onOpen = { detailId = it },
+                    )
+
                     screen == AppScreen.REMINDERS -> NotificationsScreen(
                         settings = settings,
                         next = Reminders.planned(

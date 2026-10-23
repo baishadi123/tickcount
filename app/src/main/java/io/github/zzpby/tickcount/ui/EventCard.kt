@@ -58,6 +58,8 @@ fun EventCard(
     detailText: String,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    /** The tags on their own line; off where the card is already crowded. */
+    showTags: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val event = entry.event
@@ -132,7 +134,7 @@ fun EventCard(
 
             // The tags get a line of their own rather than sharing one with the date: they
             // are what someone searches by and what tells two similar countdowns apart.
-            if (event.tags.isNotEmpty()) {
+            if (showTags && event.tags.isNotEmpty()) {
                 Spacer(Modifier.height(3.dp))
                 Text(
                     text = event.tags.joinToString("   "),

@@ -127,6 +127,11 @@ fun EventDetailScreen(
         }
     }
 
+    // Under a day to go, the big count would read "0" — arithmetic where a ticking
+    // clock says more. There the big type *is* the clock: hours, minutes and seconds
+    // to the moment, and the small clock under it would only say the same thing twice.
+    val underADay = countdown.phase == CountdownPhase.FUTURE && totalDays == 0L
+
     // The small line at the bottom is the separate, date-based reading of the same
     // distance: years and months and days once it spans a year, months and days
     // under a year, and nothing under a month — the big count already says the days.
@@ -213,32 +218,44 @@ fun EventDetailScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.Bottom) {
+                if (underADay) {
                     Text(
-                        text = totalDays.toString(),
-                        style = MaterialTheme.typography.displayLarge.copy(fontSize = 86.sp),
-                        fontWeight = FontWeight.Light,
+                        text = bigTimeText(clockSeconds),
+                        style = CountdownLineTextStyle.copy(
+                            fontSize = 56.sp,
+                            lineHeight = 68.sp,
+                            letterSpacing = 0.sp,
+                        ),
                         color = accent,
                     )
+                } else {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = totalDays.toString(),
+                            style = MaterialTheme.typography.displayLarge.copy(fontSize = 86.sp),
+                            fontWeight = FontWeight.Light,
+                            color = accent,
+                        )
+                        Text(
+                            text = stringResource(R.string.detail_days_unit),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 6.dp, bottom = 18.dp),
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
                     Text(
-                        text = stringResource(R.string.detail_days_unit),
-                        style = MaterialTheme.typography.titleMedium,
+                        text = "%02d:%02d:%02d".format(
+                            clockSeconds / 3_600,
+                            clockSeconds % 3_600 / 60,
+                            clockSeconds % 60,
+                        ),
+                        style = CountdownLineTextStyle.copy(
+                            fontSize = 16.sp,
+                        ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 6.dp, bottom = 18.dp),
                     )
                 }
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = "%02d:%02d:%02d".format(
-                        clockSeconds / 3_600,
-                        clockSeconds % 3_600 / 60,
-                        clockSeconds % 60,
-                    ),
-                    style = CountdownLineTextStyle.copy(
-                        fontSize = 16.sp,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
                 if (periodLine != null) {
                     Spacer(Modifier.height(12.dp))
                     Text(
@@ -353,8 +370,21 @@ fun EventDetailScreen(
     }
 }
 
-/** The row of small dots under a carousel: the current page filled. */
-@Composable
+/**
+ * The big under-a-day countdown, shortest form that still says the distance:
+ * `HH:MM:SS` while an hour remains, `MM:SS` under an hour, `SS` under a minute.
+ */
+private fun bigTimeText(seconds: Long): String = when {
+    seconds >= 3_600L -> "%02d:%02d:%02d".format(
+        seconds / 3_600,
+        seconds % 3_600 / 60,
+        seconds % 60,
+    )
+    seconds >= 60L -> "%02d:%02d".format(seconds / 60, seconds % 60)
+    else -> seconds.toString()
+}
+
+/** The row of small dots under a carousel: the current page filled. */@Composable
 private fun PageDots(count: Int, current: Int, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier,

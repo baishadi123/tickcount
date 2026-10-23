@@ -187,6 +187,7 @@ fun HomeScreen(
                         detailText = cardDetail(entry, dateText(entry), timeFormatter),
                         onClick = { onOpen(entry.event.id) },
                         onLongClick = { onLongPress(entry.event.id) },
+                        showTags = false,
                     )
                 }
             }

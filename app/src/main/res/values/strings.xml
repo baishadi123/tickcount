@@ -163,6 +163,7 @@
     <string name="drawer_home">days</string>
     <string name="drawer_things">things</string>
     <string name="drawer_calendar">Calendar</string>
+    <string name="drawer_voyage">Voyage</string>
     <string name="drawer_language">Language</string>
     <string name="drawer_changelog">Changelog</string>
     <string name="drawer_data">Backup &amp; data</string>

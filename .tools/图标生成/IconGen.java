@@ -20,7 +20,7 @@ import java.io.File;
  */
 public class IconGen {
 
-    private static final String SOURCE = "icon1.png";         // the artwork to adopt
+    private static final String SOURCE = "icon.png";          // the artwork to adopt
     private static final int SIZE = 432;                      // 108dp at xxxhdpi
     private static final int SAFE_DIAGONAL = 66 * SIZE / 108; // every mask keeps this circle
     private static final int ART_INK = 40;                    // colour distance that counts as art

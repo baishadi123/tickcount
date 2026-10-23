@@ -2,10 +2,12 @@ package io.github.zzpby.tickcount.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -15,7 +17,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -39,6 +43,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -49,11 +55,14 @@ import io.github.zzpby.tickcount.data.AppLanguage
 import io.github.zzpby.tickcount.data.CountdownEvent
 import io.github.zzpby.tickcount.domain.SearchScope
 import io.github.zzpby.tickcount.domain.SortOrder
+import io.github.zzpby.tickcount.domain.solarLunarDay
 import io.github.zzpby.tickcount.notify.Reminders
 import io.github.zzpby.tickcount.domain.countdownList
 import io.github.zzpby.tickcount.ui.calendar.MonthYearPickerDialog
 import io.github.zzpby.tickcount.ui.components.PlusIcon
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
+import io.github.zzpby.tickcount.ui.theme.XingKai
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import java.time.LocalDate
@@ -77,6 +86,7 @@ fun TickCountApp(
 ) {
     val events by viewModel.events.collectAsStateWithLifecycle()
     val wishes by viewModel.wishes.collectAsStateWithLifecycle()
+    val capsules by viewModel.capsules.collectAsStateWithLifecycle()
     val now by viewModel.now.collectAsStateWithLifecycle()
     val visibleMonth by viewModel.visibleMonth.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -89,6 +99,14 @@ fun TickCountApp(
     var calendarEpochDay by rememberSaveable { mutableLongStateOf(NO_DAY) }
     var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     var languageOpen by rememberSaveable { mutableStateOf(false) }
+
+    // The launch page: up for a beat on a cold start, then gone for as long as
+    // the process lives — `rememberSaveable`, so a rotation does not bring it back.
+    var splashGone by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(1000)
+        splashGone = true
+    }
     var actionsForId by rememberSaveable { mutableStateOf<String?>(null) }
 
     // The batch the editor handed over, waiting on one more question before it is added.
@@ -147,16 +165,46 @@ fun TickCountApp(
         wishEditorId = id
         wishEditorOpen = true
     }
+
+    // The capsule editor, wired the same way: the bar's plus on a new mint, the
+    // capsule screen's long press on one capsule, an id describing what it edits.
+    var capsuleEditorOpen by rememberSaveable { mutableStateOf(false) }
+    var capsuleEditorId by rememberSaveable { mutableStateOf("") }
+    var pendingCapsuleDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val capsuleEditorCapsule = remember(capsuleEditorOpen, capsuleEditorId) {
+        when {
+            !capsuleEditorOpen -> null
+            capsuleEditorId.isEmpty() -> viewModel.draftCapsule()
+            else -> viewModel.capsule(capsuleEditorId)
+        }
+    }
+
+    fun startNewCapsule() {
+        capsuleEditorId = ""
+        capsuleEditorOpen = true
+    }
+
+    fun startEditCapsule(id: String) {
+        capsuleEditorId = id
+        capsuleEditorOpen = true
+    }
     // A repeating countdown marks the same month and day in the years around today, not
-    // only the year it was entered in — that is what repeating means on a calendar. The
-    // range matches the ±10 years the month picker can reach in a single step.
+    // only the year it was entered in — that is what repeating means on a calendar. One
+    // entered as a lunar date walks the lunar calendar instead: the solar day it marks
+    // moves every year, so each year is translated through the tables. The range
+    // matches the ±10 years the month picker can reach in a single step.
     val byDate = remember(events, today.year) {
         buildMap {
             events.forEach { event ->
-                val dates = if (event.yearlyRepeat) {
-                    (today.year - 10..today.year + 10).map { event.date.withYear(it) }
-                } else {
-                    listOf(event.date)
+                val dates = when {
+                    !event.yearlyRepeat -> listOf(event.date)
+                    event.enteredAsLunar && event.lunarMonth != null && event.lunarDay != null ->
+                        (today.year - 10..today.year + 10).mapNotNull { year ->
+                            solarLunarDay(year, event.lunarMonth!!, event.lunarDay!!, event.lunarLeap)
+                        }
+                    else ->
+                        (today.year - 10..today.year + 10).map { event.date.withYear(it) }
                 }
                 dates.forEach { date ->
                     getOrPut(date) { mutableListOf() }.add(event)
@@ -205,11 +253,19 @@ fun TickCountApp(
     // Enabled while there is anywhere to go back to; disabled lets the system have
     // the press, which is what closes the app from the home screen. Each press goes
     // up exactly one level, matching the arrow the title bar shows.
-    BackHandler(enabled = drawerOpen || editorOpen || detailId != null || screen != AppScreen.HOME) {
+    BackHandler(
+        enabled = drawerOpen || editorOpen || wishEditorOpen || capsuleEditorOpen ||
+            detailId != null || screen != AppScreen.HOME
+    ) {
         when {
             drawerOpen -> drawerOpen = false
             editorOpen -> editorOpen = false
+            wishEditorOpen -> wishEditorOpen = false
+            capsuleEditorOpen -> capsuleEditorOpen = false
             detailId != null -> detailId = null
+            // A settings page goes back to the settings it was opened from, the
+            // way a page behind the gear should.
+            screen.inSettings -> screenName = AppScreen.SETTINGS.name
             else -> screenName = AppScreen.HOME.name
         }
     }
@@ -230,16 +286,20 @@ fun TickCountApp(
                         wishEditorOpen -> stringResource(
                             if (wishEditorIsNew) R.string.things_new_title else R.string.things_edit_title
                         )
+                        capsuleEditorOpen -> stringResource(R.string.capsule_editor_title)
                         detailEvent != null -> detailEvent.title
                         // These set their own name large in the content, so the bar keeps
                         // only the buttons.
                         screen == AppScreen.HOME || screen == AppScreen.REMINDERS ||
-                            screen == AppScreen.THINGS -> null
+                            screen == AppScreen.THINGS || screen == AppScreen.CAPSULE -> null
                         else -> stringResource(screen.labelRes)
                     },
                     // Editing a countdown is a step into it, like its own screen: the button
                     // goes back to whatever list it came from rather than opening the drawer.
-                    navigation = if (detailEvent != null || editorOpen || wishEditorOpen) {
+                    // A settings page is a step into it too — back to the settings, not out.
+                    navigation = if (detailEvent != null || editorOpen || wishEditorOpen ||
+                        capsuleEditorOpen || screen.inSettings
+                    ) {
                         TitleBarNavigation.BACK
                     } else {
                         TitleBarNavigation.MENU
@@ -248,7 +308,9 @@ fun TickCountApp(
                         when {
                             editorOpen -> editorOpen = false
                             wishEditorOpen -> wishEditorOpen = false
+                            capsuleEditorOpen -> capsuleEditorOpen = false
                             detailEvent != null -> detailId = null
+                            screen.inSettings -> screenName = AppScreen.SETTINGS.name
                             else -> drawerOpen = true
                         }
                     },
@@ -259,6 +321,7 @@ fun TickCountApp(
                         // screen now, and the slot here belongs to one action over a list.
                         editorOpen -> Unit
                         wishEditorOpen -> Unit
+                        capsuleEditorOpen -> Unit
 
                         detailEvent != null -> TextButton(onClick = { startEditEvent(detailEvent.id) }) {
                             Text(stringResource(R.string.action_edit))
@@ -274,6 +337,11 @@ fun TickCountApp(
                         // a screen of its own like the countdown's.
                         screen == AppScreen.THINGS -> {
                             IconButton(onClick = { startNewWish() }) { PlusIcon() }
+                        }
+
+                        // A capsule is added the same way: the slot opens the capsule editor.
+                        screen == AppScreen.CAPSULE -> {
+                            IconButton(onClick = { startNewCapsule() }) { PlusIcon() }
                         }
 
                         // On the calendar the plus belongs to the chosen day, and
@@ -336,7 +404,36 @@ fun TickCountApp(
                         } else {
                             null
                         },
+                        // Unticking a done wish lives here rather than on the
+                        // card's face: a stray tap should not take the day back.
+                        onUntick = if (wishEditorWish!!.done) {
+                            {
+                                viewModel.toggleWish(wishEditorWish!!.id)
+                                wishEditorOpen = false
+                            }
+                        } else {
+                            null
+                        },
                         onDismiss = { wishEditorOpen = false },
+                    )
+
+                    // The capsule editor takes its turn as a screen of its own too:
+                    // the words, the day they open, the photos that travel along.
+                    capsuleEditorCapsule != null -> CapsuleEditorScreen(
+                        initial = capsuleEditorCapsule!!,
+                        onSave = {
+                            viewModel.saveCapsule(it)
+                            capsuleEditorOpen = false
+                        },
+                        onDelete = if (capsuleEditorId.isNotEmpty()) {
+                            {
+                                capsuleEditorOpen = false
+                                pendingCapsuleDeleteId = capsuleEditorCapsule!!.id
+                            }
+                        } else {
+                            null
+                        },
+                        onDismiss = { capsuleEditorOpen = false },
                     )
 
                     detailEvent != null -> EventDetailScreen(
@@ -363,6 +460,20 @@ fun TickCountApp(
                         today = today,
                         onToggle = viewModel::toggleWish,
                         onEdit = { startEditWish(it) },
+                    )
+
+                    screen == AppScreen.CAPSULE -> CapsuleScreen(
+                        capsules = capsules,
+                        today = today,
+                        onOpen = viewModel::openCapsule,
+                        onEdit = { startEditCapsule(it) },
+                    )
+
+                    screen == AppScreen.SETTINGS -> SettingsScreen(
+                        current = screen,
+                        language = settings.language,
+                        onLanguage = { languageOpen = true },
+                        onSelect = { screenName = it.name },
                     )
 
                     screen == AppScreen.CALENDAR -> CalendarScreen(
@@ -454,18 +565,20 @@ fun TickCountApp(
                 // Nothing is highlighted while a countdown's own screen is open,
                 // because that screen belongs to no drawer entry.
                 current = if (detailEvent == null) screen else null,
-                language = settings.language,
                 onSelect = { picked ->
                     screenName = picked.name
                     detailId = null
                     drawerOpen = false
                 },
-                onLanguage = {
-                    drawerOpen = false
-                    languageOpen = true
-                },
                 modifier = Modifier.fillMaxWidth(0.5f),
             )
+        }
+
+        // The launch page: the mark the launcher wears, and under it the line the
+        // app is really about. Cold start only — a rotation keeps it gone, and it
+        // leaves with a fade rather than a cut.
+        AnimatedVisibility(visible = !splashGone, exit = fadeOut(tween(450))) {
+            LaunchPage()
         }
     }
 
@@ -537,6 +650,21 @@ fun TickCountApp(
                 pendingWishDeleteId = null
             },
             onDismiss = { pendingWishDeleteId = null },
+        )
+    }
+
+    // The capsule editor asks the same question on its way out.
+    val pendingCapsuleDeleteName = capsules.firstOrNull { it.id == pendingCapsuleDeleteId }
+        ?.let { it.title.ifBlank { it.message.take(20) } }
+
+    if (pendingCapsuleDeleteId != null && pendingCapsuleDeleteName != null) {
+        DeleteConfirmDialog(
+            name = pendingCapsuleDeleteName,
+            onConfirm = {
+                viewModel.removeCapsule(pendingCapsuleDeleteId!!)
+                pendingCapsuleDeleteId = null
+            },
+            onDismiss = { pendingCapsuleDeleteId = null },
         )
     }
 
@@ -626,9 +754,39 @@ private fun GuideDialog(onDismiss: () -> Unit) {
             )
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.guide_ok)) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
+}
+
+/**
+ * The launch page: the mark the launcher wears, and under it the line the app is
+ * really about — the two names the whole thing counts for, in the brush the
+ * pages write them with.
+ */
+@Composable
+private fun LaunchPage(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(colorResource(R.color.window_background)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Image(
+                painter = painterResource(R.drawable.ic_launcher_foreground),
+                contentDescription = null,
+                modifier = Modifier.size(118.dp),
+            )
+            Spacer(Modifier.height(18.dp))
+            Text(
+                text = stringResource(R.string.launch_line),
+                style = MaterialTheme.typography.headlineSmall,
+                fontFamily = XingKai,
+                color = Color(0xFF3A3226),
+            )
+        }
+    }
 }
 
 /**

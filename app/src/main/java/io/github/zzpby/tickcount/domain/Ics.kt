@@ -43,30 +43,20 @@ fun icsFor(
     val raw = buildString {
         append(header())
         events.forEach { event ->
-            append("BEGIN:VEVENT").append(CRLF)
-            append("UID:").append(event.id).append("@tickcount").append(CRLF)
-            append("DTSTAMP:").append(stamp).append(CRLF)
-
-            val start = event.time?.let { event.date.atTime(it) }
-            if (start == null) {
-                append("DTSTART;VALUE=DATE:").append(dateText(event.date)).append(CRLF)
-                append("DTEND;VALUE=DATE:").append(dateText(event.date.plusDays(1))).append(CRLF)
+            val lunarYearly = event.yearlyRepeat && event.enteredAsLunar &&
+                event.lunarMonth != null && event.lunarDay != null
+            if (lunarYearly) {
+                // An RRULE can only repeat one solar date, and a lunar day moves in
+                // the solar calendar — so each of the next ten years gets its own
+                // event, stamped with the solar day the lunar tables name.
+                (now.year until now.year + 10).forEach { year ->
+                    val solar = solarLunarDay(year, event.lunarMonth!!, event.lunarDay!!, event.lunarLeap)
+                        ?: return@forEach
+                    append(eventBlock(event, solar, stamp, zone, rrule = false))
+                }
             } else {
-                val startZoned = start.atZone(zone)
-                append("DTSTART:").append(utcText(startZoned)).append(CRLF)
-                append("DTEND:").append(utcText(startZoned.plusHours(1))).append(CRLF)
+                append(eventBlock(event, event.date, stamp, zone, rrule = event.yearlyRepeat))
             }
-
-            append("SUMMARY:").append(escape(event.title)).append(CRLF)
-            // A repeating countdown hands the repetition to the reader, so the calendar
-            // keeps reminding about it year after year without anything new to import.
-            if (event.yearlyRepeat) {
-                append("RRULE:FREQ=YEARLY").append(CRLF)
-            }
-            if (event.tags.isNotEmpty()) {
-                append("CATEGORIES:").append(escape(event.tags.joinToString(","))).append(CRLF)
-            }
-            append("END:VEVENT").append(CRLF)
         }
         append("END:VCALENDAR").append(CRLF)
     }
@@ -79,6 +69,42 @@ fun icsFor(
 
 private fun dateText(date: LocalDate): String =
     DateTimeFormatter.BASIC_ISO_DATE.format(date)
+
+/**
+ * One VEVENT for [event] counting to [date]: all-day as an all-day event, timed as
+ * a one-hour event in [zone]. The repetition is handed to the reader only for a
+ * solar repeat — a lunar one cannot walk the tables through an RRULE.
+ */
+private fun eventBlock(
+    event: CountdownEvent,
+    date: LocalDate,
+    stamp: String,
+    zone: ZoneId,
+    rrule: Boolean,
+): String = buildString {
+    append("BEGIN:VEVENT").append(CRLF)
+    append("UID:").append(event.id).append("@tickcount").append(CRLF)
+    append("DTSTAMP:").append(stamp).append(CRLF)
+
+    val start = event.time?.let { date.atTime(it) }
+    if (start == null) {
+        append("DTSTART;VALUE=DATE:").append(dateText(date)).append(CRLF)
+        append("DTEND;VALUE=DATE:").append(dateText(date.plusDays(1))).append(CRLF)
+    } else {
+        val startZoned = start.atZone(zone)
+        append("DTSTART:").append(utcText(startZoned)).append(CRLF)
+        append("DTEND:").append(utcText(startZoned.plusHours(1))).append(CRLF)
+    }
+
+    append("SUMMARY:").append(escape(event.title)).append(CRLF)
+    if (rrule) {
+        append("RRULE:FREQ=YEARLY").append(CRLF)
+    }
+    if (event.tags.isNotEmpty()) {
+        append("CATEGORIES:").append(escape(event.tags.joinToString(","))).append(CRLF)
+    }
+    append("END:VEVENT").append(CRLF)
+}
 
 private fun utcText(moment: ZonedDateTime): String =
     DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'")

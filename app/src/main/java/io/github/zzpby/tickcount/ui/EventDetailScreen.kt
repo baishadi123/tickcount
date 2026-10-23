@@ -193,14 +193,11 @@ fun EventDetailScreen(
 
             Spacer(Modifier.height(18.dp))
 
-            // The countdown itself, on a tint of the theme's own accent: the one block on the
-            // page that is not a card, so the number reads as the subject rather than as another
-            // row of information.
+            // The countdown itself, bare on the page: the number reads as the subject
+            // rather than as another row of information.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(PanelShape)
-                    .background(tintWash())
                     .padding(horizontal = 18.dp, vertical = 22.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -245,20 +242,18 @@ fun EventDetailScreen(
             }
 
             // The associated gallery photos, as one stacked pile: a tap flips
-            // through them full-screen. The pile sits directly under the count
-            // it belongs to, ahead of the smaller print below.
+            // through them full-screen. The pile sits directly on the page, no
+            // card behind it — the photos themselves are the thing.
             if (event.photoUris.isNotEmpty()) {
                 Spacer(Modifier.height(18.dp))
-                DetailCard {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        PhotoStack(
-                            photos = photoThumbnails,
-                            onClick = { viewerOpen = true },
-                        )
-                    }
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    PhotoStack(
+                        photos = photoThumbnails,
+                        onClick = { viewerOpen = true },
+                    )
                 }
             }
 

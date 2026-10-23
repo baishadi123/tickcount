@@ -8,12 +8,14 @@ import io.github.zzpby.tickcount.data.AppSettings
 import io.github.zzpby.tickcount.data.Backup
 import io.github.zzpby.tickcount.data.BackupCodec
 import io.github.zzpby.tickcount.data.BackupCrypto
+import io.github.zzpby.tickcount.data.CapsuleStore
 import io.github.zzpby.tickcount.data.CountdownEvent
 import io.github.zzpby.tickcount.data.EventStore
 import io.github.zzpby.tickcount.data.ImportMode
 import io.github.zzpby.tickcount.data.ReadOutcome
 import io.github.zzpby.tickcount.data.SettingsStore
 import io.github.zzpby.tickcount.data.ThemePreset
+import io.github.zzpby.tickcount.data.TimeCapsule
 import io.github.zzpby.tickcount.data.Wish
 import io.github.zzpby.tickcount.data.WishStore
 import io.github.zzpby.tickcount.data.WidgetPanel
@@ -64,6 +66,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val wishStore = WishStore(application)
     private val _wishes = MutableStateFlow(wishStore.load())
     val wishes: StateFlow<List<Wish>> = _wishes.asStateFlow()
+    private val capsuleStore = CapsuleStore(application)
+    private val _capsules = MutableStateFlow(capsuleStore.load())
+    val capsules: StateFlow<List<TimeCapsule>> = _capsules.asStateFlow()
 
     private val _settings = MutableStateFlow(settingsStore.load())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
@@ -213,7 +218,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * recover it from.
      */
     fun exportBackup(password: String?): String {
-        val document = BackupCodec.encode(Backup(_events.value, _settings.value, _wishes.value))
+        val document = BackupCodec.encode(Backup(_events.value, _settings.value, _wishes.value, _capsules.value))
         return if (password.isNullOrEmpty()) {
             document
         } else {
@@ -282,6 +287,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         settingsStore.save(backup.settings)
         _wishes.value = backup.wishes
         wishStore.save(backup.wishes)
+        _capsules.value = backup.capsules
+        capsuleStore.save(backup.capsules)
         // The restored settings decide the widgets' panel and text size too, and the
         // refresh inside persist() ran before they were saved.
         refreshAllWidgets(getApplication())
@@ -325,6 +332,49 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val updated = _wishes.value.filterNot { it.id == id }
         _wishes.value = updated
         wishStore.save(updated)
+    }
+
+    // ---------------------------------------------------------------- capsules
+
+    fun capsule(id: String?): TimeCapsule? =
+        id?.let { wanted -> _capsules.value.firstOrNull { it.id == wanted } }
+
+    /** A new capsule: an id minted once per editing session, and nothing sealed yet. */
+    fun draftCapsule(): TimeCapsule = TimeCapsule(id = TimeCapsule.newId(), message = "", opensEpochDay = LocalDate.now().toEpochDay(), createdAt = System.currentTimeMillis())
+
+    /** Adds a capsule, or replaces the stored one carrying the same id. */
+    fun saveCapsule(capsule: TimeCapsule) {
+        val index = _capsules.value.indexOfFirst { it.id == capsule.id }
+        val updated = if (index >= 0) {
+            _capsules.value.toMutableList().also { it[index] = capsule }
+        } else {
+            _capsules.value + capsule
+        }
+        _capsules.value = updated
+        capsuleStore.save(updated)
+    }
+
+    /**
+     * Opens a capsule whose day has come, stamping the day it was first opened.
+     * Sealed capsules refuse: the words stay away until the day arrives.
+     */
+    fun openCapsule(id: String): TimeCapsule? {
+        val capsule = _capsules.value.firstOrNull { it.id == id } ?: return null
+        if (capsule.opensEpochDay > LocalDate.now().toEpochDay()) return null
+        val updated = if (capsule.openedEpochDay != null) {
+            capsule
+        } else {
+            capsule.copy(openedEpochDay = LocalDate.now().toEpochDay())
+        }
+        if (updated != capsule) saveCapsule(updated)
+        return updated
+    }
+
+    fun removeCapsule(id: String) {
+        if (_capsules.value.none { it.id == id }) return
+        val updated = _capsules.value.filterNot { it.id == id }
+        _capsules.value = updated
+        capsuleStore.save(updated)
     }
 
     // ------------------------------------------------------------------ theme

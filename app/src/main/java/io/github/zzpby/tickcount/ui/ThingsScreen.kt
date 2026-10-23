@@ -141,7 +141,8 @@ fun ThingsScreen(
  *
  * The ink box is the whole interaction on the face of the card, because ticking is
  * what a wish exists for; editing and removing live on the long press, the same way
- * the countdowns keep them.
+ * the countdowns keep them. A done wish unticks from the editor only — a stray tap
+ * on something already done should not quietly take the day back off it.
  */
 @Composable
 private fun WishCard(
@@ -160,7 +161,10 @@ private fun WishCard(
             .clip(CardShape)
             .background(scheme.surfaceContainerHigh)
             .hairline(CardShape)
-            .combinedClickable(onClick = onToggle, onLongClick = onLongClick)
+            .combinedClickable(
+                onClick = { if (!wish.done) onToggle() },
+                onLongClick = onLongClick,
+            )
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -170,7 +174,7 @@ private fun WishCard(
                 .clip(CircleShape)
                 .background(if (wish.done) scheme.primary else scheme.surface)
                 .hairline(CircleShape)
-                .clickable(onClick = onToggle),
+                .clickable(enabled = !wish.done, onClick = onToggle),
             contentAlignment = Alignment.Center,
         ) {
             if (wish.done) {
@@ -224,6 +228,8 @@ fun WishEditorScreen(
     onSave: (Wish) -> Unit,
     onDelete: (() -> Unit)?,
     onDismiss: () -> Unit,
+    /** Asked instead of [onSave] when the wish is done: the day comes back off it. */
+    onUntick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     var title by rememberSaveable(initial.id) { mutableStateOf(initial.title) }
@@ -240,6 +246,15 @@ fun WishEditorScreen(
                     Text(
                         text = stringResource(R.string.action_delete),
                         color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+            if (onUntick != null) {
+                Spacer(Modifier.width(4.dp))
+                TextButton(onClick = onUntick) {
+                    Text(
+                        text = stringResource(R.string.action_mark_not_done),
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
             }

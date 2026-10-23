@@ -14,6 +14,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -69,6 +70,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -153,6 +155,10 @@ fun EventEditorScreen(
     var lunarDay by rememberSaveable(initial.id) { mutableIntStateOf(initial.lunarDay ?: 0) }
     var lunarLeap by rememberSaveable(initial.id) { mutableStateOf(initial.lunarLeap) }
     var yearlyRepeat by rememberSaveable(initial.id) { mutableStateOf(initial.yearlyRepeat) }
+    // Whether the yearly repeat walks the lunar calendar. The pickers set it as
+    // they go — a lunar pick turns it on, a solar one off — and the switch under
+    // the repeat is where it stays visible and changeable after the fact.
+    var enteredAsLunar by rememberSaveable(initial.id) { mutableStateOf(initial.enteredAsLunar) }
     var timePickerOpen by rememberSaveable { mutableStateOf(false) }
 
     // The detail screen's own background. The image is copied into the app's private
@@ -241,6 +247,7 @@ fun EventEditorScreen(
         time = if (timed) LocalTime.of(minuteOfDay / 60, minuteOfDay % 60) else null,
         colorHue = hue.takeIf { coloured },
         yearlyRepeat = yearlyRepeat,
+        enteredAsLunar = enteredAsLunar,
         backgroundUri = backgroundName,
         backgroundZoom = backgroundZoomState.floatValue,
         backgroundFocusX = backgroundFocusXState.floatValue,
@@ -270,6 +277,7 @@ fun EventEditorScreen(
         minuteOfDay,
         hue,
         coloured,
+        enteredAsLunar,
         backgroundName,
         backgroundZoomState.floatValue,
         backgroundFocusXState.floatValue,
@@ -477,6 +485,28 @@ fun EventEditorScreen(
                         modifier = Modifier.weight(1f),
                     )
                     Switch(checked = yearlyRepeat, onCheckedChange = { yearlyRepeat = it })
+                }
+
+                // A yearly repeat walks one calendar or the other: a lunar birthday
+                // lands on a different solar day every year, a solar one keeps its
+                // date. The pickers set this as they go; the switch is where it
+                // stays visible and changeable.
+                if (yearlyRepeat) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.field_repeat_lunar),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Switch(checked = enteredAsLunar, onCheckedChange = { enteredAsLunar = it })
+                    }
                 }
 
                 // Pinning leads whatever list the countdown sits in; set here with
@@ -711,6 +741,7 @@ fun EventEditorScreen(
                     lunarMonth = lunar.month
                     lunarDay = lunar.day
                     lunarLeap = lunar.leap
+                    enteredAsLunar = true
                 }
                 lunarPickerOpen = false
             },
@@ -722,6 +753,7 @@ fun EventEditorScreen(
             initial = date,
             onPick = {
                 epochDay = it.toEpochDay()
+                enteredAsLunar = false
                 // The lunar day follows the solar day: the two are the same day
                 // written two ways, so picking either brings the other out.
                 Lunar.fromSolar(it)?.let { lunar ->
@@ -780,48 +812,63 @@ private fun BackgroundAdjustPreview(
         return
     }
 
-    var viewport by remember { mutableStateOf(IntSize.Zero) }
-    Box(
-        modifier = modifier
-            .height(200.dp)
-            .clip(FieldShape)
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .hairline(FieldShape)
-            .onSizeChanged { viewport = it }
-            .pointerInput(Unit) {
-                detectTransformGestures { _, pan, gestureZoom, _ ->
-                    val newZoom = (zoom.floatValue * gestureZoom)
-                        .coerceIn(CountdownEvent.DEFAULT_BACKGROUND_ZOOM, CountdownEvent.MAX_BACKGROUND_ZOOM)
-                    zoom.floatValue = newZoom
+    // The preview takes the screen's own aspect ratio, not a fixed height: what
+    // it shows is then the same crop the full-screen detail draws, and the drag
+    // and pinch say the same thing on both. A ceiling keeps tablets from
+    // growing a panel taller than the form it sits in.
+    val configuration = LocalConfiguration.current
+    val screenAspect = if (configuration.screenWidthDp > 0) {
+        configuration.screenHeightDp.toFloat() / configuration.screenWidthDp
+    } else {
+        16f / 9f
+    }
 
-                    // The drag walks the focus point across the picture at the
-                    // scale it is being shown at, so a full drag of the picture
-                    // walks the focus a full half-and-half either way.
-                    val cover = max(
-                        viewport.width.toFloat() / bitmap.width,
-                        viewport.height.toFloat() / bitmap.height,
-                    )
-                    val drawnWidth = bitmap.width * cover * newZoom
-                    val drawnHeight = bitmap.height * cover * newZoom
-                    if (drawnWidth > 0f && drawnHeight > 0f) {
-                        focusX.floatValue = (focusX.floatValue - pan.x / drawnWidth).coerceIn(0f, 1f)
-                        focusY.floatValue = (focusY.floatValue - pan.y / drawnHeight).coerceIn(0f, 1f)
-                    }
-                }
-            },
-    ) {
-        BackgroundCrop(
-            bitmap = bitmap,
-            zoom = zoom.floatValue,
-            focusX = focusX.floatValue,
-            focusY = focusY.floatValue,
-            modifier = Modifier.matchParentSize(),
-        )
+    var viewport by remember { mutableStateOf(IntSize.Zero) }
+    BoxWithConstraints(modifier = modifier) {
+        val previewHeight = (maxWidth * screenAspect).coerceAtMost(460.dp)
         Box(
             modifier = Modifier
-                .matchParentSize()
-                .background(Color.Black.copy(alpha = BackgroundScrimAlpha)),
-        )
+                .fillMaxWidth()
+                .height(previewHeight)
+                .clip(FieldShape)
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .hairline(FieldShape)
+                .onSizeChanged { viewport = it }
+                .pointerInput(Unit) {
+                    detectTransformGestures { _, pan, gestureZoom, _ ->
+                        val newZoom = (zoom.floatValue * gestureZoom)
+                            .coerceIn(CountdownEvent.DEFAULT_BACKGROUND_ZOOM, CountdownEvent.MAX_BACKGROUND_ZOOM)
+                        zoom.floatValue = newZoom
+
+                        // The drag walks the focus point across the picture at the
+                        // scale it is being shown at, so a full drag of the picture
+                        // walks the focus a full half-and-half either way.
+                        val cover = max(
+                            viewport.width.toFloat() / bitmap.width,
+                            viewport.height.toFloat() / bitmap.height,
+                        )
+                        val drawnWidth = bitmap.width * cover * newZoom
+                        val drawnHeight = bitmap.height * cover * newZoom
+                        if (drawnWidth > 0f && drawnHeight > 0f) {
+                            focusX.floatValue = (focusX.floatValue - pan.x / drawnWidth).coerceIn(0f, 1f)
+                            focusY.floatValue = (focusY.floatValue - pan.y / drawnHeight).coerceIn(0f, 1f)
+                        }
+                    }
+                },
+        ) {
+            BackgroundCrop(
+                bitmap = bitmap,
+                zoom = zoom.floatValue,
+                focusX = focusX.floatValue,
+                focusY = focusY.floatValue,
+                modifier = Modifier.matchParentSize(),
+            )
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color.Black.copy(alpha = BackgroundScrimAlpha)),
+            )
+        }
     }
 }
 
@@ -830,7 +877,7 @@ private fun BackgroundAdjustPreview(
  * with its own ✕ in the corner, the way a pile is sorted from the back.
  */
 @Composable
-private fun PhotoThumb(
+internal fun PhotoThumb(
     name: String,
     onDelete: () -> Unit,
 ) {
@@ -971,7 +1018,7 @@ private fun TagEditor(
 
 /** A label and a value that opens a picker when tapped. */
 @Composable
-private fun FieldRow(label: String, value: String, onClick: () -> Unit) {
+internal fun FieldRow(label: String, value: String, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         shape = FieldShape,

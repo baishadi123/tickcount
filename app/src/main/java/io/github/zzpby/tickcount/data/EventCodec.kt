@@ -35,6 +35,7 @@ object EventCodec {
     private const val KEY_BACKGROUND_FOCUS_X = "fx"
     private const val KEY_BACKGROUND_FOCUS_Y = "fy"
     private const val KEY_PHOTOS = "ph"
+    private const val KEY_ENTERED_LUNAR = "el"
     private const val KEY_LUNAR_MONTH = "lm"
     private const val KEY_LUNAR_DAY = "ld"
     private const val KEY_LUNAR_LEAP = "ll"
@@ -76,6 +77,7 @@ object EventCodec {
                     // new, and a default that was never chosen need not take up space in a
                     // document that is rewritten on every save.
                     .apply { if (event.yearlyRepeat) put(KEY_YEARLY, true) }
+                    .apply { if (event.enteredAsLunar) put(KEY_ENTERED_LUNAR, true) }
                     .apply { event.backgroundUri?.let { put(KEY_BACKGROUND, it) } }
                     .apply {
                         // Only written when a background exists to frame, and only
@@ -117,6 +119,8 @@ object EventCodec {
             val epochDay = obj.optLong(KEY_EPOCH_DAY, Long.MIN_VALUE)
             if (epochDay == Long.MIN_VALUE) continue
 
+            val lunarMonth = obj.optInt(KEY_LUNAR_MONTH, 0).takeIf { it in 1..12 }
+
             add(
                 CountdownEvent(
                     id = obj.optString(KEY_ID).takeIf { it.isNotEmpty() }
@@ -133,14 +137,13 @@ object EventCodec {
                     pinned = obj.optBoolean(KEY_PINNED, false),
                     yearlyRepeat = obj.optBoolean(KEY_YEARLY, false),
                     backgroundUri = obj.optString(KEY_BACKGROUND).takeIf { it.isNotEmpty() },
-                    backgroundZoom = readZoom(obj),
-                    backgroundFocusX = readFocus(obj, KEY_BACKGROUND_FOCUS_X),
-                    backgroundFocusY = readFocus(obj, KEY_BACKGROUND_FOCUS_Y),
-                    photoUris = readPhotos(obj.optJSONArray(KEY_PHOTOS)),
                     remindLeadMinutes = readLead(obj),
-                    lunarMonth = obj.optInt(KEY_LUNAR_MONTH, 0).takeIf { it in 1..12 },
+                    lunarMonth = lunarMonth,
                     lunarDay = obj.optInt(KEY_LUNAR_DAY, 0).takeIf { it in 1..30 },
                     lunarLeap = obj.optBoolean(KEY_LUNAR_LEAP, false),
+                    // Absent on records written before the field existed: what the lunar
+                    // fields suggest is what the code assumed before it existed.
+                    enteredAsLunar = obj.optBoolean(KEY_ENTERED_LUNAR, lunarMonth != null),
                 )
             )
         }

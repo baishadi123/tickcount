@@ -67,6 +67,25 @@
     <string name="field_hue">Hue</string>
     <string name="field_pinned">Pin to the top</string>
     <string name="field_yearly">Repeat yearly</string>
+    <string name="field_repeat_lunar">By the lunar calendar</string>
+    <string name="action_mark_not_done">Mark as not done</string>
+
+    <!-- The time capsules (the capsule tab) -->
+    <string name="drawer_capsule">Capsule</string>
+    <string name="drawer_settings">Settings</string>
+    <string name="launch_line">青青子“敬”，“莹莹”我心</string>
+    <string name="capsule_editor_title">Time capsule</string>
+    <string name="capsule_summary">%1$d sealed of %2$d</string>
+    <string name="capsule_empty">No capsules yet. Write something, seal it until a day.</string>
+    <string name="capsule_days_left">%1$d days left</string>
+    <string name="capsule_arrived_section">Arrived</string>
+    <string name="capsule_ready">Ready to open</string>
+    <string name="capsule_opened_on">Opened %1$s</string>
+    <string name="capsule_message_label">The words</string>
+    <string name="capsule_message_hint">What you want to say to that day…</string>
+    <string name="field_opens">Sealed until</string>
+    <string name="capsule_exit_hint">Tap anywhere to leave</string>
+    <string name="field_title">Title</string>
     <string name="field_background">Detail background</string>
     <string name="background_set">Set</string>
     <string name="background_unset">Not set</string>

@@ -17,6 +17,12 @@ import io.github.zzpby.tickcount.R
 val XingKai = FontFamily(Font(R.font.xingkai))
 
 /**
+ * 华文新魏, bundled the same way: the letter's own hand — the reading face of a
+ * capsule, where XingKai is the page's name written large.
+ */
+val XinWei = FontFamily(Font(R.font.xinwei))
+
+/**
  * The shapes the app is cut from, in one place.
  *
  * Generous radii and a hairline outline rather than a shadow: a card that is white on a warm

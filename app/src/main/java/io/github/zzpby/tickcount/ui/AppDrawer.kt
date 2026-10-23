@@ -2,6 +2,7 @@ package io.github.zzpby.tickcount.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,12 +31,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.data.AppLanguage
+import io.github.zzpby.tickcount.ui.components.GearIcon
 
 /**
- * The destinations the app has, all of them offered by the drawer.
+ * The destinations the app has.
  *
- * There is no Settings screen any more: with two entries under it, it was a level of
- * nesting that cost a tap and explained nothing.
+ * The drawer offers the three pages you browse and the settings; everything from
+ * the calendar down lives behind the settings gear, because it is set-up rather
+ * than reading, and a drawer of nine rows said nothing about which was which.
  *
  * A single countdown's own screen is not a destination at all but a thing opened from
  * a list, so it is not in here.
@@ -42,7 +46,9 @@ import io.github.zzpby.tickcount.data.AppLanguage
 enum class AppScreen(val labelRes: Int) {
     HOME(R.string.drawer_home),
     THINGS(R.string.drawer_things),
+    CAPSULE(R.string.drawer_capsule),
     CALENDAR(R.string.drawer_calendar),
+    SETTINGS(R.string.drawer_settings),
     REMINDERS(R.string.settings_notifications),
     APPEARANCE(R.string.settings_appearance),
     // The widgets have a page of their own rather than a section of Appearance: they are
@@ -53,14 +59,23 @@ enum class AppScreen(val labelRes: Int) {
     INTRO(R.string.settings_project_intro),
 }
 
+/** The pages the drawer itself offers: the ones you browse, and the gear behind them. */
+internal val AppScreen.inDrawer: Boolean
+    get() = this == AppScreen.HOME || this == AppScreen.THINGS ||
+        this == AppScreen.CAPSULE || this == AppScreen.CALENDAR
+
+/** The pages the settings screen lists: everything below it in the enum. */
+internal val AppScreen.inSettings: Boolean
+    get() = ordinal > AppScreen.SETTINGS.ordinal
+
 /**
  * Whether this destination opens a group, and so is drawn with a gap above it.
  *
  * Which entries start a group is a fact about [AppScreen] rather than about the drawer, so
  * it is stated here and the drawing code just asks. Reminders opens the settings, after the
- * two screens you browse; the changelog opens the two you read, after the one that writes.
+ * calendar you browse; the changelog opens the two you read, after the one that writes.
  */
-private val AppScreen.startsGroup: Boolean
+internal val AppScreen.startsGroup: Boolean
     get() = this == AppScreen.REMINDERS || this == AppScreen.CHANGELOG
 
 /**
@@ -70,7 +85,7 @@ private val AppScreen.startsGroup: Boolean
  * 12dp the column already leaves at its top and bottom, so the ends and the seams read as
  * the same kind of pause.
  */
-private val GroupSpacing = 12.dp
+internal val GroupSpacing = 12.dp
 
 /**
  * The panel that slides in from the left.
@@ -80,21 +95,13 @@ private val GroupSpacing = 12.dp
  * width this one is specified to take. Laying it out directly also keeps it a plain
  * child of the screen rather than a window of its own.
  *
- * The language is not a screen of its own: it is one choice, and a screen for it would be a
- * tap and a back press to change one word. It is drawn at the foot of the panel rather than
- * among the rows, because everything above it is a place to go and it is not.
- *
- * The destinations come in three groups — what you browse, what you set up, what you read —
- * and the gaps between them are the only thing saying so. Every row is otherwise the same
- * weight, and a flat list would leave the reader to guess where one kind ends and the next
- * begins.
+ * The language is not here: it moved to the settings, where the rest of the
+ * set-up lives.
  */
 @Composable
 fun AppDrawerContent(
     current: AppScreen?,
-    language: AppLanguage,
     onSelect: (AppScreen) -> Unit,
-    onLanguage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -119,17 +126,13 @@ fun AppDrawerContent(
                 .padding(vertical = 12.dp),
         ) {
             Column(
-                // Only the destinations scroll. Eight rows and two gaps are taller than a
-                // window in landscape or in split screen, and a Column that cannot scroll
-                // would not clip them either: it would measure the last ones to nothing and
-                // they would simply vanish. The language is outside this, so it is never one
-                // of the rows that can vanish.
+                // Only the destinations scroll; the gear is outside this, so it
+                // is never among the rows that can vanish.
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState()),
             ) {
-                AppScreen.entries.forEach { screen ->
-                    if (screen.startsGroup) Spacer(Modifier.height(GroupSpacing))
+                AppScreen.entries.filter { it.inDrawer }.forEach { screen ->
                     DrawerRow(
                         label = stringResource(screen.labelRes),
                         selected = screen == current,
@@ -138,12 +141,30 @@ fun AppDrawerContent(
                 }
             }
 
-            DrawerRow(
-                label = stringResource(R.string.drawer_language),
-                trailing = stringResource(language.labelRes),
-                selected = false,
-                onClick = onLanguage,
-            )
+            // The settings gear, bottom left: the language and everything below
+            // the pages live behind it, and the corner is where a thumb looks
+            // for a way out of a panel.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 10.dp, top = 2.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { onSelect(AppScreen.SETTINGS) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    GearIcon(
+                        tint = if (current == AppScreen.SETTINGS) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
+            }
         }
     }
 }
@@ -157,7 +178,7 @@ internal val AppLanguage.labelRes: Int
     }
 
 @Composable
-private fun DrawerRow(
+internal fun DrawerRow(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,

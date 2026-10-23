@@ -26,8 +26,8 @@ import androidx.compose.ui.unit.dp
 /**
  * A pile of photos, the way WeChat stacks them: the top one square to the reader,
  * the ones behind it peeking out turned a little and slid a little, like prints
- * dropped on a table — a white frame and a soft shadow on each, so the pile reads
- * as objects rather than as one collage.
+ * dropped on a table — a soft shadow on each, so the pile reads as objects rather
+ * than as one collage, and no frame around any of them.
  *
  * At most four layers are drawn; a deeper pile shows nothing new for its extra
  * layers, and the count badge says how many are really underneath.
@@ -64,13 +64,11 @@ fun PhotoStack(
                     .offset(x = slideX.dp, y = slideY.dp)
                     .graphicsLayer {
                         rotationZ = turn
-                        shadowElevation = (depth + 1) * 4.dp.toPx()
-                        shape = RoundedCornerShape(3.dp)
+                        shadowElevation = (depth + 1) * 3.dp.toPx()
+                        shape = RoundedCornerShape(14.dp)
                         clip = false
                     }
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(Color.White)
-                    .padding(4.dp),
+                    .clip(RoundedCornerShape(14.dp)),
             ) {
                 Image(
                     bitmap = photo.asImageBitmap(),
@@ -78,7 +76,7 @@ fun PhotoStack(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(RoundedCornerShape(2.dp)),
+                        .clip(RoundedCornerShape(11.dp)),
                 )
             }
         }

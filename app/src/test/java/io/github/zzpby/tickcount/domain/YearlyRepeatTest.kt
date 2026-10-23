@@ -178,10 +178,31 @@ class YearlyRepeatTest {
             lunarMonth = 8,
             lunarDay = 15,
             yearlyRepeat = true,
+            enteredAsLunar = true,
         )
 
         val effective = event.effectiveDate(today)
         val expected = nextLunarOccurrence(8, 15, false, today)!!
+        assertEquals(expected, effective)
+    }
+
+    @Test
+    fun `a solar-entered countdown with stamped lunar fields keeps repeating by solar`() {
+        // The solar picker stamps the lunar fields too, so the card can name the
+        // lunar day — but the repeat stays on the date the user picked.
+        val today = LocalDate.of(2026, 10, 1)
+        val event = CountdownEvent(
+            id = "s",
+            date = LocalDate.of(2024, 9, 17),
+            title = "生日",
+            lunarMonth = 8,
+            lunarDay = 15,
+            yearlyRepeat = true,
+            enteredAsLunar = false,
+        )
+
+        val effective = event.effectiveDate(today)
+        val expected = nextYearlyOccurrence(LocalDate.of(2024, 9, 17), today)
         assertEquals(expected, effective)
     }
 

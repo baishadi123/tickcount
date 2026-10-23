@@ -51,7 +51,7 @@ fun nextLunarOccurrence(month: Int, day: Int, leap: Boolean, today: LocalDate): 
 }
 
 /** The solar day a lunar month and day lands on in [year], with the two folds applied. */
-private fun solarLunarDay(year: Int, month: Int, day: Int, leap: Boolean): LocalDate? {
+internal fun solarLunarDay(year: Int, month: Int, day: Int, leap: Boolean): LocalDate? {
     val effectiveLeap = leap && Lunar.leapMonth(year) == month
     val effectiveDay = day.coerceAtMost(Lunar.daysIn(year, month, effectiveLeap))
     return Lunar.toSolar(Lunar.Date(year, month, effectiveDay, effectiveLeap))
@@ -65,12 +65,15 @@ private fun solarLunarDay(year: Int, month: Int, day: Int, leap: Boolean): Local
  * date, whatever day that is.
  *
  * One entered as a lunar date repeats **by the lunar calendar**, so the solar day
- * moves every year; the solar date is only the day it was entered on. Null from the
- * lunar tables (a device clock past 2100) falls back to the solar repeat.
+ * moves every year; the solar date is only the day it was entered on. The lunar
+ * fields alone do not carry that intent — the solar picker stamps them too, so
+ * the card can name the lunar day — and [CountdownEvent.enteredAsLunar] says
+ * which picker the editor last used. Null from the lunar tables (a device clock
+ * past 2100) falls back to the solar repeat.
  */
 fun CountdownEvent.effectiveDate(today: LocalDate): LocalDate = when {
     !yearlyRepeat -> date
-    lunarMonth != null && lunarDay != null ->
+    enteredAsLunar && lunarMonth != null && lunarDay != null ->
         nextLunarOccurrence(lunarMonth, lunarDay, lunarLeap, today) ?: nextYearlyOccurrence(date, today)
     else -> nextYearlyOccurrence(date, today)
 }

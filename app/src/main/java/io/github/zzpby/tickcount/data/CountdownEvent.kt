@@ -99,6 +99,19 @@ data class CountdownEvent(
     val lunarMonth: Int? = null,
     val lunarDay: Int? = null,
     val lunarLeap: Boolean = false,
+    /**
+     * True when the day was entered through the **lunar** picker, which is the last
+     * picker the editor used.
+     *
+     * Kept beside the lunar fields because the ordinary solar picker stamps those
+     * too — the two are the same day written two ways, and the card names both —
+     * so the fields alone cannot say which calendar the user was thinking in.
+     * Yearly repeats are the field's whole point: a lunar birthday walks the lunar
+     * calendar and lands on a different solar day every year, a solar one keeps
+     * its date. Records written before the field existed load by what their lunar
+     * fields suggest, which is what the code assumed before the field existed.
+     */
+    val enteredAsLunar: Boolean = false,
 ) {
     val epochDay: Long get() = date.toEpochDay()
 

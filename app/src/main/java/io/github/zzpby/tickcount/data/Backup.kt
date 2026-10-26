@@ -38,7 +38,7 @@ data class ImportPreview(
     val discarded: Int,
 )
 
-/** Everything a backup carries: the countdowns, the wishes, the capsules, and how the app was set up. */
+/** Everything a backup carries: the countdowns, the wishes, the capsules, the footprints, and how the app was set up. */
 data class Backup(
     val events: List<CountdownEvent>,
     val settings: AppSettings,
@@ -46,6 +46,8 @@ data class Backup(
     val wishes: List<Wish> = emptyList(),
     /** The time capsules, names and days only — the photos themselves stay behind. */
     val capsules: List<TimeCapsule> = emptyList(),
+    /** The footprints, places and days only — the media itself stays behind, the same rule. */
+    val footprints: List<Footprint> = emptyList(),
 )
 
 /**
@@ -86,6 +88,7 @@ object BackupCodec {
     private const val KEY_EVENTS = "events"
     private const val KEY_WISHES = "wishes"
     private const val KEY_CAPSULES = "capsules"
+    private const val KEY_FOOTPRINTS = "footprints"
     private const val KEY_SETTINGS = "settings"
 
     /** [exportedAt] is a parameter rather than read here, so that encoding is repeatable. */
@@ -97,6 +100,7 @@ object BackupCodec {
             .put(KEY_EVENTS, EventCodec.toJson(backup.events))
             .put(KEY_WISHES, WishCodec.encode(backup.wishes))
             .put(KEY_CAPSULES, CapsuleCodec.encode(backup.capsules))
+            .put(KEY_FOOTPRINTS, FootprintCodec.encode(backup.footprints))
             .put(KEY_SETTINGS, settingsToJson(backup.settings))
             // Indented: a backup written in plain text is meant to be legible, and one
             // that is not is encrypted before it is written anyway.
@@ -110,6 +114,7 @@ object BackupCodec {
             events = root.optJSONArray(KEY_EVENTS)?.let(EventCodec::fromJson) ?: emptyList(),
             wishes = root.optJSONArray(KEY_WISHES)?.let(WishCodec::decode) ?: emptyList(),
             capsules = root.optJSONArray(KEY_CAPSULES)?.let(CapsuleCodec::decode) ?: emptyList(),
+            footprints = root.optJSONArray(KEY_FOOTPRINTS)?.let(FootprintCodec::decode) ?: emptyList(),
             // An older backup may predate a setting; the defaults are the right answer
             // for anything it does not carry.
             settings = root.optJSONObject(KEY_SETTINGS)?.let(::settingsFromJson) ?: AppSettings(),

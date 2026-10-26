@@ -3,6 +3,7 @@
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import io.github.zzpby.tickcount.data.CapsuleStore
 import io.github.zzpby.tickcount.data.EventStore
 import io.github.zzpby.tickcount.data.SettingsStore
 
@@ -20,6 +21,7 @@ class BootReceiver : BroadcastReceiver() {
         Reminders.schedule(
             context,
             EventStore(context).load(),
+            CapsuleStore(context).load(),
             settings.remindMinutes,
             settings.remindLeadMinutes,
         )

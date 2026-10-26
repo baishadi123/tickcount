@@ -71,6 +71,19 @@
 
     <!-- 时光胶囊（capsule 页签） -->
     <string name="drawer_capsule">敬心</string>
+    <string name="drawer_wanjiiang">万疆</string>
+
+    <!-- 万疆：一起去过的地方 -->
+    <string name="wanjiiang_summary">%1$d 个地方 · %2$d 张照片</string>
+    <string name="wanjiiang_visits">%1$d 次到访</string>
+    <string name="wanjiiang_empty">还没有足迹。\n点右上角的 + 记下第一站。</string>
+    <string name="wanjiiang_no_media">无照片</string>
+    <string name="footprint_editor_title">足迹</string>
+    <string name="footprint_place_hint">地方名，如「西湖」</string>
+    <string name="footprint_location_row">位置</string>
+    <string name="footprint_location_noted">已记下 %1$s, %2$s</string>
+    <string name="footprint_location_off">带上此刻的位置</string>
+    <string name="footprint_media_hint">点缩略图移除；照片、动图和视频都可以</string>
     <string name="drawer_settings">设置</string>
     <string name="launch_line">青青子“敬”，“莹莹”我心</string>
     <string name="capsule_editor_title">时光胶囊</string>
@@ -253,6 +266,7 @@
     <string name="notify_channel_description">倒数日当天的提醒</string>
     <string name="notify_today">就是今天</string>
     <string name="notify_later">就是这一天（%1$s）</string>
+    <string name="notify_capsule">有一封信到了，可以拆开</string>
     <string name="appearance_custom_hue">拖动选择色相</string>
     <string name="appearance_custom_hint">拖的时候整个应用会立刻换色，这个画面就是预览。</string>
     <string name="appearance_surfaces">各层深浅</string>
@@ -302,6 +316,9 @@
     <string name="card_unit_past">天</string>
     <string name="calendar_pick_a_day">点一天，看那天的倒数日。</string>
     <string name="calendar_day_empty">这一天还没有倒数日。\n点右上角的 + 新建一个。</string>
+    <string name="calendar_capsule_open">已到期，可拆开</string>
+    <string name="calendar_anniversary">纪念日</string>
+    <string name="calendar_set_anniversary">把这天设为纪念日，看到在一起的第几天</string>
     <string name="intro_github_title">Github 项目地址</string>
     <string name="intro_copied">已复制</string>
     <string name="intro_go">跳转</string>

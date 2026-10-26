@@ -6,9 +6,12 @@
       reminder, and neither is requested until that switch is turned on:
       POST_NOTIFICATIONS (Android 13+) to post it, RECEIVE_BOOT_COMPLETED to put the alarm
       back after a restart. The alarm itself is the inexact kind, which needs no permission.
+      The coarse location is asked for only inside 万疆, when a footprint is being noted
+      with its spot — never at launch, never by itself.
     -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:allowBackup="true"

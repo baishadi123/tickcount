@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -25,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -50,6 +52,9 @@ import java.util.Locale
 /** How many countdown dots fit under a day number before they stop being legible. */
 private const val MAX_DOTS = 3
 
+/** The anniversary's mark, a warm rose that belongs to no theme. */
+private val AnniversaryColor = Color(0xFFC25B4E)
+
 /**
  * The month grid.
  *
@@ -63,6 +68,14 @@ fun MonthCalendar(
     selectedDate: LocalDate?,
     today: LocalDate,
     events: Map<LocalDate, List<CountdownEvent>>,
+    /** The days a capsule opens on, marked apart from the countdown dots. */
+    capsuleDates: Set<LocalDate> = emptySet(),
+    /** The days a wish was ticked off, marked with the countdowns' own dots. */
+    wishDates: Set<LocalDate> = emptySet(),
+    /** The milestone days from the anniversary, ringed in the anniversary's rose. */
+    milestoneDates: Set<LocalDate> = emptySet(),
+    /** The anniversary, marked on its month and day in every year the grid shows. */
+    anniversary: LocalDate? = null,
     onSelect: (LocalDate) -> Unit,
     onStepMonth: (Long) -> Unit,
     onMonthClick: () -> Unit,
@@ -95,6 +108,10 @@ fun MonthCalendar(
                 selectedDate = selectedDate,
                 today = today,
                 events = events,
+                capsuleDates = capsuleDates,
+                wishDates = wishDates,
+                milestoneDates = milestoneDates,
+                anniversary = anniversary,
                 onSelect = onSelect,
             )
         }
@@ -179,6 +196,10 @@ private fun MonthGrid(
     selectedDate: LocalDate?,
     today: LocalDate,
     events: Map<LocalDate, List<CountdownEvent>>,
+    capsuleDates: Set<LocalDate>,
+    wishDates: Set<LocalDate>,
+    milestoneDates: Set<LocalDate>,
+    anniversary: LocalDate?,
     onSelect: (LocalDate) -> Unit,
 ) {
     val cells = remember(month, locale) { monthCells(month, firstDayOfWeek(locale)) }
@@ -195,6 +216,14 @@ private fun MonthGrid(
                         isSelected = cell.date == selectedDate,
                         isToday = cell.date == today,
                         accents = events[cell.date].orEmpty().map { eventAccent(it.colorHue) },
+                        hasCapsule = cell.date in capsuleDates,
+                        hasWish = cell.date in wishDates,
+                        hasMilestone = cell.date in milestoneDates,
+                        // The anniversary is a day of the year, not a date: it
+                        // marks its month and day in every year the grid shows.
+                        isAnniversary = anniversary != null &&
+                            cell.date.month == anniversary.month &&
+                            cell.date.dayOfMonth == anniversary.dayOfMonth,
                         onClick = { onSelect(cell.date) },
                         modifier = Modifier.weight(1f),
                     )
@@ -210,6 +239,10 @@ private fun DayCell(
     isSelected: Boolean,
     isToday: Boolean,
     accents: List<Color>,
+    hasCapsule: Boolean = false,
+    hasWish: Boolean = false,
+    hasMilestone: Boolean = false,
+    isAnniversary: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -257,9 +290,11 @@ private fun DayCell(
             modifier = Modifier.clearAndSetSemantics { },
         )
 
-        if (accents.isNotEmpty()) {
-            // Up to three dots, so a day holding several countdowns looks different
-            // from a day holding one. A fourth would not fit under the number.
+        if (accents.isNotEmpty() || hasCapsule || hasWish || hasMilestone || isAnniversary) {
+            // Up to three countdown dots, then the capsule's ring, the wish's
+            // diamond, the milestone's rose ring and the anniversary's rose dot —
+            // a day holding several things looks different from a day holding
+            // one, each in its own shape.
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -273,6 +308,53 @@ private fun DayCell(
                             .size(5.dp)
                             .background(
                                 if (isSelected) colorScheme.onPrimary else accent,
+                                CircleShape,
+                            )
+                    )
+                }
+                if (hasCapsule) {
+                    // A ring rather than a dot: a capsule opening is a container
+                    // waiting, and it reads apart from the countdowns' solids.
+                    Box(
+                        Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .border(
+                                1.2.dp,
+                                if (isSelected) colorScheme.onPrimary else colorScheme.tertiary,
+                                CircleShape,
+                            )
+                    )
+                }
+                if (hasWish) {
+                    // A diamond: a wish ticked off is a thing settled, not one
+                    // waiting, and the turn sets it apart from the dots.
+                    Box(
+                        Modifier
+                            .size(5.dp)
+                            .graphicsLayer { rotationZ = 45f }
+                            .background(
+                                if (isSelected) colorScheme.onPrimary else colorScheme.secondary,
+                                RoundedCornerShape(1.dp),
+                            )
+                    )
+                }
+                if (hasMilestone) {
+                    // The anniversary's own rose, hollow: a milestone is the day
+                    // the count itself turns a number worth saying.
+                    Box(
+                        Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .border(1.2.dp, if (isSelected) colorScheme.onPrimary else AnniversaryColor, CircleShape)
+                    )
+                }
+                if (isAnniversary) {
+                    Box(
+                        Modifier
+                            .size(5.dp)
+                            .background(
+                                if (isSelected) colorScheme.onPrimary else AnniversaryColor,
                                 CircleShape,
                             )
                     )

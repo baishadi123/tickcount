@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -39,6 +40,10 @@ import androidx.compose.ui.unit.dp
 import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.data.Wish
 import io.github.zzpby.tickcount.domain.daysFromToday
+import io.github.zzpby.tickcount.ui.components.CheckIcon
+import io.github.zzpby.tickcount.ui.components.CloseIcon
+import io.github.zzpby.tickcount.ui.components.ReopenIcon
+import io.github.zzpby.tickcount.ui.components.TrashIcon
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.CardGap
 import io.github.zzpby.tickcount.ui.theme.CardShape
@@ -242,32 +247,23 @@ fun WishEditorScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (onDelete != null) {
-                TextButton(onClick = onDelete) {
-                    Text(
-                        text = stringResource(R.string.action_delete),
-                        color = MaterialTheme.colorScheme.error,
-                    )
+                IconButton(onClick = onDelete) {
+                    TrashIcon(color = MaterialTheme.colorScheme.error)
                 }
             }
             if (onUntick != null) {
-                Spacer(Modifier.width(4.dp))
-                TextButton(onClick = onUntick) {
-                    Text(
-                        text = stringResource(R.string.action_mark_not_done),
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+                IconButton(onClick = onUntick) {
+                    ReopenIcon(color = MaterialTheme.colorScheme.primary)
                 }
             }
 
             Spacer(Modifier.weight(1f))
 
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel))
+            IconButton(onClick = onDismiss) {
+                CloseIcon(color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
-            Spacer(Modifier.width(6.dp))
-
-            Button(
+            IconButton(
                 enabled = title.isNotBlank(),
                 onClick = {
                     onSave(
@@ -277,10 +273,14 @@ fun WishEditorScreen(
                         )
                     )
                 },
-                shape = PillShape,
-                contentPadding = PaddingValues(horizontal = 22.dp, vertical = 10.dp),
             ) {
-                Text(stringResource(if (isNew) R.string.action_add else R.string.action_save))
+                CheckIcon(
+                    color = if (title.isNotBlank()) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    },
+                )
             }
         }
 

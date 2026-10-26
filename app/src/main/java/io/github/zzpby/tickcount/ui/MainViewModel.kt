@@ -11,6 +11,9 @@ import io.github.zzpby.tickcount.data.BackupCrypto
 import io.github.zzpby.tickcount.data.CapsuleStore
 import io.github.zzpby.tickcount.data.CountdownEvent
 import io.github.zzpby.tickcount.data.EventStore
+import io.github.zzpby.tickcount.data.Footprint
+import io.github.zzpby.tickcount.data.FootprintMedia
+import io.github.zzpby.tickcount.data.FootprintStore
 import io.github.zzpby.tickcount.data.ImportMode
 import io.github.zzpby.tickcount.data.ReadOutcome
 import io.github.zzpby.tickcount.data.SettingsStore
@@ -69,6 +72,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val capsuleStore = CapsuleStore(application)
     private val _capsules = MutableStateFlow(capsuleStore.load())
     val capsules: StateFlow<List<TimeCapsule>> = _capsules.asStateFlow()
+
+    private val footprintStore = FootprintStore(application)
+    private val _footprints = MutableStateFlow(footprintStore.load())
+    val footprints: StateFlow<List<Footprint>> = _footprints.asStateFlow()
 
     private val _settings = MutableStateFlow(settingsStore.load())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
@@ -197,11 +204,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Any placed widget is showing one of these countdowns and has no way of
         // knowing one was renamed, re-timed, moved, or removed.
         refreshAllWidgets(getApplication())
-        // The reminder is for the next countdown, so it is only right while the list is.
+        // The reminder is for the next thing worth a word, countdown or capsule,
+        // so both lists are in it and a change to either re-picks.
         if (_settings.value.remind) {
             Reminders.schedule(
                 getApplication(),
                 events,
+                _capsules.value,
                 _settings.value.remindMinutes,
                 _settings.value.remindLeadMinutes,
             )
@@ -218,7 +227,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * recover it from.
      */
     fun exportBackup(password: String?): String {
-        val document = BackupCodec.encode(Backup(_events.value, _settings.value, _wishes.value, _capsules.value))
+        val document = BackupCodec.encode(
+            Backup(_events.value, _settings.value, _wishes.value, _capsules.value, _footprints.value),
+        )
         return if (password.isNullOrEmpty()) {
             document
         } else {
@@ -289,6 +300,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         wishStore.save(backup.wishes)
         _capsules.value = backup.capsules
         capsuleStore.save(backup.capsules)
+        _footprints.value = backup.footprints
+        footprintStore.save(backup.footprints)
         // The restored settings decide the widgets' panel and text size too, and the
         // refresh inside persist() ran before they were saved.
         refreshAllWidgets(getApplication())
@@ -352,6 +365,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         _capsules.value = updated
         capsuleStore.save(updated)
+        // A capsule's opening day is a reminder's business the same way a
+        // countdown's date is, so the next one is re-picked.
+        reschedule()
     }
 
     /**
@@ -375,6 +391,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val updated = _capsules.value.filterNot { it.id == id }
         _capsules.value = updated
         capsuleStore.save(updated)
+        // A deleted capsule leaves its reminder behind, which would fire for
+        // nothing — the next one is re-picked without it.
+        reschedule()
+    }
+
+    // -------------------------------------------------------------- footprints
+
+    fun footprint(id: String?): Footprint? =
+        id?.let { wanted -> _footprints.value.firstOrNull { it.id == wanted } }
+
+    /** A new footprint: an id minted once per editing session, today as its day. */
+    fun draftFootprint(): Footprint = Footprint(
+        id = Footprint.newId(),
+        place = "",
+        epochDay = LocalDate.now().toEpochDay(),
+        createdAt = System.currentTimeMillis(),
+    )
+
+    /** Adds a footprint, or replaces the stored one carrying the same id. */
+    fun saveFootprint(footprint: Footprint) {
+        val index = _footprints.value.indexOfFirst { it.id == footprint.id }
+        val updated = if (index >= 0) {
+            _footprints.value.toMutableList().also { it[index] = footprint }
+        } else {
+            _footprints.value + footprint
+        }
+        _footprints.value = updated
+        footprintStore.save(updated)
+    }
+
+    /** Removes the record; its media files go with it, the visit itself is the user's to keep. */
+    fun removeFootprint(id: String) {
+        val removed = _footprints.value.firstOrNull { it.id == id } ?: return
+        val updated = _footprints.value.filterNot { it.id == id }
+        _footprints.value = updated
+        footprintStore.save(updated)
+        removed.photos.forEach { FootprintMedia.delete(getApplication(), it) }
     }
 
     // ------------------------------------------------------------------ theme
@@ -494,6 +547,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             Reminders.schedule(
                 getApplication(),
                 _events.value,
+                _capsules.value,
                 settings.remindMinutes,
                 settings.remindLeadMinutes,
             )

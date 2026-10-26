@@ -89,6 +89,7 @@ fun TickCountApp(
     val events by viewModel.events.collectAsStateWithLifecycle()
     val wishes by viewModel.wishes.collectAsStateWithLifecycle()
     val capsules by viewModel.capsules.collectAsStateWithLifecycle()
+    val footprints by viewModel.footprints.collectAsStateWithLifecycle()
     val now by viewModel.now.collectAsStateWithLifecycle()
     val visibleMonth by viewModel.visibleMonth.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -191,6 +192,30 @@ fun TickCountApp(
         capsuleEditorId = id
         capsuleEditorOpen = true
     }
+
+    // The footprint editor, wired the same way as the other three: the bar's
+    // plus on a new mint, the page's long press on one footprint.
+    var footprintEditorOpen by rememberSaveable { mutableStateOf(false) }
+    var footprintEditorId by rememberSaveable { mutableStateOf("") }
+    var pendingFootprintDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val footprintEditorFootprint = remember(footprintEditorOpen, footprintEditorId) {
+        when {
+            !footprintEditorOpen -> null
+            footprintEditorId.isEmpty() -> viewModel.draftFootprint()
+            else -> viewModel.footprint(footprintEditorId)
+        }
+    }
+
+    fun startNewFootprint() {
+        footprintEditorId = ""
+        footprintEditorOpen = true
+    }
+
+    fun startEditFootprint(id: String) {
+        footprintEditorId = id
+        footprintEditorOpen = true
+    }
     // A repeating countdown marks the same month and day in the years around today, not
     // only the year it was entered in — that is what repeating means on a calendar. One
     // entered as a lunar date walks the lunar calendar instead: the solar day it marks
@@ -213,6 +238,29 @@ fun TickCountApp(
                 }
             }
         }.mapValues { (_, onDay) -> onDay.sortedWith(compareBy({ it.time }, { it.title })) }
+    }
+    // The capsules by the day they open on, which the calendar marks and a
+    // day's list holds beside the countdowns — a capsule is a day's business
+    // the same way a countdown is.
+    val capsulesByDate = remember(capsules) {
+        capsules.groupBy { LocalDate.ofEpochDay(it.opensEpochDay) }
+    }
+    // The wishes by the day they were ticked off: a thing done is a memory of
+    // a day, which is what the calendar keeps.
+    val wishesByDate = remember(wishes) {
+        wishes
+            .filter { it.doneEpochDay != null }
+            .groupBy { LocalDate.ofEpochDay(it.doneEpochDay!!) }
+    }
+    // The milestones the anniversary counts towards: derived, never stored —
+    // the calendar marks them, the voyage carries them, and nothing has to be
+    // kept in step with the anniversary but the anniversary itself.
+    val anniversaryDate = settings.anniversaryEpochDay?.let(LocalDate::ofEpochDay)
+    val milestonesByDate = remember(anniversaryDate) {
+        anniversaryDate
+            ?.let { io.github.zzpby.tickcount.domain.milestones(it) }
+            ?.associate { (day, date) -> date to day }
+            ?: emptyMap()
     }
     val detailEvent = viewModel.event(detailId)
     val calendarDate = calendarEpochDay.takeIf { it != NO_DAY }?.let(LocalDate::ofEpochDay)
@@ -257,13 +305,14 @@ fun TickCountApp(
     // up exactly one level, matching the arrow the title bar shows.
     BackHandler(
         enabled = drawerOpen || editorOpen || wishEditorOpen || capsuleEditorOpen ||
-            detailId != null || screen != AppScreen.HOME
+            footprintEditorOpen || detailId != null || screen != AppScreen.HOME
     ) {
         when {
             drawerOpen -> drawerOpen = false
             editorOpen -> editorOpen = false
             wishEditorOpen -> wishEditorOpen = false
             capsuleEditorOpen -> capsuleEditorOpen = false
+            footprintEditorOpen -> footprintEditorOpen = false
             detailId != null -> detailId = null
             // A settings page goes back to the settings it was opened from, the
             // way a page behind the gear should.
@@ -278,7 +327,13 @@ fun TickCountApp(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
-                AppTitleBar(
+                // The voyage page is the sky itself: no bar over it, the system
+                // bars hidden by the screen, the back key the way out. A
+                // countdown opened from a star brings its own bar back.
+                val skyAlone = screen == AppScreen.VOYAGE && detailEvent == null &&
+                    !editorOpen && !wishEditorOpen && !capsuleEditorOpen && !footprintEditorOpen
+                if (!skyAlone) {
+                    AppTitleBar(
                     // The home screen keeps its name for the screen itself, where it is set
                     // at display size: the bar there is only a place to put the buttons.
                     title = when {
@@ -289,18 +344,20 @@ fun TickCountApp(
                             if (wishEditorIsNew) R.string.things_new_title else R.string.things_edit_title
                         )
                         capsuleEditorOpen -> stringResource(R.string.capsule_editor_title)
+                        footprintEditorOpen -> stringResource(R.string.footprint_editor_title)
                         detailEvent != null -> null
                         // These set their own name large in the content, so the bar keeps
                         // only the buttons.
                         screen == AppScreen.HOME || screen == AppScreen.REMINDERS ||
-                            screen == AppScreen.THINGS || screen == AppScreen.CAPSULE -> null
+                            screen == AppScreen.THINGS || screen == AppScreen.CAPSULE ||
+                            screen == AppScreen.WANJIANG -> null
                         else -> stringResource(screen.labelRes)
                     },
                     // Editing a countdown is a step into it, like its own screen: the button
                     // goes back to whatever list it came from rather than opening the drawer.
                     // A settings page is a step into it too — back to the settings, not out.
                     navigation = if (detailEvent != null || editorOpen || wishEditorOpen ||
-                        capsuleEditorOpen || screen.inSettings
+                        capsuleEditorOpen || footprintEditorOpen || screen.inSettings
                     ) {
                         TitleBarNavigation.BACK
                     } else {
@@ -311,6 +368,7 @@ fun TickCountApp(
                             editorOpen -> editorOpen = false
                             wishEditorOpen -> wishEditorOpen = false
                             capsuleEditorOpen -> capsuleEditorOpen = false
+                            footprintEditorOpen -> footprintEditorOpen = false
                             detailEvent != null -> detailId = null
                             screen.inSettings -> screenName = AppScreen.SETTINGS.name
                             else -> drawerOpen = true
@@ -324,6 +382,7 @@ fun TickCountApp(
                         editorOpen -> Unit
                         wishEditorOpen -> Unit
                         capsuleEditorOpen -> Unit
+                        footprintEditorOpen -> Unit
 
                         detailEvent != null -> IconButton(onClick = { startEditEvent(detailEvent.id) }) {
                             EditIcon()
@@ -346,6 +405,12 @@ fun TickCountApp(
                             IconButton(onClick = { startNewCapsule() }) { PlusIcon() }
                         }
 
+                        // A footprint is added the same way: the slot opens the
+                        // footprint editor.
+                        screen == AppScreen.WANJIANG -> {
+                            IconButton(onClick = { startNewFootprint() }) { PlusIcon() }
+                        }
+
                         // On the calendar the plus belongs to the chosen day, and
                         // there is nothing to add to until one is chosen.
                         screen == AppScreen.CALENDAR -> {
@@ -354,6 +419,7 @@ fun TickCountApp(
                             }
                         }
                     }
+                }
                 }
             },
         ) { insets ->
@@ -438,6 +504,24 @@ fun TickCountApp(
                         onDismiss = { capsuleEditorOpen = false },
                     )
 
+                    // The footprint editor takes its turn as a screen of its own.
+                    footprintEditorFootprint != null -> FootprintEditorScreen(
+                        initial = footprintEditorFootprint!!,
+                        onSave = {
+                            viewModel.saveFootprint(it)
+                            footprintEditorOpen = false
+                        },
+                        onDelete = if (footprintEditorId.isNotEmpty()) {
+                            {
+                                footprintEditorOpen = false
+                                pendingFootprintDeleteId = footprintEditorFootprint!!.id
+                            }
+                        } else {
+                            null
+                        },
+                        onDismiss = { footprintEditorOpen = false },
+                    )
+
                     detailEvent != null -> EventDetailScreen(
                         event = detailEvent,
                         now = now,
@@ -471,6 +555,11 @@ fun TickCountApp(
                         onEdit = { startEditCapsule(it) },
                     )
 
+                    screen == AppScreen.WANJIANG -> WanJiangScreen(
+                        footprints = footprints,
+                        onEdit = { startEditFootprint(it) },
+                    )
+
                     screen == AppScreen.SETTINGS -> SettingsScreen(
                         current = screen,
                         language = settings.language,
@@ -483,6 +572,10 @@ fun TickCountApp(
                         today = today,
                         selectedDate = calendarDate,
                         eventsByDate = byDate,
+                        capsulesByDate = capsulesByDate,
+                        wishesByDate = wishesByDate,
+                        anniversaryDate = anniversaryDate,
+                        milestonesByDate = milestonesByDate,
                         query = calendarQuery,
                         onQueryChange = { calendarQuery = it },
                         scope = calendarScope,
@@ -495,11 +588,16 @@ fun TickCountApp(
                         onToday = viewModel::goToToday,
                         onOpenEvent = { detailId = it },
                         onLongPressEvent = { actionsForId = it },
+                        onOpenCapsule = { screenName = AppScreen.CAPSULE.name },
+                        onOpenWishes = { screenName = AppScreen.THINGS.name },
+                        onSetAnniversary = { viewModel.chooseAnniversary(it.toEpochDay()) },
                     )
 
                     screen == AppScreen.VOYAGE -> VoyageScreen(
                         events = events,
                         today = today,
+                        milestones = milestonesByDate,
+                        footprints = footprints,
                         onOpen = { detailId = it },
                     )
 
@@ -673,6 +771,20 @@ fun TickCountApp(
                 pendingCapsuleDeleteId = null
             },
             onDismiss = { pendingCapsuleDeleteId = null },
+        )
+    }
+
+    // The footprint editor asks the same question on its way out.
+    val pendingFootprintDeleteName = footprints.firstOrNull { it.id == pendingFootprintDeleteId }?.place
+
+    if (pendingFootprintDeleteId != null && pendingFootprintDeleteName != null) {
+        DeleteConfirmDialog(
+            name = pendingFootprintDeleteName,
+            onConfirm = {
+                viewModel.removeFootprint(pendingFootprintDeleteId!!)
+                pendingFootprintDeleteId = null
+            },
+            onDismiss = { pendingFootprintDeleteId = null },
         )
     }
 

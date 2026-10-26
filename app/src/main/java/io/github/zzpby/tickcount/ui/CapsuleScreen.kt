@@ -40,6 +40,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -82,7 +83,10 @@ import androidx.compose.ui.window.DialogProperties
 import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.data.EventBackgrounds
 import io.github.zzpby.tickcount.data.TimeCapsule
+import io.github.zzpby.tickcount.ui.components.CheckIcon
+import io.github.zzpby.tickcount.ui.components.CloseIcon
 import io.github.zzpby.tickcount.ui.components.PhotoStack
+import io.github.zzpby.tickcount.ui.components.TrashIcon
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.CardGap
 import io.github.zzpby.tickcount.ui.theme.CardShape
@@ -341,24 +345,20 @@ fun CapsuleEditorScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (onDelete != null) {
-                TextButton(onClick = onDelete) {
-                    Text(
-                        text = stringResource(R.string.action_delete),
-                        color = MaterialTheme.colorScheme.error,
-                    )
+                IconButton(onClick = onDelete) {
+                    TrashIcon(color = MaterialTheme.colorScheme.error)
                 }
             }
 
             Spacer(Modifier.weight(1f))
 
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel))
+            IconButton(onClick = onDismiss) {
+                CloseIcon(color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
-            Spacer(Modifier.width(6.dp))
-
-            Button(
-                enabled = title.isNotBlank() && message.isNotBlank(),
+            val canSeal = title.isNotBlank() && message.isNotBlank()
+            IconButton(
+                enabled = canSeal,
                 onClick = {
                     onSave(
                         initial.copy(
@@ -369,10 +369,14 @@ fun CapsuleEditorScreen(
                         )
                     )
                 },
-                shape = PillShape,
-                contentPadding = PaddingValues(horizontal = 22.dp, vertical = 10.dp),
             ) {
-                Text(stringResource(R.string.action_save))
+                CheckIcon(
+                    color = if (canSeal) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    },
+                )
             }
         }
 
@@ -396,7 +400,7 @@ fun CapsuleEditorScreen(
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
                 value = message,
-                onValueChange = { message = it.take(TimeCapsule.MAX_MESSAGE_LENGTH) },
+                onValueChange = { message = it },
                 label = { Text(stringResource(R.string.capsule_message_label)) },
                 placeholder = { Text(stringResource(R.string.capsule_message_hint)) },
                 minLines = 4,
@@ -801,9 +805,9 @@ private fun LetterSheet(
     val paragraphs = remember(capsule.id, capsule.message) {
         capsule.message.split('\n').map { it.trim() }.filter { it.isNotEmpty() }
     }
-    // The pages: the title takes the first page's head, then the paragraphs fill
-    // page by page — about a sheet's worth each, so the estimate stays on the
-    // generous side and no page overflows.
+    // The pages: the title takes the first page's head, then whole paragraphs
+    // fill page by page to a sheet's budget, and a paragraph that would not
+    // fit starts the next sheet.
     val pages = remember(capsule.id, paragraphs, capsule.photos.isNotEmpty()) {
         buildPages(paragraphs, capsule.photos.isNotEmpty())
     }
@@ -850,72 +854,74 @@ private fun LetterSheet(
 }
 
 /** How many characters a sheet comfortably holds — the first sheet included. */
-private const val PAGE_CHARS = 330
+private const val PAGE_CHARS = 300
 
-/** The longest a run of words may be without being split at a sentence. */
-private const val MAX_PIECE = 110
-
-/** A split prefers a sentence end, once the piece has at least this many. */
-private const val SOFT_MIN = 40
+/** The first sheet's budget is smaller: the title shares the page with the words. */
+private const val FIRST_PAGE_CHARS = 280
 
 /**
- * Fills pages with the words: a paragraph shorter than a sheet stays whole,
- * a longer one splits at its sentence ends, and pages fill to their budget
- * before a new sheet is started. The photos need the better part of a page,
- * so a full last page hands them one of their own.
+ * One paragraph as a sheet holds it: the words, and whether it opens with the
+ * two-character indent. The indent belongs to a paragraph's own opening — a
+ * paragraph carried over from the last sheet continues 顶格, flush, because
+ * its middle is not a new paragraph however it looks on the new page.
  */
-private fun buildPages(paragraphs: List<String>, leavesRoomForPhotos: Boolean): List<List<String>> {
+private data class LetterParagraph(val text: String, val indented: Boolean)
+
+/**
+ * Fills pages with the paragraphs exactly as they were written, in order: the
+ * words run on to a sheet's budget, and whatever a paragraph has left over
+ * opens the next sheet flush. A paragraph longer than a sheet is carried
+ * across as many sheets as it takes — the page scrolls rather than clipping.
+ * The photos need the better part of a page, so a full last page hands them
+ * one of their own.
+ */
+private fun buildPages(
+    paragraphs: List<String>,
+    leavesRoomForPhotos: Boolean,
+): List<List<LetterParagraph>> {
     if (paragraphs.isEmpty()) return listOf(emptyList())
 
-    val pieces = paragraphs.flatMap(::splitIntoPieces)
-    val pages = mutableListOf<MutableList<String>>(mutableListOf())
-    var budget = PAGE_CHARS
+    val pages = mutableListOf<MutableList<LetterParagraph>>(mutableListOf())
     var used = 0
 
-    pieces.forEach { piece ->
-        if (used > 0 && used + piece.length > budget) {
-            pages.add(mutableListOf(piece))
-            used = piece.length
-            budget = PAGE_CHARS
-        } else {
-            pages.last().add(piece)
-            used += piece.length + 2
+    paragraphs.forEach { paragraph ->
+        var index = 0
+        while (index < paragraph.length) {
+            val budget = if (pages.lastIndex == 0) FIRST_PAGE_CHARS else PAGE_CHARS
+            val room = budget - used
+            if (room <= 0) {
+                pages.add(mutableListOf())
+                used = 0
+                continue
+            }
+            val take = minOf(room, paragraph.length - index)
+            pages.last().add(
+                LetterParagraph(
+                    text = paragraph.substring(index, index + take),
+                    indented = index == 0,
+                )
+            )
+            // The two characters stand in for the breath between paragraphs.
+            used += take + 2
+            index += take
         }
     }
 
-    if (leavesRoomForPhotos && pages.last().sumOf { it.length } > PAGE_CHARS * 3 / 5) {
+    if (leavesRoomForPhotos && pages.last().sumOf { it.text.length } > PAGE_CHARS * 3 / 5) {
         pages.add(mutableListOf())
     }
     return pages
 }
 
-/** Splits one paragraph into pieces no longer than a sheet, at sentence ends. */
-private fun splitIntoPieces(paragraph: String): List<String> {
-    if (paragraph.length <= MAX_PIECE) return listOf(paragraph)
-
-    val pieces = mutableListOf<String>()
-    val current = StringBuilder()
-    paragraph.forEach { char ->
-        current.append(char)
-        val atSentence = char in "。！？；!?;" && current.length >= SOFT_MIN
-        if (atSentence || current.length >= MAX_PIECE) {
-            pieces.add(current.toString())
-            current.clear()
-        }
-    }
-    if (current.isNotEmpty()) pieces.add(current.toString())
-    return pieces
-}
-
 /**
  * One sheet of the letter: its title when it is the first, its paragraphs in
- * 新魏 with the two-character indent, and — on the last sheet — the photos and
- * the footer.
+ * 新魏 — the paragraph's own opening indented, a carried-over one flush —
+ * and — on the last sheet — the photos and the footer.
  */
 @Composable
 private fun LetterPage(
     title: String?,
-    paragraphs: List<String>,
+    paragraphs: List<LetterParagraph>,
     isLast: Boolean,
     capsule: TimeCapsule,
     photoPagerState: androidx.compose.foundation.pager.PagerState,
@@ -927,7 +933,7 @@ private fun LetterPage(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 26.dp, vertical = 30.dp),
+            .padding(start = 26.dp, end = 26.dp, top = 60.dp, bottom = 30.dp),
     ) {
         // The words are selectable: a long press brings the handles, and whatever
         // they gather can be copied — a letter is for keeping.
@@ -947,14 +953,16 @@ private fun LetterPage(
 
                 paragraphs.forEach { paragraph ->
                     Text(
-                        text = paragraph,
+                        text = paragraph.text,
                         fontFamily = XinWei,
                         fontSize = 20.sp,
                         lineHeight = 34.sp,
                         color = ink,
                         textAlign = TextAlign.Justify,
                         style = LocalTextStyle.current.copy(
-                            textIndent = TextIndent(firstLine = 40.sp),
+                            textIndent = TextIndent(
+                                firstLine = if (paragraph.indented) 40.sp else 0.sp,
+                            ),
                         ),
                     )
                     Spacer(Modifier.height(10.dp))

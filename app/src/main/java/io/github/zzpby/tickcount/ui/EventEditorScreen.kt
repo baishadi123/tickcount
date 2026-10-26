@@ -88,9 +88,12 @@ import io.github.zzpby.tickcount.domain.MAX_BATCH_STEP_DAYS
 import io.github.zzpby.tickcount.domain.batchOf
 import io.github.zzpby.tickcount.ui.components.BackgroundCrop
 import io.github.zzpby.tickcount.ui.components.BackgroundScrimAlpha
+import io.github.zzpby.tickcount.ui.components.CheckIcon
+import io.github.zzpby.tickcount.ui.components.CloseIcon
 import io.github.zzpby.tickcount.ui.components.HueSlider
 import io.github.zzpby.tickcount.ui.components.PhotoStack
 import io.github.zzpby.tickcount.ui.components.PlusIcon
+import io.github.zzpby.tickcount.ui.components.TrashIcon
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.FieldShape
 import io.github.zzpby.tickcount.ui.theme.hairline
@@ -331,45 +334,38 @@ fun EventEditorScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (onDelete != null) {
-                TextButton(onClick = onDelete) {
-                    Text(
-                        text = stringResource(R.string.action_delete),
-                        color = MaterialTheme.colorScheme.error,
-                    )
+                IconButton(onClick = onDelete) {
+                    TrashIcon(color = MaterialTheme.colorScheme.error)
                 }
             }
 
             Spacer(Modifier.weight(1f))
 
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel))
+            IconButton(onClick = onDismiss) {
+                CloseIcon(color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
-            Spacer(Modifier.width(6.dp))
-
-            // The one filled control on the screen: saving is what the form is for, and on a
-            // page of hairline outlines a solid pill is the only thing that reads as the way
-            // out of it.
-            Button(
-                // A blank name with existing tags would be a countdown with nothing
-                // to show, so the name is the one field that has to be there. A batch
-                // also has to be whole before it can be added.
-                enabled = title.isNotBlank() && (!batch || wholeBatch != null),
+            // A blank name with existing tags would be a countdown with nothing
+            // to show, so the name is the one field that has to be there. A batch
+            // also has to be whole before it can be added.
+            val canSave = title.isNotBlank() && (!batch || wholeBatch != null)
+            IconButton(
+                enabled = canSave,
                 onClick = {
-                    val batch = wholeBatch
-                    if (batch == null) {
+                    val wholeOne = wholeBatch
+                    if (wholeOne == null) {
                         onSave(filledIn())
                     } else {
-                        onSaveMany(batch)
+                        onSaveMany(wholeOne)
                     }
                 },
-                shape = PillShape,
-                contentPadding = PaddingValues(horizontal = 22.dp, vertical = 10.dp),
             ) {
-                Text(
-                    stringResource(
-                        if (batch && isNew) R.string.action_add else R.string.action_save
-                    )
+                CheckIcon(
+                    color = if (canSave) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    },
                 )
             }
         }

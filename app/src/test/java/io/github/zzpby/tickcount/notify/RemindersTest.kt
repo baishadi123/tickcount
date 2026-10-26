@@ -1,6 +1,7 @@
 package io.github.zzpby.tickcount.notify
 
 import io.github.zzpby.tickcount.data.CountdownEvent
+import io.github.zzpby.tickcount.data.TimeCapsule
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -80,5 +81,35 @@ class RemindersTest {
         val event = allDay(date = LocalDate.of(2026, 10, 26), lead = 7 * 24 * 60)
         val now = LocalDate.of(2026, 10, 20).atTime(12, 0).atZone(zone).toInstant()
         assertNull(Reminders.planned(listOf(event), 9 * 60, 0, now, zone))
+    }
+
+    // ----------------------------------------------------------------- capsules
+
+    private fun capsule(
+        id: String = "c",
+        opens: LocalDate = LocalDate.of(2026, 10, 26),
+    ) = TimeCapsule(id = id, message = "信", opensEpochDay = opens.toEpochDay())
+
+    @Test
+    fun `a capsule is reminded at the app's time of day on its open day, less the lead`() {
+        val moment = Reminders.capsuleMomentOf(capsule(), minutes = 9 * 60, leadMinutes = 60, zone = zone)
+        assertEquals(LocalDate.of(2026, 10, 26).atTime(8, 0), local(moment))
+    }
+
+    @Test
+    fun `the next capsule is the earliest one not already passed`() {
+        val past = capsule(id = "past", opens = LocalDate.of(2026, 10, 10))
+        val soon = capsule(id = "soon", opens = LocalDate.of(2026, 10, 26))
+        val later = capsule(id = "later", opens = LocalDate.of(2026, 11, 1))
+        val now = LocalDate.of(2026, 10, 18).atTime(12, 0).atZone(zone).toInstant()
+
+        assertEquals("soon", Reminders.plannedCapsule(listOf(later, soon, past), 9 * 60, 0, now, zone)?.id)
+    }
+
+    @Test
+    fun `a capsule whose reminder has passed is skipped, like a countdown's`() {
+        val past = capsule(opens = LocalDate.of(2026, 10, 20))
+        val now = LocalDate.of(2026, 10, 21).atTime(12, 0).atZone(zone).toInstant()
+        assertNull(Reminders.plannedCapsule(listOf(past), 9 * 60, 0, now, zone))
     }
 }

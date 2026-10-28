@@ -135,6 +135,11 @@ class FootprintStore(context: Context) {
             dir.listFiles { file: File -> file.isFile && file.name.endsWith(".json") }
                 .orEmpty()
                 .filter { it.name !in keep }
+                // A file this version cannot read stays: deleting it would turn
+                // a recoverable error into a permanent loss.
+                .filter { file ->
+                    runCatching { FootprintCodec.decode(JSONArray(file.readText())) }.isSuccess
+                }
                 .forEach { it.delete() }
             byYear.forEach { (year, list) ->
                 writeAtomically(File(dir, "$year.json"), FootprintCodec.encode(list).toString())

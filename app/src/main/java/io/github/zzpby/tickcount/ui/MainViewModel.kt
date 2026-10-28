@@ -10,6 +10,7 @@ import io.github.zzpby.tickcount.data.BackupCodec
 import io.github.zzpby.tickcount.data.BackupCrypto
 import io.github.zzpby.tickcount.data.CapsuleStore
 import io.github.zzpby.tickcount.data.CountdownEvent
+import io.github.zzpby.tickcount.data.EventBackgrounds
 import io.github.zzpby.tickcount.data.EventStore
 import io.github.zzpby.tickcount.data.Footprint
 import io.github.zzpby.tickcount.data.FootprintMedia
@@ -119,6 +120,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // service once per placed widget, neither of which belongs in a constructor.
         viewModelScope.launch(Dispatchers.IO) {
             refreshAllWidgets(application)
+            // A force stop wipes the one alarm with the rest of the process, and
+            // nothing else puts it back until the data changes or the phone
+            // reboots — so every launch re-arms it from what is stored.
+            reschedule()
         }
     }
 
@@ -286,27 +291,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             ImportMode.REPLACE -> backup.events
             // Same id means the same countdown, so the file wins; anything else is
             // added alongside what is already here.
-            ImportMode.MERGE -> {
-                val byId = _events.value.associateBy { it.id }.toMutableMap()
-                backup.events.forEach { byId[it.id] = it }
-                byId.values.toList()
-            }
+            ImportMode.MERGE -> merged(_events.value, backup.events) { it.id }
         }
+        // The other three lists honour the same promise: a merge never throws
+        // away what is already on the device.
+        val replacing = mode == ImportMode.REPLACE
+        val wishes = if (replacing) backup.wishes else merged(_wishes.value, backup.wishes) { it.id }
+        val capsules =
+            if (replacing) backup.capsules else merged(_capsules.value, backup.capsules) { it.id }
+        val footprints =
+            if (replacing) backup.footprints else merged(_footprints.value, backup.footprints) { it.id }
 
         persist(events)
         _settings.value = backup.settings
         settingsStore.save(backup.settings)
-        _wishes.value = backup.wishes
-        wishStore.save(backup.wishes)
-        _capsules.value = backup.capsules
-        capsuleStore.save(backup.capsules)
-        _footprints.value = backup.footprints
-        footprintStore.save(backup.footprints)
+        _wishes.value = wishes
+        wishStore.save(wishes)
+        _capsules.value = capsules
+        capsuleStore.save(capsules)
+        _footprints.value = footprints
+        footprintStore.save(footprints)
+        // persist() scheduled from the pre-import capsules and settings, so the
+        // one alarm goes back in step with what is stored now.
+        reschedule()
         // The restored settings decide the widgets' panel and text size too, and the
         // refresh inside persist() ran before they were saved.
         refreshAllWidgets(getApplication())
 
         return events.size
+    }
+
+    /** Incoming wins over current, id by id — the merge rule every list follows. */
+    private fun <T> merged(current: List<T>, incoming: List<T>, idOf: (T) -> String): List<T> {
+        val byId = current.associateBy(idOf).toMutableMap()
+        incoming.forEach { byId[idOf(it)] = it }
+        return byId.values.toList()
     }
 
     // ------------------------------------------------------------------ wishes
@@ -387,10 +406,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun removeCapsule(id: String) {
-        if (_capsules.value.none { it.id == id }) return
-        val updated = _capsules.value.filterNot { it.id == id }
-        _capsules.value = updated
-        capsuleStore.save(updated)
+        val capsule = _capsules.value.firstOrNull { it.id == id } ?: return
+        _capsules.value = _capsules.value - capsule
+        capsuleStore.save(_capsules.value)
+        // The letter's photos belong to it alone: with the record gone they
+        // would sit in the private directory forever.
+        capsule.photos.forEach { EventBackgrounds.delete(getApplication(), it) }
         // A deleted capsule leaves its reminder behind, which would fire for
         // nothing — the next one is re-picked without it.
         reschedule()

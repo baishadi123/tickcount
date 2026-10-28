@@ -70,6 +70,15 @@ class RemindersTest {
         assertEquals(LocalDate.of(2026, 10, 26).atTime(9, 0), local(planned!!.at))    }
 
     @Test
+    fun `two countdowns on one day are ordered by the clock, not the list`() {
+        val late = timed(id = "late", time = LocalTime.of(21, 30))
+        val early = timed(id = "early", time = LocalTime.of(9, 0))
+        val now = LocalDate.of(2026, 10, 26).atTime(8, 0).atZone(zone).toInstant()
+
+        assertEquals("early", Reminders.planned(listOf(late, early), 9 * 60, 0, now, zone)?.event?.id)
+    }
+
+    @Test
     fun `a list whose reminders have all passed has nothing to schedule`() {
         val past = allDay(date = LocalDate.of(2026, 10, 20))
         val now = LocalDate.of(2026, 10, 21).atTime(12, 0).atZone(zone).toInstant()

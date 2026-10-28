@@ -293,7 +293,9 @@ private fun MediaCell(name: String, footprintId: String, onOpen: () -> Unit) {
 private fun MediaViewer(photos: List<String>, initialPhoto: String, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val initial = (photos.indexOf(initialPhoto)).coerceAtLeast(0)
-    var page by rememberSaveable { mutableStateOf(initial) }
+    // Keyed by the media list: another visit's viewer reuses this call site,
+    // and a stale page index would point past its photos.
+    var page by rememberSaveable(photos.toTypedArray()) { mutableStateOf(initial) }
     var pull by remember { mutableStateOf(0f) }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {

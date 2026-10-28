@@ -31,6 +31,11 @@ object EventBackgrounds {
     /** Where the backgrounds live, created on demand. */
     private fun dir(context: Context): File = File(context.filesDir, DIR).apply { mkdirs() }
 
+    // A name is only ours if this store minted it: a hand-made backup must not
+    // walk out of the directory with a separator in the name.
+    private fun isOurs(name: String): Boolean =
+        name.startsWith(PREFIX) && name.none { it == '/' || it == '\\' }
+
     /**
      * Copies the image at [uri] into the app's private directory, scaled down, and
      * returns the file name to store — or null when it cannot be read or decoded.
@@ -74,13 +79,13 @@ object EventBackgrounds {
 
     /** Deletes the background file called [name], if it is one of ours. */
     fun delete(context: Context, name: String?) {
-        if (name == null || !name.startsWith(PREFIX)) return
+        if (name == null || !isOurs(name)) return
         File(dir(context), name).delete()
     }
 
     /** The decoded background called [name], or null when it is gone or unreadable. */
     fun bitmap(context: Context, name: String?): Bitmap? {
-        if (name == null || !name.startsWith(PREFIX)) return null
+        if (name == null || !isOurs(name)) return null
         val file = File(dir(context), name)
         if (!file.isFile) return null
         return BitmapFactory.decodeFile(file.absolutePath)
@@ -94,7 +99,7 @@ object EventBackgrounds {
      * megabytes of pixels for what is two hundred of them on screen.
      */
     fun thumbnail(context: Context, name: String?, maxEdge: Int = 512): Bitmap? {
-        if (name == null || !name.startsWith(PREFIX)) return null
+        if (name == null || !isOurs(name)) return null
         val file = File(dir(context), name)
         if (!file.isFile) return null
 

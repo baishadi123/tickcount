@@ -141,19 +141,30 @@ class CapsuleStore(context: Context) {
                 runCatching { CapsuleCodec.decode(JSONArray(file.readText())) }
                     .getOrDefault(emptyList())
             }
-        if (stored.isNotEmpty()) return sortForReading(stored)
-        return migrateLegacy()
+        // The walk from the older containers happens whenever they are still
+        // there, merged in by id: an interrupted migration resumes instead of
+        // stranding the years that never got written, and letters the user has
+        // already deleted do not come back.
+        val legacy = migrateLegacy() ?: return sortForReading(stored)
+        val merged = (stored + legacy).distinctBy { it.id }
+        if (merged.isNotEmpty()) save(merged)
+        return sortForReading(merged)
     }
 
     fun save(capsules: List<TimeCapsule>) {
         runCatching {
             val byYear = capsules.groupBy { yearOf(it.opensEpochDay) }
             // A year that no longer holds anything loses its file, so the
-            // directory only ever holds the years the letters are in.
+            // directory only ever holds the years the letters are in. A file
+            // this version cannot read stays: deleting it would turn a
+            // recoverable error into a permanent loss.
             val keep = byYear.keys.map { "$it.json" }.toSet()
             dir.listFiles { file: File -> file.isFile && file.name.endsWith(".json") }
                 .orEmpty()
                 .filter { it.name !in keep }
+                .filter { file ->
+                    runCatching { CapsuleCodec.decode(JSONArray(file.readText())) }.isSuccess
+                }
                 .forEach { it.delete() }
             byYear.forEach { (year, list) ->
                 writeAtomically(File(dir, "$year.json"), CapsuleCodec.encode(list).toString())
@@ -180,19 +191,22 @@ class CapsuleStore(context: Context) {
     private fun sortForReading(capsules: List<TimeCapsule>) =
         capsules.sortedWith(compareBy({ it.opensEpochDay }, { -it.createdAt }))
 
-    private fun migrateLegacy(): List<TimeCapsule> {
+    /**
+     * Decodes the two older containers, or null when they hold nothing left to
+     * fold in — either because they are gone, or because they cannot be read,
+     * in which case they stay on disk for a later try rather than being
+     * destroyed unread.
+     */
+    private fun migrateLegacy(): List<TimeCapsule>? {
         val text = runCatching { legacyFile.takeIf { it.isFile }?.readText() }.getOrNull()
             ?: legacyPrefs.getString(KEY_CAPSULES, null)
-            ?: return emptyList()
-        val capsules = runCatching { CapsuleCodec.decode(JSONArray(text)) }.getOrDefault(emptyList())
+            ?: return null
+        val capsules = runCatching { CapsuleCodec.decode(JSONArray(text)) }.getOrNull() ?: return null
         runCatching {
-            if (capsules.isNotEmpty()) {
-                save(capsules)
-            }
             legacyFile.delete()
             legacyPrefs.edit { remove(KEY_CAPSULES) }
         }
-        return sortForReading(capsules)
+        return capsules
     }
 
     private fun yearOf(epochDay: Long): Int =

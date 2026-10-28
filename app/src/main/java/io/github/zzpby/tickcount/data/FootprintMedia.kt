@@ -45,8 +45,13 @@ object FootprintMedia {
 
     private fun dir(context: Context): File = File(context.filesDir, DIR).apply { mkdirs() }
 
+    // A name is only ours if this store minted it: a hand-made backup must not
+    // walk out of the directory with a separator in the name.
+    private fun isOurs(name: String): Boolean =
+        name.startsWith(PREFIX) && name.none { it == '/' || it == '\\' }
+
     fun file(context: Context, name: String?): File? {
-        if (name == null || !name.startsWith(PREFIX)) return null
+        if (name == null || !isOurs(name)) return null
         val file = File(dir(context), name)
         return file.takeIf { it.isFile }
     }
@@ -80,7 +85,7 @@ object FootprintMedia {
 
     /** Deletes the media file called [name], if it is one of ours. */
     fun delete(context: Context, name: String?) {
-        if (name == null || !name.startsWith(PREFIX)) return
+        if (name == null || !isOurs(name)) return
         File(dir(context), name).delete()
     }
 

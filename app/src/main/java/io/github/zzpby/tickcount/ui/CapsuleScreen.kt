@@ -366,6 +366,7 @@ fun CapsuleEditorScreen(
                             message = message.trim(),
                             opensEpochDay = opensEpochDay,
                             createdAt = if (initial.createdAt == 0L) System.currentTimeMillis() else initial.createdAt,
+                            photos = photoNames.toList(),
                         )
                     )
                 },
@@ -894,7 +895,20 @@ private fun buildPages(
                 used = 0
                 continue
             }
-            val take = minOf(room, paragraph.length - index)
+            var take = minOf(room, paragraph.length - index)
+            // A surrogate pair is one letter — an emoji, say — and never gets
+            // cut in half at a page boundary.
+            if (
+                index + take < paragraph.length &&
+                Character.isHighSurrogate(paragraph[index + take - 1])
+            ) {
+                take -= 1
+            }
+            if (take <= 0) {
+                pages.add(mutableListOf())
+                used = 0
+                continue
+            }
             pages.last().add(
                 LetterParagraph(
                     text = paragraph.substring(index, index + take),

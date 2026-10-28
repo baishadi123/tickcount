@@ -104,10 +104,12 @@ object Reminders {
         // testing a different question. The app always passes its own zone.
         zone: ZoneId = ZoneId.systemDefault(),
     ): Planned? {
-        val today = now.atZone(zone).toLocalDate()
         return events
-            .sortedBy { it.effectiveDate(today) }
             .map { event -> Planned(event, momentOf(event, minutes, leadMinutes, zone, now)) }
+            // Ordered by the moment itself, not by day: two countdowns can share
+            // a date with different times of day, and the earlier clock has to
+            // win however the list happens to be stored.
+            .sortedBy { it.at }
             .firstOrNull { it.at.isAfter(now) }
     }
 
@@ -174,7 +176,7 @@ object Reminders {
         alarms.setAndAllowWhileIdle(
             AlarmManager.RTC_WAKEUP,
             at.toEpochMilli(),
-            pendingIntent(host, kind),
+            pendingIntent(host, kind, if (kind == KIND_EVENT) nextEvent?.event?.id else null),
         )
     }
 
@@ -269,11 +271,15 @@ object Reminders {
 
     private fun Context.zone(): ZoneId = ZoneId.systemDefault()
 
-    private fun pendingIntent(context: Context, kind: String): PendingIntent =
+    private fun pendingIntent(context: Context, kind: String, id: String? = null): PendingIntent =
         PendingIntent.getBroadcast(
             context,
             REQUEST_CODE,
-            Intent(context, ReminderReceiver::class.java).putExtra(EXTRA_KIND, kind),
+            Intent(context, ReminderReceiver::class.java)
+                .putExtra(EXTRA_KIND, kind)
+                // Which countdown the alarm is for: the receiver delivers this
+                // one rather than whichever the list happens to hold first.
+                .putExtra(EXTRA_ID, id),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 }

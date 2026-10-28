@@ -36,9 +36,11 @@ import io.github.zzpby.tickcount.ui.components.GearIcon
 /**
  * The destinations the app has.
  *
- * The drawer offers the three pages you browse and the settings; everything from
- * the calendar down lives behind the settings gear, because it is set-up rather
+ * The drawer offers the pages you browse and the settings; everything from
+ * settings down lives behind the settings gear, because it is set-up rather
  * than reading, and a drawer of nine rows said nothing about which was which.
+ * The calendar sits at the foot of the browsing pages: a place you turn to
+ * rather than a place you live.
  *
  * A single countdown's own screen is not a destination at all but a thing opened from
  * a list, so it is not in here.
@@ -48,8 +50,8 @@ enum class AppScreen(val labelRes: Int) {
     THINGS(R.string.drawer_things),
     CAPSULE(R.string.drawer_capsule),
     WANJIANG(R.string.drawer_wanjiiang),
-    CALENDAR(R.string.drawer_calendar),
     VOYAGE(R.string.drawer_voyage),
+    CALENDAR(R.string.drawer_calendar),
     SETTINGS(R.string.drawer_settings),
     REMINDERS(R.string.settings_notifications),
     APPEARANCE(R.string.settings_appearance),

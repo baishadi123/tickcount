@@ -29,7 +29,7 @@
     <string name="action_year_forward_ten">往后十年</string>
 
     <!-- 事件详细画面上方那行标题 -->
-    <string name="label_no_countdown">还没有倒数日</string>
+    <string name="label_no_countdown">还没有日子</string>
     <string name="label_countdown_left">还有</string>
     <string name="label_today_elapsed">今天已过</string>
     <string name="label_countdown_ago">已过去</string>
@@ -41,8 +41,8 @@
     <string name="countdown_line_format">%1$s年%2$s月%3$s日 %4$s时%5$s分%6$s秒</string>
 
     <!-- 编辑对话框 -->
-    <string name="dialog_new_title">新建倒数日</string>
-    <string name="dialog_edit_title">编辑倒数日</string>
+    <string name="dialog_new_title">新建一个日子</string>
+    <string name="dialog_edit_title">编辑</string>
     <string name="dialog_pick_month_title">跳转到</string>
     <string name="field_name">名称</string>
     <string name="field_name_hint">生日、考试、旅行…</string>
@@ -81,7 +81,6 @@
     <string name="footprint_editor_title">足迹</string>
     <string name="footprint_place_hint">地方名，如「西湖」</string>
     <string name="footprint_location_row">位置</string>
-    <string name="footprint_location_noted">已记下 %1$s, %2$s</string>
     <string name="footprint_location_off">带上此刻的位置</string>
     <string name="footprint_media_hint">点缩略图移除；照片、动图和视频都可以</string>
     <string name="drawer_settings">设置</string>
@@ -95,6 +94,12 @@
     <string name="capsule_opened_on">开启于 %1$s</string>
     <string name="capsule_message_label">想说的话</string>
     <string name="capsule_message_hint">想对那一天说的话…</string>
+    <string name="capsule_voice_label">一段声音</string>
+    <string name="capsule_voice_unset">未录制</string>
+    <string name="capsule_voice_too_short">太短了，再说说</string>
+    <string name="capsule_voice_permission">要麦克风权限才能录声音</string>
+    <string name="capsule_voice_gone">声音不在了</string>
+    <string name="capsule_voice_letter">还记得你那天说了什么嘛？</string>
     <string name="field_opens">封存到哪一天</string>
     <string name="capsule_exit_hint">轻触任意处离开</string>
     <string name="field_title">标题</string>
@@ -126,13 +131,13 @@
     <string name="action_add">添加</string>
     <string name="label_pinned">置顶</string>
     <string name="label_yearly">每年</string>
-    <string name="dialog_clear_hint">清空名称将删除这个倒数日。</string>
+    <string name="dialog_clear_hint">清空名称将删除这个日子。</string>
 
     <!--
       点按钮删除前的确认。清空名称不在此列：那是看得见的编辑动作，不是误触，
       为它加确认只会让每次改名都多一步。
     -->
-    <string name="dialog_delete_title">删除这个倒数日？</string>
+    <string name="dialog_delete_title">删除这个日子？</string>
     <string name="dialog_delete_message">「%1$s」将被删除，且无法恢复。</string>
 
     <!-- 日期格式 -->
@@ -266,7 +271,7 @@
     <string name="notify_channel_description">倒数日当天的提醒</string>
     <string name="notify_today">就是今天</string>
     <string name="notify_later">就是这一天（%1$s）</string>
-    <string name="notify_capsule">有一封信到了，可以拆开</string>
+    <string name="notify_capsule">有一封信到了，我们把他拆开吧</string>
     <string name="appearance_custom_hue">拖动选择色相</string>
     <string name="appearance_custom_hint">拖的时候整个应用会立刻换色，这个画面就是预览。</string>
     <string name="appearance_surfaces">各层深浅</string>
@@ -295,7 +300,7 @@
     </plurals>
     <string name="reminder_dismiss">关闭</string>
     <string name="guide_title">先说三件事</string>
-    <string name="guide_body">点右上角的 + 新建一个倒数日。\n\n列表上方是搜索，下面那行胶囊可以只看「7 天内」或按标签筛。\n\n展开侧边栏查看更多功能。</string>
+    <string name="guide_body">点右上角的 + 新建一个日子。\n\n列表上方是搜索，下面那行胶囊可以只看「7 天内」或按标签筛。\n\n展开侧边栏查看更多功能。</string>
     <string name="guide_ok">知道了</string>
     <string name="filter_next_7">7 天内</string>
     <!-- 主页标题下面那行：还有几个日子在等 -->
@@ -314,7 +319,7 @@
     <string name="card_caption_past">已经</string>
     <string name="card_unit_future">天</string>
     <string name="card_unit_past">天</string>
-    <string name="calendar_pick_a_day">点一天，看那天的倒数日。</string>
+    <string name="calendar_pick_a_day">点一天，看那天的日子。</string>
     <string name="calendar_day_empty">这一天还没有倒数日。\n点右上角的 + 新建一个。</string>
     <string name="calendar_capsule_open">已到期，可拆开</string>
     <string name="calendar_anniversary">纪念日</string>

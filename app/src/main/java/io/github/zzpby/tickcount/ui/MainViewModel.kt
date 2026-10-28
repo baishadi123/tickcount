@@ -9,6 +9,7 @@ import io.github.zzpby.tickcount.data.Backup
 import io.github.zzpby.tickcount.data.BackupCodec
 import io.github.zzpby.tickcount.data.BackupCrypto
 import io.github.zzpby.tickcount.data.CapsuleStore
+import io.github.zzpby.tickcount.data.CapsuleVoice
 import io.github.zzpby.tickcount.data.CountdownEvent
 import io.github.zzpby.tickcount.data.EventBackgrounds
 import io.github.zzpby.tickcount.data.EventStore
@@ -409,9 +410,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val capsule = _capsules.value.firstOrNull { it.id == id } ?: return
         _capsules.value = _capsules.value - capsule
         capsuleStore.save(_capsules.value)
-        // The letter's photos belong to it alone: with the record gone they
-        // would sit in the private directory forever.
+        // The letter's photos and its voice belong to it alone: with the
+        // record gone they would sit in the private directory forever.
         capsule.photos.forEach { EventBackgrounds.delete(getApplication(), it) }
+        CapsuleVoice.delete(getApplication(), capsule.voice)
         // A deleted capsule leaves its reminder behind, which would fire for
         // nothing — the next one is re-picked without it.
         reschedule()

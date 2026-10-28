@@ -35,8 +35,8 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
 | 详情（大字倒计时、照片叠放、背景图） | `ui/EventDetailScreen.kt`、`ui/components/PhotoStack.kt`、`ui/components/BackgroundCrop.kt`、`data/EventBackground.kt` |
 | 新建 / 编辑 / 一键添加多个 | `ui/EventEditorScreen.kt`、`domain/BatchAdd.kt` |
 | 作陪（心愿） | `ui/ThingsScreen.kt`、`data/Wish.kt` |
-| 敬心（时光胶囊、拆信动画、信笺分页） | `ui/CapsuleScreen.kt`、`data/TimeCapsule.kt`（按年分文件、自动迁移） |
-| 万疆（足迹、媒体、位置） | `ui/WanJiangScreen.kt`、`data/Footprint.kt`、`data/FootprintMedia.kt` |
+| 敬心（时光胶囊、拆信动画、信笺分页、声音信） | `ui/CapsuleScreen.kt`、`data/TimeCapsule.kt`（按年分文件、自动迁移）、`data/CapsuleVoice.kt`（录音与私有文件）、`domain/VoiceWaveform.kt`（波形归一）、`ui/components/VoiceNote.kt`（播放行） |
+| 万疆（足迹、媒体、位置） | `ui/WanJiangScreen.kt`、`data/Footprint.kt`、`data/FootprintMedia.kt`；离线地名在 `domain/ChinaPlaces.kt`（资源 `res/raw/china_places.md`，由 `.tools/行政区划/RegionGen.java` 从 kakuilan/china_area_mysql 的 GBK dump 生成，源数据不入仓库） |
 | 行舟（星图、彗星航行） | `ui/VoyageScreen.kt`（全 Canvas，沉浸全屏）、`domain/VoyageLayout.kt` |
 | 日历（月历、事件标记、当天列表） | `ui/CalendarScreen.kt`、`ui/calendar/MonthCalendar.kt`、`ui/calendar/MonthYearPickerDialog.kt`、`domain/CalendarMath.kt` |
 | 纪念日与整数日（100/365/520/999/1314） | `domain/Milestones.kt`，布线在 `CalendarScreen.kt` 与 `MainViewModel.kt` |
@@ -92,6 +92,12 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
     Compose UI 全靠人审。改这些文件时，把上面 1–10 逐条对一遍。
 12. 改 `更新日志.txt` 或 README 后跑测试加 `--rerun-tasks`（它们不是 gradle 任务输入，
     会假绿）。
+13. **图形 / 视觉类新功能先用最小可视样确认审美，再铺开实现**——星图真实天文渲染
+    一次做完，结果整体返工（2026-10-27）。文字与规则层面的功能没有这个风险。
+14. **操作一律图标化，不写文字按钮**：保存 ✓（CheckIcon）、关闭 ×（CloseIcon）、
+    删除 🗑（TrashIcon）、重录/撤销 ↺（ReopenIcon）——全部出自 `ui/components/ActionIcons.kt`
+    的手绘 Canvas 体系，新动作先看这套够不够用，不够就补画一枚同风格的，不引入
+    Material 图标也不写「完成 / 删除」字样。
 
 ## 发版流程
 
@@ -116,6 +122,9 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
   工作区 add。把干净文本放到 `%TEMP%`（不受影响），然后：
   `git hash-object -w <临时文件>` 得 sha → `git update-index --cacheinfo 100644,<sha>,更新日志.txt`，
   提交前 `git rev-parse HEAD:更新日志.txt` 校验。
+- **本机的透明加密驱动会翻写 `.txt` / `.csv` 文件**（写入后几秒内变密文，git 提交进
+  去就是二进制；`.md` 免疫）。仓库内新生成的数据文件一律用 `.md` 后缀；`.txt` 只保留
+  `更新日志.txt` 一个，动它前先验字节。
 - `README.md` / `README.en.md` 的「功能 / 一键添加多个 / （倒计时的读法）/ 桌面小组件」
   二级标题是应用内「项目介绍」的抽取锚点（`domain/Readme.kt`），**勿改名**。
 - CI 的签名密钥在仓库 secrets（`KEYSTORE_BASE64` 等），fork/换仓库要重配。

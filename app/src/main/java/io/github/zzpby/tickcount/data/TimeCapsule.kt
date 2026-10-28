@@ -28,10 +28,16 @@ data class TimeCapsule(
     val photos: List<String> = emptyList(),
     val createdAt: Long = 0L,
     val openedEpochDay: Long? = null,
+    /** The recorded voice letter, a file name inside the private capsule-voice directory. */
+    val voice: String? = null,
+    /** How long the voice runs, in whole seconds. */
+    val voiceSeconds: Int = 0,
+    /** The wave the recorder heard, normalised to bars of 0–100, oldest first. */
+    val voiceBars: List<Int> = emptyList(),
 ) {
     companion object {
         const val MAX_TITLE_LENGTH = 30
-        const val MAX_PHOTOS = 9
+        const val MAX_PHOTOS = 16
 
         fun newId(): String = UUID.randomUUID().toString()
     }
@@ -52,6 +58,9 @@ object CapsuleCodec {
     private const val KEY_PHOTOS = "ph"
     private const val KEY_CREATED = "a"
     private const val KEY_OPENED_DAY = "od"
+    private const val KEY_VOICE = "v"
+    private const val KEY_VOICE_SECONDS = "vs"
+    private const val KEY_VOICE_BARS = "vb"
 
     fun encode(capsules: List<TimeCapsule>): JSONArray {
         val array = JSONArray()
@@ -67,6 +76,15 @@ object CapsuleCodec {
                     }
                     .put(KEY_CREATED, capsule.createdAt)
                     .apply { capsule.openedEpochDay?.let { put(KEY_OPENED_DAY, it) } }
+                    .apply {
+                        capsule.voice?.let { voice ->
+                            put(KEY_VOICE, voice)
+                            put(KEY_VOICE_SECONDS, capsule.voiceSeconds)
+                            if (capsule.voiceBars.isNotEmpty()) {
+                                put(KEY_VOICE_BARS, JSONArray(capsule.voiceBars))
+                            }
+                        }
+                    }
             )
         }
         return array
@@ -89,6 +107,9 @@ object CapsuleCodec {
                     photos = readPhotos(obj.optJSONArray(KEY_PHOTOS)),
                     createdAt = obj.optLong(KEY_CREATED, 0L),
                     openedEpochDay = if (obj.has(KEY_OPENED_DAY)) obj.optLong(KEY_OPENED_DAY, 0L) else null,
+                    voice = obj.optString(KEY_VOICE).trim().takeIf { it.isNotEmpty() },
+                    voiceSeconds = obj.optInt(KEY_VOICE_SECONDS, 0),
+                    voiceBars = readBars(obj.optJSONArray(KEY_VOICE_BARS)),
                 )
             )
         }
@@ -104,6 +125,18 @@ object CapsuleCodec {
             }
         }.take(TimeCapsule.MAX_PHOTOS)
     }
+
+    /** Bars of 0–100, capped at what the letter's wave draws. */
+    private fun readBars(array: JSONArray?): List<Int> {
+        if (array == null) return emptyList()
+        return buildList {
+            for (i in 0 until array.length()) {
+                add(array.optInt(i).coerceIn(0, 100))
+            }
+        }.take(MAX_VOICE_BARS)
+    }
+
+    private const val MAX_VOICE_BARS = 160
 }
 
 /**

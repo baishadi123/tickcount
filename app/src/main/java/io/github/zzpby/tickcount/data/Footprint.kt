@@ -25,11 +25,13 @@ data class Footprint(
     val photos: List<String> = emptyList(),
     val latitude: Double? = null,
     val longitude: Double? = null,
+    /** The place the coordinates resolve to, when the map could name them. */
+    val locationName: String? = null,
     val createdAt: Long = 0L,
 ) {
     companion object {
         const val MAX_PLACE_LENGTH = 30
-        const val MAX_PHOTOS = 9
+        const val MAX_PHOTOS = 16
 
         fun newId(): String = UUID.randomUUID().toString()
     }
@@ -50,6 +52,7 @@ object FootprintCodec {
     private const val KEY_PHOTOS = "ph"
     private const val KEY_LAT = "la"
     private const val KEY_LON = "lo"
+    private const val KEY_LOCATION_NAME = "ln"
     private const val KEY_CREATED = "a"
 
     fun encode(footprints: List<Footprint>): JSONArray {
@@ -69,6 +72,8 @@ object FootprintCodec {
                         .apply {
                             footprint.latitude?.let { put(KEY_LAT, it) }
                             footprint.longitude?.let { put(KEY_LON, it) }
+                            footprint.locationName?.takeIf { it.isNotBlank() }
+                                ?.let { put(KEY_LOCATION_NAME, it) }
                         }
                 )
             }
@@ -88,8 +93,9 @@ object FootprintCodec {
                     place = place,
                     epochDay = day,
                     photos = readPhotos(obj.optJSONArray(KEY_PHOTOS)),
-                    latitude = if (obj.has(KEY_LAT)) obj.optDouble(KEY_LAT) else null,
-                    longitude = if (obj.has(KEY_LON)) obj.optDouble(KEY_LON) else null,
+                    latitude = obj.optDouble(KEY_LAT).takeIf { it.isFinite() },
+                    longitude = obj.optDouble(KEY_LON).takeIf { it.isFinite() },
+                    locationName = obj.optString(KEY_LOCATION_NAME).trim().takeIf { it.isNotEmpty() },
                     createdAt = obj.optLong(KEY_CREATED, 0L),
                 )
             )

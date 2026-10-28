@@ -180,6 +180,10 @@ fun CalendarScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 2.dp),
                 ) {
+                    // The day reads in the order the life does: the anniversary
+                    // first — the day the whole calendar hangs from — then the
+                    // countdowns, then the wishes, and the capsules wait at the
+                    // foot, sealed as they are.
                     if (anniversaryDate == null) {
                         item(key = "set-anniversary") {
                             SetAnniversaryRow(onSet = { onSetAnniversary(selectedDate) })
@@ -194,12 +198,6 @@ fun CalendarScreen(
                             MilestoneRow(day = dayMilestone)
                         }
                     }
-                    items(dayCapsules, key = { "capsule-${it.id}" }) { capsule ->
-                        CapsuleDayRow(capsule = capsule, onClick = onOpenCapsule)
-                    }
-                    items(dayWishes, key = { "wish-${it.id}" }) { wish ->
-                        WishDayRow(wish = wish, onClick = onOpenWishes)
-                    }
                     items(visible, key = { it.event.id }) { entry ->
                         EventCard(
                             entry = entry,
@@ -211,6 +209,12 @@ fun CalendarScreen(
                             onClick = { onOpenEvent(entry.event.id) },
                             onLongClick = { onLongPressEvent(entry.event.id) },
                         )
+                    }
+                    items(dayWishes, key = { "wish-${it.id}" }) { wish ->
+                        WishDayRow(wish = wish, onClick = onOpenWishes)
+                    }
+                    items(dayCapsules, key = { "capsule-${it.id}" }) { capsule ->
+                        CapsuleDayRow(capsule = capsule, onClick = onOpenCapsule)
                     }
                 }
             }

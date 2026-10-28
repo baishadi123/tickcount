@@ -1,15 +1,21 @@
 package io.github.zzpby.tickcount.ui
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -49,8 +55,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -59,7 +66,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -80,13 +89,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import io.github.zzpby.tickcount.R
+import io.github.zzpby.tickcount.data.CapsuleVoice
 import io.github.zzpby.tickcount.data.EventBackgrounds
 import io.github.zzpby.tickcount.data.TimeCapsule
+import io.github.zzpby.tickcount.data.VoiceRecorder
+import io.github.zzpby.tickcount.domain.VoiceWaveform
 import io.github.zzpby.tickcount.ui.components.CheckIcon
 import io.github.zzpby.tickcount.ui.components.CloseIcon
 import io.github.zzpby.tickcount.ui.components.PhotoStack
+import io.github.zzpby.tickcount.ui.components.ReopenIcon
 import io.github.zzpby.tickcount.ui.components.TrashIcon
+import io.github.zzpby.tickcount.ui.components.VoiceNote
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.CardGap
 import io.github.zzpby.tickcount.ui.theme.CardShape
@@ -99,6 +114,7 @@ import io.github.zzpby.tickcount.ui.theme.hairline
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import kotlin.math.min
 
 /**
  * The time capsules: words and photos sealed until a day, one page of its own —
@@ -324,6 +340,95 @@ fun CapsuleEditorScreen(
     var datePickerOpen by rememberSaveable { mutableStateOf(false) }
     var photoNames by rememberSaveable(initial.id) { mutableStateOf(ArrayList(initial.photos)) }
 
+    // The voice letter: a take goes straight to its final file, and is only
+    // committed to the record on save — a cancelled edit throws the new take
+    // away and leaves the voice it came in with untouched.
+    var voiceName by rememberSaveable(initial.id) { mutableStateOf(initial.voice) }
+    var voiceSeconds by rememberSaveable(initial.id) { mutableIntStateOf(initial.voiceSeconds) }
+    var voiceBars by rememberSaveable(initial.id) { mutableStateOf(initial.voiceBars) }
+    var recordedNow by remember { mutableStateOf<String?>(null) }
+    var recording by remember { mutableStateOf(false) }
+    var liveAmps by remember { mutableStateOf(listOf<Int>()) }
+    var liveSeconds by remember { mutableIntStateOf(0) }
+    var tooShort by remember { mutableStateOf(false) }
+    var permissionDenied by remember { mutableStateOf(false) }
+    var recorder by remember { mutableStateOf<VoiceRecorder?>(null) }
+
+    fun beginRecording() {
+        val file = CapsuleVoice.newFile(context, initial.id)
+        val fresh = VoiceRecorder(context, file)
+        if (fresh.start()) {
+            recorder = fresh
+            recordedNow = file.name
+            liveAmps = emptyList()
+            liveSeconds = 0
+            tooShort = false
+            recording = true
+        } else {
+            fresh.release()
+            file.delete()
+        }
+    }
+
+    fun endRecording(commit: Boolean) {
+        val current = recorder ?: return
+        recording = false
+        val usable = current.stop()
+        current.release()
+        recorder = null
+        val take = recordedNow
+        if (!commit || !usable || liveSeconds < 1) {
+            CapsuleVoice.delete(context, take)
+            recordedNow = null
+            if (commit && !usable) tooShort = true
+            return
+        }
+        // The old take is replaced only here — at save-time, never mid-edit.
+        if (voiceName != null && voiceName != take) {
+            CapsuleVoice.delete(context, voiceName)
+        }
+        voiceName = take
+        voiceSeconds = liveSeconds
+        voiceBars = VoiceWaveform.bars(liveAmps)
+    }
+
+    fun discardPendingTake() {
+        if (recording) {
+            recording = false
+            runCatching { recorder?.stop() }
+            recorder?.release()
+            recorder = null
+        }
+        if (recordedNow != null && recordedNow != initial.voice) {
+            CapsuleVoice.delete(context, recordedNow)
+        }
+        recordedNow = null
+    }
+
+    val askRecordPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) beginRecording() else permissionDenied = true
+    }
+
+    fun requestRecording() {
+        permissionDenied = false
+        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+        if (granted) beginRecording() else askRecordPermission.launch(Manifest.permission.RECORD_AUDIO)
+    }
+
+    // While it listens, the wave grows: one sample of the loudest sound every
+    // sixth of a second, which becomes both the bars and the running seconds.
+    LaunchedEffect(recording) {
+        while (recording) {
+            delay(150)
+            val current = recorder ?: break
+            liveAmps = liveAmps + current.amplitude()
+            liveSeconds = liveAmps.size * 150 / 1000
+        }
+    }
+
     val dateFormatter = rememberDateFormatter(R.string.date_format_short)
     val pickPhotos = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(maxItems = TimeCapsule.MAX_PHOTOS),
@@ -352,7 +457,10 @@ fun CapsuleEditorScreen(
 
             Spacer(Modifier.weight(1f))
 
-            IconButton(onClick = onDismiss) {
+            IconButton(onClick = {
+                discardPendingTake()
+                onDismiss()
+            }) {
                 CloseIcon(color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
@@ -360,6 +468,11 @@ fun CapsuleEditorScreen(
             IconButton(
                 enabled = canSeal,
                 onClick = {
+                    // Commit: the voice it came in with is replaced only once
+                    // the record it is being replaced in is saved.
+                    if (initial.voice != null && initial.voice != voiceName) {
+                        CapsuleVoice.delete(context, initial.voice)
+                    }
                     onSave(
                         initial.copy(
                             title = title.trim(),
@@ -367,6 +480,9 @@ fun CapsuleEditorScreen(
                             opensEpochDay = opensEpochDay,
                             createdAt = if (initial.createdAt == 0L) System.currentTimeMillis() else initial.createdAt,
                             photos = photoNames.toList(),
+                            voice = voiceName,
+                            voiceSeconds = voiceSeconds,
+                            voiceBars = voiceBars,
                         )
                     )
                 },
@@ -408,6 +524,64 @@ fun CapsuleEditorScreen(
                 shape = FieldShape,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            Spacer(Modifier.height(12.dp))
+
+            // —— 一段声音 ——
+            when {
+                recording -> VoiceRecordingBar(
+                    seconds = liveSeconds,
+                    amps = liveAmps,
+                    onDone = { endRecording(commit = true) },
+                    onDiscard = { endRecording(commit = false) },
+                )
+
+                voiceName != null -> {
+                    VoiceNote(
+                        fileName = voiceName ?: "",
+                        bars = voiceBars,
+                        seconds = voiceSeconds,
+                        ink = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row {
+                        IconButton(onClick = { requestRecording() }) {
+                            ReopenIcon(color = MaterialTheme.colorScheme.primary)
+                        }
+                        IconButton(onClick = {
+                            voiceName = null
+                            voiceBars = emptyList()
+                            voiceSeconds = 0
+                        }) {
+                            TrashIcon(color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+
+                else -> {
+                    FieldRow(
+                        label = stringResource(R.string.capsule_voice_label),
+                        value = stringResource(R.string.capsule_voice_unset),
+                        onClick = ::requestRecording,
+                    )
+                    if (tooShort) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = stringResource(R.string.capsule_voice_too_short),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    if (permissionDenied) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = stringResource(R.string.capsule_voice_permission),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
 
             Spacer(Modifier.height(12.dp))
             Row(
@@ -1018,6 +1192,24 @@ private fun LetterPage(
                 )
             }
 
+            if (capsule.voice != null) {
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    text = stringResource(R.string.capsule_voice_letter),
+                    fontFamily = XinWei,
+                    fontSize = 16.sp,
+                    color = ink.copy(alpha = 0.75f),
+                )
+                Spacer(Modifier.height(8.dp))
+                VoiceNote(
+                    fileName = capsule.voice,
+                    bars = capsule.voiceBars,
+                    seconds = capsule.voiceSeconds,
+                    ink = ink,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
             if (capsule.openedEpochDay != null) {
                 Spacer(Modifier.height(14.dp))
                 Text(
@@ -1029,6 +1221,88 @@ private fun LetterPage(
                     ),
                     style = MaterialTheme.typography.bodySmall,
                     color = ink.copy(alpha = 0.55f),
+                )
+            }
+        }
+    }
+}
+
+
+/**
+ * The recording, as it is being made: a red dot breathing at the head, the
+ * wave growing as it listens, the seconds counting up — and two quiet ways
+ * out, keep it or leave it.
+ */
+@Composable
+private fun VoiceRecordingBar(
+    seconds: Int,
+    amps: List<Int>,
+    onDone: () -> Unit,
+    onDiscard: () -> Unit,
+) {
+    val accent = MaterialTheme.colorScheme.error
+    val primary = MaterialTheme.colorScheme.primary
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val pulse = rememberInfiniteTransition(label = "voice-record")
+    val breath by pulse.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(650, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "voice-dot",
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(FieldShape)
+            .border(1.dp, accent.copy(alpha = 0.4f), FieldShape)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .graphicsLayer {
+                        scaleX = breath
+                        scaleY = breath
+                    }
+                    .background(accent.copy(alpha = 0.4f + 0.6f * breath), CircleShape),
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = "${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}",
+                style = MaterialTheme.typography.titleMedium,
+                color = onSurface,
+            )
+            Spacer(Modifier.weight(1f))
+            IconButton(onClick = onDiscard) {
+                CloseIcon(color = onSurfaceVariant)
+            }
+            IconButton(onClick = onDone) {
+                CheckIcon(color = primary)
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Canvas(modifier = Modifier.fillMaxWidth().height(28.dp)) {
+            if (amps.isEmpty()) return@Canvas
+            val slot = 5.dp.toPx()
+            val barWidth = 2.6f.dp.toPx()
+            val count = min(amps.size, (size.width / slot).toInt().coerceAtLeast(1))
+            val step = amps.size.toFloat() / count
+            val fromIndex = (amps.size - count).coerceAtLeast(0)
+            for (index in 0 until count) {
+                val sample = amps[(fromIndex + index).coerceAtMost(amps.size - 1)] / 32767f
+                val barHeight = (size.height * 0.14f + sample * size.height * 0.8f)
+                    .coerceAtMost(size.height)
+                drawRoundRect(
+                    color = primary.copy(alpha = 0.85f),
+                    topLeft = Offset(index * slot + (slot - barWidth) / 2f, size.height / 2f - barHeight / 2f),
+                    size = Size(barWidth, barHeight),
+                    cornerRadius = CornerRadius(barWidth / 2f),
                 )
             }
         }

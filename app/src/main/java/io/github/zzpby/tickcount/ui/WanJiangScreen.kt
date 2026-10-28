@@ -63,6 +63,7 @@ import androidx.core.content.ContextCompat
 import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.data.Footprint
 import io.github.zzpby.tickcount.data.FootprintMedia
+import io.github.zzpby.tickcount.domain.ChinaPlaces
 import io.github.zzpby.tickcount.ui.components.CheckIcon
 import io.github.zzpby.tickcount.ui.components.CloseIcon
 import io.github.zzpby.tickcount.ui.components.EditIcon
@@ -143,7 +144,7 @@ fun WanJiangScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 18.dp, bottom = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
                                 text = place,
@@ -153,15 +154,6 @@ fun WanJiangScreen(
                             Spacer(Modifier.width(10.dp))
                             Text(
                                 text = stringResource(R.string.wanjiiang_visits, visits.size),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(Modifier.weight(1f))
-                            // The whole place edits as one: its heading is the
-                            // handle to every visit under it.
-                            Text(
-                                text = LocalDate.ofEpochDay(visits.first().epochDay)
-                                    .format(dateFormatter),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -475,7 +467,25 @@ fun FootprintEditorScreen(
     var photoNames by rememberSaveable(initial.id) { mutableStateOf(ArrayList(initial.photos)) }
     var latitude by rememberSaveable(initial.id) { mutableStateOf(initial.latitude) }
     var longitude by rememberSaveable(initial.id) { mutableStateOf(initial.longitude) }
+    var locationName by rememberSaveable(initial.id) { mutableStateOf(initial.locationName) }
     var datePickerOpen by rememberSaveable { mutableStateOf(false) }
+
+    // The offline map: every district's centre, parsed once, asked to name the
+    // moment's coordinates. Beyond its reach a location stays unnamed rather
+    // than wrongly named — the visit's own name carries it anyway.
+    val chinaPlaces = remember {
+        runCatching {
+            context.resources.openRawResource(R.raw.china_places)
+                .use { ChinaPlaces.parse(it.bufferedReader().readText()) }
+        }.getOrDefault(emptyList())
+    }
+
+    fun notePlace(lat: Double, lon: Double) {
+        val named = ChinaPlaces.nearest(chinaPlaces, lat, lon) ?: return
+        latitude = lat
+        longitude = lon
+        locationName = named.display
+    }
 
     val pickMedia = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(maxItems = Footprint.MAX_PHOTOS),
@@ -496,10 +506,7 @@ fun FootprintEditorScreen(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
         if (granted) {
-            noteLocation(context)?.let { (lat, lon) ->
-                latitude = lat
-                longitude = lon
-            }
+            noteLocation(context)?.let { (lat, lon) -> notePlace(lat, lon) }
         }
     }
 
@@ -551,10 +558,7 @@ fun FootprintEditorScreen(
                             context,
                             Manifest.permission.ACCESS_COARSE_LOCATION,
                         ) == PackageManager.PERMISSION_GRANTED -> {
-                            noteLocation(context)?.let { (lat, lon) ->
-                                latitude = lat
-                                longitude = lon
-                            }
+                            noteLocation(context)?.let { (lat, lon) -> notePlace(lat, lon) }
                         }
 
                         else -> requestLocation.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -571,16 +575,11 @@ fun FootprintEditorScreen(
             )
             Spacer(Modifier.weight(1f))
             Text(
-                text = if (latitude != null && longitude != null) {
-                    stringResource(
-                        R.string.footprint_location_noted,
-                        "%.3f".format(latitude),
-                        "%.3f".format(longitude),
-                    )
-                } else {
-                    stringResource(R.string.footprint_location_off)
-                },
+                text = locationName ?: stringResource(R.string.footprint_location_off),
                 style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(weight = 2f, fill = false),
             )
         }
 
@@ -706,6 +705,7 @@ fun FootprintEditorScreen(
                             photos = photoNames.toList(),
                             latitude = latitude,
                             longitude = longitude,
+                            locationName = locationName,
                         ),
                     )
                 },

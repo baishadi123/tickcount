@@ -83,6 +83,12 @@
     <string name="capsule_opened_on">Opened %1$s</string>
     <string name="capsule_message_label">The words</string>
     <string name="capsule_message_hint">What you want to say to that day…</string>
+    <string name="capsule_voice_label">A voice</string>
+    <string name="capsule_voice_unset">Not recorded</string>
+    <string name="capsule_voice_too_short">Too short — say a little more</string>
+    <string name="capsule_voice_permission">The microphone is needed to record a voice</string>
+    <string name="capsule_voice_gone">The voice is gone</string>
+    <string name="capsule_voice_letter">P.S. a voice from that day</string>
     <string name="field_opens">Sealed until</string>
     <string name="capsule_exit_hint">Tap anywhere to leave</string>
     <string name="field_title">Title</string>
@@ -174,7 +180,6 @@
     <string name="footprint_editor_title">Footprint</string>
     <string name="footprint_place_hint">Place, e.g. "the lake"</string>
     <string name="footprint_location_row">Location</string>
-    <string name="footprint_location_noted">Noted %1$s, %2$s</string>
     <string name="footprint_location_off">Note this spot</string>
     <string name="footprint_media_hint">Tap a thumbnail to remove it; photos, GIFs and videos all travel</string>
     <string name="drawer_language">Language</string>

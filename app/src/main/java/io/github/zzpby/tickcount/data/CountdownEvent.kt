@@ -142,7 +142,7 @@ data class CountdownEvent(
         const val MAX_BACKGROUND_ZOOM = 5f
 
         /** How many gallery photos one countdown may carry, WeChat's own ceiling. */
-        const val MAX_PHOTOS = 9
+        const val MAX_PHOTOS = 16
 
         fun newId(): String = UUID.randomUUID().toString()
     }

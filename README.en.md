@@ -262,9 +262,11 @@ leaves the device on its own.
 A backup exported from Backup & data goes wherever you choose to put it, encrypted or not,
 as you decide; the app has no way to send it anywhere.
 The app declares no permissions by default, makes no network requests, and contains no
-analytics or advertising. The one exception is the optional on-the-day reminder, which uses
-`POST_NOTIFICATIONS` (Android 13 and up) and `RECEIVE_BOOT_COMPLETED`; the notification
-permission is asked for when the switch is turned on, and goes away when it is turned off.
+analytics or advertising. What is declared is asked for only at the moment of use: the
+optional on-the-day reminder (`POST_NOTIFICATIONS` on Android 13 and up, asked for when the
+switch is turned on and gone when it is turned off, `RECEIVE_BOOT_COMPLETED` to put its alarm
+back after a restart), a footprint's spot (`ACCESS_FINE_LOCATION`, one fix for the moment,
+rounded to the thousandth before it is kept), and a capsule's voice letter (`RECORD_AUDIO`).
 There is a link to this repository in the introduction; tapping it opens the
 address in the browser, because TickCount has no network ability of its own and no
 `INTERNET` permission. The stored data leaves the device only if Android's own cloud backup

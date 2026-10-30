@@ -1,6 +1,6 @@
 # AGENT.md — TickCount 开发须知
 
-安卓倒数日应用。单模块 Kotlin + Compose，纯离线，无第三方运行库。
+安卓倒数日应用。单模块 Kotlin + Compose；近乎纯离线，第三方运行库仅 osmdroid（万疆地图）。
 
 ## 环境
 
@@ -36,7 +36,7 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
 | 新建 / 编辑 / 一键添加多个 | `ui/EventEditorScreen.kt`、`domain/BatchAdd.kt` |
 | 作陪（心愿） | `ui/ThingsScreen.kt`、`data/Wish.kt` |
 | 敬心（时光胶囊、拆信动画、信笺分页、声音信） | `ui/CapsuleScreen.kt`、`data/TimeCapsule.kt`（按年分文件、自动迁移）、`data/CapsuleVoice.kt`（录音与私有文件）、`domain/VoiceWaveform.kt`（波形归一）、`ui/components/VoiceNote.kt`（播放行） |
-| 万疆（足迹、媒体、位置） | `ui/WanJiangScreen.kt`、`data/Footprint.kt`、`data/FootprintMedia.kt`；离线地名在 `domain/ChinaPlaces.kt`（资源 `res/raw/china_places.md`，由 `.tools/行政区划/RegionGen.java` 从 kakuilan/china_area_mysql 的 GBK dump 生成，源数据不入仓库） |
+| 万疆（足迹、媒体、位置、地图） | `ui/WanJiangScreen.kt`、`ui/WanJiangMap.kt`（osmdroid、高德瓦片、年份轨迹、图上选点）、`data/Footprint.kt`、`data/FootprintMedia.kt`；离线地名在 `domain/ChinaPlaces.kt`（资源 `res/raw/china_places.md`，由 `.tools/行政区划/RegionGen.java` 从 kakuilan/china_area_mysql 的 **UTF-8** dump 生成，跑生成器要带 `-Dfile.encoding=UTF-8`，源数据不入仓库） |
 | 行舟（星图、彗星航行） | `ui/VoyageScreen.kt`（全 Canvas，沉浸全屏）、`domain/VoyageLayout.kt` |
 | 日历（月历、事件标记、当天列表） | `ui/CalendarScreen.kt`、`ui/calendar/MonthCalendar.kt`、`ui/calendar/MonthYearPickerDialog.kt`、`domain/CalendarMath.kt` |
 | 纪念日与整数日（100/365/520/999/1314） | `domain/Milestones.kt`，布线在 `CalendarScreen.kt` 与 `MainViewModel.kt` |

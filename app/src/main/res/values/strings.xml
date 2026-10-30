@@ -181,6 +181,13 @@
     <string name="footprint_place_hint">Place, e.g. "the lake"</string>
     <string name="footprint_location_row">Location</string>
     <string name="footprint_location_off">Note this spot</string>
+    <string name="footprint_location_seeking">Locating…</string>
+    <string name="footprint_location_missed">Couldn\'t find this spot</string>
+    <string name="footprint_pick_on_map">在图上选</string>
+    <string name="map_pick_confirm">就这里</string>
+    <string name="wanjiiang_map_empty">还没有带上位置的足迹。编辑足迹时点「在图上选」，或「带上此刻的位置」。</string>
+    <string name="wanjiiang_map_attribution">瓦片 © 高德</string>
+    <string name="wanjiiang_picked_label">已在图上标记</string>
     <string name="footprint_media_hint">Tap a thumbnail to remove it; photos, GIFs and videos all travel</string>
     <string name="drawer_language">Language</string>
     <string name="drawer_changelog">Changelog</string>

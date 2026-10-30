@@ -173,8 +173,8 @@ android {
         // A calendar version: year.month.day.sequence, the sequence counting the updates made
         // that day. The version code stays one increasing integer for Play: the date squeezed
         // together with the sequence in the last two digits — 2026.10.18.2 becomes 26101802.
-        versionCode = 26102801
-        versionName = "2026.10.28.1"
+        versionCode = 26103001
+        versionName = "2026.10.30.1"
     }
 
     signingConfigs {
@@ -273,6 +273,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+
+    // 万疆's map mode. The only third-party runtime library in the app.
+    implementation(libs.osmdroid.android)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 

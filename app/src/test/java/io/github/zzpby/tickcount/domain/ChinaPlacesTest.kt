@@ -61,14 +61,33 @@ class ChinaPlacesTest {
             File("app/src/main/res/raw/china_places.md"),
         ).firstOrNull { it.isFile } ?: error("china_places.md not found from ${File(".").absolutePath}")
 
-        val places = ChinaPlaces.parse(file.readText())
+        val text = file.readText()
+        // A U+FFFD in the table means a character was lost to a wrong
+        // transcode on the way in — the first table shipped 742 such lines.
+        assertTrue(
+            "replacement characters found: ${text.count { it == '�' }}",
+            !text.contains('�'),
+        )
+
+        val places = ChinaPlaces.parse(text)
 
         assertTrue("expected ~3000 districts, got ${places.size}", places.size in 2500..4000)
         places.forEach { place ->
             assertTrue("lat ${place.latitude}", place.latitude in 3.0..54.0)
             assertTrue("lng ${place.longitude}", place.longitude in 73.0..136.0)
-            // Most read 市·区; a bare city name (吉林) is honest too.
+            // Most read 省·市·区; a bare city name is honest too. A name
+            // without a single CJK char is a transcode scar, not a place.
             assertTrue("display ${place.display}", place.display.isNotBlank())
+            assertTrue(
+                "display without CJK: ${place.display}",
+                place.display.any { it in '\u4E00'..'\u9FFF' },
+            )
+            assertTrue("question mark in ${place.display}", !place.display.contains('?'))
         }
+        // Names the first table actually damaged — they stay as anchors.
+        val displays = places.map { it.display }
+        assertTrue("石景山 missing", displays.any { it.contains("石景山") })
+        assertTrue("门头沟 missing", displays.any { it.contains("门头沟") })
+        assertTrue("杭州 missing", displays.any { it.contains("杭州") && it.contains("西湖") })
     }
 }

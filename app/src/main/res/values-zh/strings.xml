@@ -82,6 +82,13 @@
     <string name="footprint_place_hint">地方名，如「西湖」</string>
     <string name="footprint_location_row">位置</string>
     <string name="footprint_location_off">带上此刻的位置</string>
+    <string name="footprint_location_seeking">正在定位…</string>
+    <string name="footprint_location_missed">没找到这里</string>
+    <string name="footprint_pick_on_map">在图上选</string>
+    <string name="map_pick_confirm">就这里</string>
+    <string name="wanjiiang_map_empty">还没有带上位置的足迹。编辑足迹时点「在图上选」，或「带上此刻的位置」。</string>
+    <string name="wanjiiang_map_attribution">瓦片 © 高德</string>
+    <string name="wanjiiang_picked_label">已在图上标记</string>
     <string name="footprint_media_hint">点缩略图移除；照片、动图和视频都可以</string>
     <string name="drawer_settings">设置</string>
     <string name="launch_line">青青子“敬”，“莹莹”我心</string>

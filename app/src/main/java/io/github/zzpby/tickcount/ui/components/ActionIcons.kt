@@ -193,3 +193,56 @@ fun TrashIcon(
         )
     }
 }
+
+/**
+ * A folded map drawn as one outline: three panels in a gentle zigzag, the
+ * fold lines running through them ¡ª the map as a paper object rather than a
+ * globe, the way a journey is folded into a pocket.
+ */
+@Composable
+fun MapIcon(
+    modifier: Modifier = Modifier,
+    iconSize: Dp = 20.dp,
+    color: Color = LocalContentColor.current,
+    strokeWidth: Dp = 2.0.dp,
+) {
+    Canvas(modifier = modifier.size(iconSize)) {
+        val w = size.width
+        val h = size.height
+        val stroke = strokeWidth.toPx()
+
+        // Three panels zigzagging down: left up, middle down, right up.
+        val outline = Path().apply {
+            moveTo(w * 0.10f, h * 0.14f)
+            lineTo(w * 0.38f, h * 0.05f)
+            lineTo(w * 0.62f, h * 0.14f)
+            lineTo(w * 0.90f, h * 0.05f)
+            lineTo(w * 0.90f, h * 0.86f)
+            lineTo(w * 0.62f, h * 0.95f)
+            lineTo(w * 0.38f, h * 0.86f)
+            lineTo(w * 0.10f, h * 0.95f)
+            close()
+        }
+        drawPath(
+            outline,
+            color,
+            style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round),
+        )
+
+        // The two folds.
+        drawLine(
+            color,
+            Offset(w * 0.38f, h * 0.05f),
+            Offset(w * 0.38f, h * 0.86f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color,
+            Offset(w * 0.62f, h * 0.14f),
+            Offset(w * 0.62f, h * 0.95f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round,
+        )
+    }
+}

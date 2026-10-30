@@ -5,15 +5,21 @@
       TickCount needs no permissions to count down. Declared ones are all
       optional and asked for only at the moment of use:
       POST_NOTIFICATIONS (Android 13+) for the reminder, RECEIVE_BOOT_COMPLETED
-      to put the alarm back after a restart, ACCESS_COARSE_LOCATION inside 万疆
-      when a footprint is noted with its spot, and RECORD_AUDIO inside 敬心
-      when a voice letter is being recorded — never at launch, never by
-      themselves.
+      to put the alarm back after a restart, ACCESS_FINE_LOCATION (with the
+      coarse one beside it, which the system asks alongside) inside 万疆 when
+      a footprint is noted with its spot, and RECORD_AUDIO inside 敬心 when
+      a voice letter is being recorded — never at launch, never by
+      themselves. The one standing permission is INTERNET, and it exists for
+      a single purpose: 万疆's map tiles. Everything else works with it
+      refused or absent; the map shows pins and lines on a plain ground and
+      serves tiles only from its own cache.
     -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"

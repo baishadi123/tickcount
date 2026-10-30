@@ -1,10 +1,21 @@
 package io.github.zzpby.tickcount.ui
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.graphics.ImageDecoder
 import android.graphics.drawable.AnimatedImageDrawable
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.widget.VideoView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -32,8 +43,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +54,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -64,9 +78,11 @@ import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.data.Footprint
 import io.github.zzpby.tickcount.data.FootprintMedia
 import io.github.zzpby.tickcount.domain.ChinaPlaces
+import io.github.zzpby.tickcount.domain.LocationPick
 import io.github.zzpby.tickcount.ui.components.CheckIcon
 import io.github.zzpby.tickcount.ui.components.CloseIcon
 import io.github.zzpby.tickcount.ui.components.EditIcon
+import io.github.zzpby.tickcount.ui.components.MapIcon
 import io.github.zzpby.tickcount.ui.components.TrashIcon
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.CardGap
@@ -74,7 +90,16 @@ import io.github.zzpby.tickcount.ui.theme.CardShape
 import io.github.zzpby.tickcount.ui.theme.Gutter
 import io.github.zzpby.tickcount.ui.theme.XingKai
 import io.github.zzpby.tickcount.ui.theme.hairline
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.time.LocalDate
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.resume
 import kotlin.math.roundToInt
 
 /**
@@ -86,6 +111,7 @@ import kotlin.math.roundToInt
  * remembering *a place*: every visit to it sits together, newest first, and
  * the grid under a heading holds as many cells as the visits brought.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WanJiangScreen(
     footprints: List<Footprint>,
@@ -93,8 +119,30 @@ fun WanJiangScreen(
     modifier: Modifier = Modifier,
 ) {
     val dateFormatter = rememberDateFormatter(R.string.date_format_short)
+    val context = LocalContext.current
     var viewerFor by rememberSaveable { mutableStateOf<String?>(null) }
     var viewerPhoto by rememberSaveable { mutableStateOf("") }
+    // The scrapbook opens as a list every time; the map is a place to visit,
+    // not the place to live, so it never takes over the first glance.
+    var mapMode by rememberSaveable { mutableStateOf(false) }
+    var sheetPlace by rememberSaveable { mutableStateOf<String?>(null) }
+    // Where the list has asked the map to fly to. The nonce lets the same
+    // place be asked for twice; plain remember, for once consumed the map
+    // simply stays where it landed.
+    var focus by remember { mutableStateOf<MapFocus?>(null) }
+
+    // The map is the one page that earns the turn of the wrist: while it
+    // shows, the window follows the sensor; the moment it closes, the app
+    // goes back to whatever it was before.
+    if (mapMode) {
+        DisposableEffect(Unit) {
+            val activity = context.findActivity()
+            val previous = activity?.requestedOrientation
+                ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
+            onDispose { activity?.requestedOrientation = previous }
+        }
+    }
 
     // The places, in the order of their latest visit, with every visit kept
     // beneath the name it belongs to.
@@ -106,30 +154,51 @@ fun WanJiangScreen(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = Gutter, end = Gutter, top = 2.dp, bottom = 12.dp),
+                .padding(start = Gutter, end = 4.dp, top = 2.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = stringResource(R.string.drawer_wanjiiang),
-                style = MaterialTheme.typography.displaySmall,
-                fontFamily = XingKai,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            if (footprints.isNotEmpty()) {
-                val photoCount = footprints.sumOf { it.photos.size }
-                Spacer(Modifier.height(4.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(R.string.wanjiiang_summary, byPlace.size, photoCount),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = stringResource(R.string.drawer_wanjiiang),
+                    style = MaterialTheme.typography.displaySmall,
+                    fontFamily = XingKai,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
+                if (footprints.isNotEmpty()) {
+                    val photoCount = footprints.sumOf { it.photos.size }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.wanjiiang_summary, byPlace.size, photoCount),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (footprints.isNotEmpty()) {
+                IconButton(onClick = { mapMode = !mapMode }) {
+                    MapIcon(
+                        iconSize = 22.dp,
+                        color = if (mapMode) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
             }
         }
 
         if (footprints.isEmpty()) {
             CentredNotice(stringResource(R.string.wanjiiang_empty))
+        } else if (mapMode) {
+            WanJiangMap(
+                footprints = footprints,
+                onPickPlace = { sheetPlace = it },
+                focus = focus,
+            )
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -140,10 +209,29 @@ fun WanJiangScreen(
             ) {
                 byPlace.forEach { (place, visits) ->
                     item(key = "place-$place") {
+                        // Where this place sits when its visits carry spots.
+                        val centroid = remember(place, visits) {
+                            val spotted = visits.mapNotNull { v ->
+                                v.latitude?.let { lat -> v.longitude?.let { lon -> lat to lon } }
+                            }
+                            if (spotted.isEmpty()) {
+                                null
+                            } else {
+                                spotted.sumOf { it.first } / spotted.size to
+                                    spotted.sumOf { it.second } / spotted.size
+                            }
+                        }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = 18.dp, bottom = 8.dp),
+                                .padding(top = 18.dp, bottom = 8.dp)
+                                .clip(CardShape)
+                                .clickable(enabled = centroid != null) {
+                                    centroid?.let { (lat, lon) ->
+                                        focus = MapFocus(lat, lon, (focus?.nonce ?: 0) + 1)
+                                        mapMode = true
+                                    }
+                                },
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
@@ -157,6 +245,14 @@ fun WanJiangScreen(
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                            // The small folded map says where this row leads.
+                            if (centroid != null) {
+                                Spacer(Modifier.width(8.dp))
+                                MapIcon(
+                                    iconSize = 15.dp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
 
@@ -191,6 +287,30 @@ fun WanJiangScreen(
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                // The spot the moment named, beside its day;
+                                // the map stays silent when it cannot be honest.
+                                // Tapping the name asks the map to fly there.
+                                visit.locationName?.takeIf { it.isNotBlank() }?.let { named ->
+                                    Spacer(Modifier.width(6.dp))
+                                    val lat = visit.latitude
+                                    val lon = visit.longitude
+                                    Text(
+                                        text = named,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier
+                                            .weight(1f, fill = false)
+                                            .clip(CardShape)
+                                            .clickable(enabled = lat != null && lon != null) {
+                                                if (lat != null && lon != null) {
+                                                    focus = MapFocus(lat, lon, (focus?.nonce ?: 0) + 1)
+                                                    mapMode = true
+                                                }
+                                            },
+                                    )
+                                }
                                 Spacer(Modifier.width(6.dp))
                                 Box(
                                     modifier = Modifier
@@ -220,6 +340,103 @@ fun WanJiangScreen(
                 initialPhoto = viewerPhoto,
                 onDismiss = { viewerFor = null },
             )
+        }
+    }
+
+    // A tap on a place's dot: its every visit, held out from the bottom.
+    if (sheetPlace != null) {
+        val visits = footprints.filter { it.place == sheetPlace }
+        if (visits.isNotEmpty()) {
+            ModalBottomSheet(onDismissRequest = { sheetPlace = null }) {
+                PlaceVisitsSheet(
+                    place = sheetPlace!!,
+                    visits = visits,
+                    onOpenVisit = { visit ->
+                        sheetPlace = null
+                        if (visit.photos.isNotEmpty()) {
+                            viewerFor = visit.id
+                            viewerPhoto = visit.photos.first()
+                        } else {
+                            onEdit(visit.id)
+                        }
+                    },
+                    onEdit = onEdit,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * One place's visits, risen from the bottom of the map: the days and their
+ * spots, one row each, a pencil to amend them — the same visit the list
+ * shows, only reached from above.
+ */
+@Composable
+private fun PlaceVisitsSheet(
+    place: String,
+    visits: List<Footprint>,
+    onOpenVisit: (Footprint) -> Unit,
+    onEdit: (String) -> Unit,
+) {
+    val dateFormatter = rememberDateFormatter(R.string.date_format_short)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 28.dp),
+    ) {
+        Text(
+            text = place,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = stringResource(R.string.wanjiiang_visits, visits.size),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(6.dp))
+        visits.sortedByDescending { it.epochDay }.forEach { visit ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(CardShape)
+                    .clickable { onOpenVisit(visit) }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = LocalDate.ofEpochDay(visit.epochDay).format(dateFormatter),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                visit.locationName?.takeIf { it.isNotBlank() }?.let { named ->
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = named,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .clickable { onEdit(visit.id) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    EditIcon(
+                        iconSize = 15.dp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }
@@ -469,6 +686,7 @@ fun FootprintEditorScreen(
     var longitude by rememberSaveable(initial.id) { mutableStateOf(initial.longitude) }
     var locationName by rememberSaveable(initial.id) { mutableStateOf(initial.locationName) }
     var datePickerOpen by rememberSaveable { mutableStateOf(false) }
+    var mapPickerOpen by rememberSaveable { mutableStateOf(false) }
 
     // The offline map: every district's centre, parsed once, asked to name the
     // moment's coordinates. Beyond its reach a location stays unnamed rather
@@ -480,11 +698,12 @@ fun FootprintEditorScreen(
         }.getOrDefault(emptyList())
     }
 
-    fun notePlace(lat: Double, lon: Double) {
-        val named = ChinaPlaces.nearest(chinaPlaces, lat, lon) ?: return
+    fun notePlace(lat: Double, lon: Double): Boolean {
+        val named = ChinaPlaces.nearest(chinaPlaces, lat, lon) ?: return false
         latitude = lat
         longitude = lon
         locationName = named.display
+        return true
     }
 
     val pickMedia = rememberLauncherForActivityResult(
@@ -502,12 +721,32 @@ fun FootprintEditorScreen(
     // The location is asked for when it is wanted, and only then — the page
     // works entirely without it, and a permission nobody asked about reads
     // worse than one the moment explains.
-    val requestLocation = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        if (granted) {
-            noteLocation(context)?.let { (lat, lon) -> notePlace(lat, lon) }
+    // The location is asked for when it is wanted, and only then — the page
+    // works entirely without it, and a permission nobody asked about reads
+    // worse than one the moment explains. The fine permission is asked for
+    // with the coarse one beside it; Android 12 and up may still answer with
+    // the approximate choice the user made, and the honest naming rule
+    // tolerates that — it just stays silent on a fuzzy fix.
+    var locating by rememberSaveable { mutableStateOf(false) }
+    var missed by rememberSaveable { mutableStateOf(false) }
+    val locateScope = rememberCoroutineScope()
+
+    fun locate() {
+        if (locating) return
+        locating = true
+        missed = false
+        locateScope.launch {
+            val spot = currentLocation(context)
+            // No fix, or one the map cannot name honestly, reads the same.
+            missed = spot == null || !notePlace(spot.first, spot.second)
+            locating = false
         }
+    }
+
+    val requestLocation = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        if (grants.values.any { it }) locate()
     }
 
     Column(
@@ -552,16 +791,16 @@ fun FootprintEditorScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(CardShape)
-                .clickable {
+                .clickable(enabled = !locating) {
                     when {
-                        ContextCompat.checkSelfPermission(
-                            context,
-                            Manifest.permission.ACCESS_COARSE_LOCATION,
-                        ) == PackageManager.PERMISSION_GRANTED -> {
-                            noteLocation(context)?.let { (lat, lon) -> notePlace(lat, lon) }
-                        }
+                        hasLocationPermission(context) -> locate()
 
-                        else -> requestLocation.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+                        else -> requestLocation.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION,
+                            ),
+                        )
                     }
                 }
                 .background(MaterialTheme.colorScheme.surfaceContainer)
@@ -575,11 +814,42 @@ fun FootprintEditorScreen(
             )
             Spacer(Modifier.weight(1f))
             Text(
-                text = locationName ?: stringResource(R.string.footprint_location_off),
+                text = when {
+                    locating -> stringResource(R.string.footprint_location_seeking)
+                    locationName != null -> locationName!!
+                    latitude != null -> stringResource(R.string.wanjiiang_picked_label)
+                    missed -> stringResource(R.string.footprint_location_missed)
+                    else -> stringResource(R.string.footprint_location_off)
+                },
                 style = MaterialTheme.typography.bodyLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(weight = 2f, fill = false),
+            )
+        }
+
+        // Where the sky cannot be trusted: a spot chosen by eye on the map,
+        // the crosshair's word taken over any satellite's.
+        Spacer(Modifier.height(6.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(CardShape)
+                .clickable { mapPickerOpen = true }
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .hairline(CardShape)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.footprint_pick_on_map),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.weight(1f))
+            MapIcon(
+                iconSize = 18.dp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -732,31 +1002,165 @@ fun FootprintEditorScreen(
             onDismiss = { datePickerOpen = false },
         )
     }
+
+    if (mapPickerOpen) {
+        MapPickerDialog(
+            initialLatitude = latitude,
+            initialLongitude = longitude,
+            onPick = { lat, lon ->
+                // The point is kept whether the table can name it or not —
+                // the pin on the map needs only the point; the name it can
+                // give is a courtesy, not a condition.
+                latitude = lat
+                longitude = lon
+                locationName = ChinaPlaces.nearest(chinaPlaces, lat, lon)?.display
+                missed = false
+                mapPickerOpen = false
+            },
+            onDismiss = { mapPickerOpen = false },
+        )
+    }
 }
 
 /** A row that scrolls sideways, sized to its content. */
 
 /**
- * Where the phone says it is, rounded to the thousandth — close enough to
- * name a bridge, far too coarse to follow anyone.
+ * How long the whole asking may run — past this, the best of whatever was
+ * heard is settled for. A cold GNSS start can take most of it.
  */
-private fun noteLocation(context: android.content.Context): Pair<Double, Double>? {
-    if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
-        != PackageManager.PERMISSION_GRANTED
-    ) {
-        return null
-    }
-    val manager = context.getSystemService(android.location.LocationManager::class.java) ?: return null
-    val location = runCatching {
-        listOf(
-            android.location.LocationManager.NETWORK_PROVIDER,
-            android.location.LocationManager.GPS_PROVIDER,
-            android.location.LocationManager.PASSIVE_PROVIDER,
-        ).firstNotNullOfOrNull { provider ->
-            runCatching { manager.getLastKnownLocation(provider) }.getOrNull()
+private const val SEEK_MILLIS = 20_000L
+
+/** How long any one radio gets to answer before it is given up on. */
+private const val ONE_SHOT_MILLIS = 18_000L
+
+/** A fix this tight names a district honestly, so the asking ends there. */
+private const val GOOD_ENOUGH_METRES = 100f
+
+/** How often the settling loop looks at what the radios have said. */
+private const val POLL_MILLIS = 200L
+
+/** Whether any location permission at all stands granted. */
+private fun hasLocationPermission(context: Context): Boolean =
+    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+        PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+        PackageManager.PERMISSION_GRANTED
+
+private fun Location.toFix(): LocationPick.Fix =
+    LocationPick.Fix(latitude, longitude, accuracy, time)
+
+/**
+ * Where the phone says it is *now* — not where its cache last said it was.
+ *
+ * Every enabled radio is asked for one fresh answer, and each stale fix it
+ * still holds is heard as well; the first answer tight enough to name a
+ * district ends the asking early, and at the deadline whatever was heard
+ * is settled by [LocationPick.best]. The winner is rounded to the
+ * thousandth before it is kept — close enough to name a district, far too
+ * coarse to follow anyone.
+ */
+private suspend fun currentLocation(context: Context): Pair<Double, Double>? = coroutineScope {
+    if (!hasLocationPermission(context)) return@coroutineScope null
+    val manager = context.getSystemService(LocationManager::class.java) ?: return@coroutineScope null
+    val providers = listOf(
+        LocationManager.GPS_PROVIDER,
+        LocationManager.NETWORK_PROVIDER,
+        LocationManager.PASSIVE_PROVIDER,
+    ).filter { provider -> runCatching { manager.isProviderEnabled(provider) }.getOrDefault(false) }
+    if (providers.isEmpty()) return@coroutineScope null
+
+    val heard = ConcurrentLinkedQueue<LocationPick.Fix>()
+    val pending = AtomicInteger(providers.size)
+    val asking = launch {
+        providers.forEach { provider ->
+            launch {
+                // A fresh answer outranks a cache by arriving late-bound; a
+                // silent radio still offers what it remembers.
+                val answer = oneShot(manager, provider) ?: lastKnown(manager, provider)
+                answer?.let(heard::add)
+                pending.decrementAndGet()
+            }
         }
-    }.getOrNull() ?: return null
-    val lat = (location.latitude * 1000).roundToInt() / 1000.0
-    val lon = (location.longitude * 1000).roundToInt() / 1000.0
-    return lat to lon
+    }
+    var best: LocationPick.Fix? = null
+    try {
+        val deadline = SystemClock.elapsedRealtime() + SEEK_MILLIS
+        while (true) {
+            var fix = heard.poll()
+            while (fix != null) {
+                best = LocationPick.best(listOfNotNull(best, fix), System.currentTimeMillis())
+                fix = heard.poll()
+            }
+            val settled = best
+            if (settled != null && settled.accuracyMetres > 0f &&
+                settled.accuracyMetres <= GOOD_ENOUGH_METRES
+            ) {
+                break
+            }
+            // Every radio has answered and every cache has spoken — an
+            // asking with nothing to say ends now, not at the deadline.
+            if (pending.get() == 0) break
+            if (SystemClock.elapsedRealtime() >= deadline) break
+            delay(POLL_MILLIS)
+        }
+    } finally {
+        asking.cancel()
+    }
+    best?.let { fix ->
+        val lat = (fix.latitude * 1000).roundToInt() / 1000.0
+        val lon = (fix.longitude * 1000).roundToInt() / 1000.0
+        lat to lon
+    }
+}
+
+/**
+ * One fresh answer from [provider], or null if it stays silent that long.
+ * The listener spells out every method: on a phone older than the
+ * interface's default methods, a listener that leaves one out is a crash,
+ * not a listener. Whatever settles first — a fix, the silence, a
+ * cancellation — unhooks everything else exactly once.
+ */
+private suspend fun oneShot(manager: LocationManager, provider: String): LocationPick.Fix? =
+    suspendCancellableCoroutine { continuation ->
+        val main = Handler(Looper.getMainLooper())
+        val settled = AtomicBoolean(false)
+        val watching = AtomicReference<LocationListener?>(null)
+
+        fun finish(fix: LocationPick.Fix?) {
+            if (!settled.compareAndSet(false, true)) return
+            // The handler is ours alone; sweeping it takes the timeout too.
+            main.removeCallbacksAndMessages(null)
+            watching.get()?.let { runCatching { manager.removeUpdates(it) } }
+            if (continuation.isActive) continuation.resume(fix)
+        }
+
+        val listener = object : LocationListener {
+            override fun onLocationChanged(location: Location) = finish(location.toFix())
+
+            override fun onProviderEnabled(provider: String) = Unit
+
+            override fun onProviderDisabled(provider: String) = Unit
+
+            @Deprecated("Deprecated in Java")
+            override fun onStatusChanged(provider: String, status: Int, extras: Bundle?) = Unit
+        }
+        watching.set(listener)
+
+        continuation.invokeOnCancellation { finish(null) }
+        main.postDelayed({ finish(null) }, ONE_SHOT_MILLIS)
+        val asked = runCatching {
+            manager.requestLocationUpdates(provider, 0L, 0f, listener, Looper.getMainLooper())
+        }.isSuccess
+        if (!asked) finish(null)
+    }
+
+/** The stale fix [provider] still holds, if it holds one at all. */
+private fun lastKnown(manager: LocationManager, provider: String): LocationPick.Fix? =
+    runCatching { manager.getLastKnownLocation(provider) }.getOrNull()?.toFix()
+
+/** The activity a context belongs to, through however many wrappers carry it. */
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

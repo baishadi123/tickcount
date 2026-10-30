@@ -14,6 +14,10 @@ activityCompose = "1.13.0"
 coreKtx = "1.19.1"
 lifecycle = "2.11.0"
 
+# Map. osmdroid is the app's only third-party runtime library: 万疆's map
+# mode. Everything else stays AndroidX + Compose.
+osmdroid = "6.1.20"
+
 # Test.
 junit = "4.13.2"
 
@@ -38,6 +42,10 @@ androidx-compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
 androidx-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
 androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
+
+# The map in 万疆: raster tiles (Amap by default) cached in the app's own
+# cache directory, so the feature works offline once an area has been seen.
+osmdroid-android = { module = "org.osmdroid:osmdroid-android", version.ref = "osmdroid" }
 
 junit = { module = "junit:junit", version.ref = "junit" }
 

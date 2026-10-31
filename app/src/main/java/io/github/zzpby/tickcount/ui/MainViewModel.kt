@@ -460,6 +460,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
+     * The voyage's soundtrack: the private filename the picked audio was
+     * copied to, or empty when the sky goes quiet again.
+     */
+    fun chooseVoyageMusic(file: String) {
+        updateSettings(_settings.value.copy(voyageMusicFile = file))
+    }
+
+    /**
      * Stores a mixed hue. The preset is left alone, because the strip is only on
      * screen while [ThemePreset.CUSTOM] is already the choice.
      */

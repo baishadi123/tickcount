@@ -196,7 +196,7 @@ fun TrashIcon(
 
 /**
  * A folded map drawn as one outline: three panels in a gentle zigzag, the
- * fold lines running through them ¡ª the map as a paper object rather than a
+ * fold lines running through them â€” the map as a paper object rather than a
  * globe, the way a journey is folded into a pocket.
  */
 @Composable
@@ -244,5 +244,47 @@ fun MapIcon(
             strokeWidth = stroke,
             cap = StrokeCap.Round,
         )
+    }
+}
+
+/**
+ * A little globe: a round world with its meridian and equator drawn as a
+ * hand would sketch it, for the control that carries the map back out to
+ * the whole country.
+ */
+@Composable
+fun GlobeIcon(
+    modifier: Modifier = Modifier,
+    iconSize: Dp = 20.dp,
+    color: Color = LocalContentColor.current,
+    strokeWidth: Dp = 1.7.dp,
+) {
+    Canvas(modifier = modifier.size(iconSize)) {
+        val w = size.width
+        val h = size.height
+        val stroke = strokeWidth.toPx()
+        val cx = w / 2f
+        val cy = h / 2f
+        val radius = minOf(w, h) * 0.38f
+
+        drawCircle(
+            color = color,
+            radius = radius,
+            center = Offset(cx, cy),
+            style = Stroke(width = stroke),
+        )
+        // The meridian: an ellipse a little narrower than the world.
+        drawOval(
+            color = color,
+            topLeft = Offset(cx - radius * 0.46f, cy - radius),
+            size = androidx.compose.ui.geometry.Size(radius * 0.92f, radius * 2f),
+            style = Stroke(width = stroke),
+        )
+        // The equator, bowed very slightly so it reads as a drawn line.
+        val equator = Path().apply {
+            moveTo(cx - radius, cy + radius * 0.06f)
+            quadraticTo(cx, cy + radius * 0.20f, cx + radius, cy + radius * 0.06f)
+        }
+        drawPath(equator, color, style = Stroke(width = stroke, cap = StrokeCap.Round))
     }
 }

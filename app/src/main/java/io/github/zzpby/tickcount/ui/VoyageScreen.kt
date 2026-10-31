@@ -22,6 +22,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -80,6 +81,13 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
+import android.media.MediaPlayer
+import android.net.Uri
 import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.data.CountdownEvent
 import io.github.zzpby.tickcount.data.EventBackgrounds
@@ -94,6 +102,7 @@ import io.github.zzpby.tickcount.domain.voyageStops
 import io.github.zzpby.tickcount.ui.theme.XingKai
 import io.github.zzpby.tickcount.ui.theme.eventAccent
 import kotlinx.coroutines.launch
+import java.io.File
 import java.time.LocalDate
 import kotlin.math.PI
 import kotlin.math.abs
@@ -181,6 +190,9 @@ fun VoyageScreen(
     /** The footprints, which ride the chart as stars of their own colour. */
     footprints: List<Footprint> = emptyList(),
     onOpen: (String) -> Unit,
+    /** The picked soundtrack's private filename; empty plays the night's own embedded song. */
+    musicFile: String = "",
+    onMusicPicked: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -269,6 +281,92 @@ fun VoyageScreen(
 
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
+
+    // The voyage's own soundtrack: one audio file picked from the device,
+    // copied into the app's own ground the way photographs are — the sky
+    // never depends on the file staying where the picker found it — and
+    // looped while the comet rows. Shipping the oar (the pause) hushes it;
+    // leaving the night releases it entirely.
+    val pickMusic = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent(),
+    ) { uri ->
+        if (uri != null) {
+            VoyageMusic.save(context, uri)?.let(onMusicPicked)
+        }
+    }
+    var musicPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    // Whether the music should be sounding, kept where the focus listener
+    // can see it: focus lost hushes the river, focus regained brings it
+    // back only if the oar is not shipped.
+    var musicWanted by remember { mutableStateOf(false) }
+    DisposableEffect(musicFile) {
+        val audioManager = context.getSystemService(AudioManager::class.java)
+        val custom = musicFile.takeIf { it.isNotEmpty() }
+            ?.let { VoyageMusic.file(context, it) }
+        // The night carries a song of its own: one file shipped inside the
+        // app, played until the two of you pick one that is more theirs.
+        // A picked file takes over; clearing it hands the oar back.
+        val player = if (custom != null) {
+            runCatching {
+                MediaPlayer().apply {
+                    setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build(),
+                    )
+                    setDataSource(custom.absolutePath)
+                    isLooping = true
+                    prepare()
+                }
+            }.getOrNull()
+        } else {
+            runCatching {
+                MediaPlayer.create(context, R.raw.voyage_default)?.apply { isLooping = true }
+            }.getOrNull()
+        }
+        musicPlayer = player
+        val focus = player?.let { sounding ->
+            AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build(),
+                )
+                .setOnAudioFocusChangeListener { change ->
+                    when (change) {
+                        AudioManager.AUDIOFOCUS_LOSS,
+                        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+                        -> runCatching { sounding.pause() }
+
+                        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK ->
+                            sounding.setVolume(0.2f, 0.2f)
+
+                        AudioManager.AUDIOFOCUS_GAIN -> {
+                            sounding.setVolume(1f, 1f)
+                            if (musicWanted) runCatching { sounding.start() }
+                        }
+                    }
+                }
+                .build()
+                .also { audioManager?.requestAudioFocus(it) }
+        }
+        onDispose {
+            focus?.let { audioManager?.abandonAudioFocusRequest(it) }
+            player?.release()
+            musicPlayer = null
+        }
+    }
+    LaunchedEffect(musicPlayer, paused) {
+        val player = musicPlayer ?: return@LaunchedEffect
+        musicWanted = !paused
+        if (paused) {
+            runCatching { if (player.isPlaying) player.pause() }
+        } else {
+            runCatching { player.start() }
+        }
+    }
 
     // A star arrived at ticks in the hand — only a day that has truly come:
     // the frontier of lit stars moves forward through a sail, a drag or a
@@ -567,7 +665,18 @@ fun VoyageScreen(
             )
         }
 
-        PauseToggle(paused = paused, onToggle = { paused = !paused })
+        Row(verticalAlignment = Alignment.Top) {
+            MusicToggle(
+                custom = musicFile.isNotEmpty(),
+                sounding = !paused,
+                onPick = { pickMusic.launch("audio/*") },
+                onClear = {
+                    VoyageMusic.clear(context)
+                    onMusicPicked("")
+                },
+            )
+            PauseToggle(paused = paused, onToggle = { paused = !paused })
+        }
     }
 }
 
@@ -1083,8 +1192,7 @@ private fun FloatingPhoto(
 
 /** The small round button that holds the oar: drawn rather than an icon set. */
 @Composable
-private fun PauseToggle(paused: Boolean, onToggle: () -> Unit) {
-    Box(
+private fun PauseToggle(paused: Boolean, onToggle: () -> Unit) {    Box(
         modifier = Modifier
             .padding(top = 10.dp, end = 14.dp)
             .size(36.dp)
@@ -1120,6 +1228,151 @@ private fun PauseToggle(paused: Boolean, onToggle: () -> Unit) {
                 )
             }
         }
+    }
+}
+
+/**
+ * The soundtrack's seat beside the oar: a note that opens the device's own
+ * audio picker — drawn, like everything on this night, rather than taken
+ * from an icon set. The night always carries its own song; picking one
+ * makes it yours, and the small cross hands the night back its own.
+ */
+@Composable
+private fun MusicToggle(
+    custom: Boolean,
+    sounding: Boolean,
+    onPick: () -> Unit,
+    onClear: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(top = 10.dp, end = 6.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Starlight.copy(alpha = 0.10f))
+                .clickable(onClick = onPick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(modifier = Modifier.size(16.dp)) {
+                // An eighth note: head, stem, and the little flag off the top.
+                // A song of your own burns a little brighter than the night's.
+                val bright = when {
+                    sounding && custom -> 0.85f
+                    sounding -> 0.70f
+                    custom -> 0.55f
+                    else -> 0.45f
+                }
+                val ink = Starlight.copy(alpha = bright)
+                drawCircle(
+                    color = ink,
+                    radius = size.width * 0.21f,
+                    center = Offset(size.width * 0.36f, size.height * 0.74f),
+                )
+                drawRoundRect(
+                    color = ink,
+                    topLeft = Offset(size.width * 0.52f, size.height * 0.12f),
+                    size = androidx.compose.ui.geometry.Size(size.width * 0.09f, size.height * 0.62f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.045f),
+                )
+                val flag = Path().apply {
+                    moveTo(size.width * 0.61f, size.height * 0.12f)
+                    quadraticTo(
+                        size.width * 0.98f, size.height * 0.22f,
+                        size.width * 0.72f, size.height * 0.44f,
+                    )
+                }
+                drawPath(
+                    path = flag,
+                    color = ink,
+                    style = Stroke(width = size.width * 0.09f, cap = androidx.compose.ui.graphics.StrokeCap.Round),
+                )
+                // While the music sounds, two breaths of it drift right.
+                if (sounding) {
+                    drawArc(
+                        color = Starlight.copy(alpha = 0.40f),
+                        startAngle = -50f,
+                        sweepAngle = 100f,
+                        useCenter = false,
+                        topLeft = Offset(size.width * 0.78f, size.height * 0.30f),
+                        size = androidx.compose.ui.geometry.Size(size.width * 0.40f, size.height * 0.40f),
+                        style = Stroke(width = size.width * 0.07f, cap = androidx.compose.ui.graphics.StrokeCap.Round),
+                    )
+                }
+            }
+        }
+        if (custom) {
+            Box(
+                modifier = Modifier
+                    .padding(start = 2.dp)
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onClear),
+                contentAlignment = Alignment.Center,
+            ) {
+                Canvas(modifier = Modifier.size(10.dp)) {
+                    val ink = Starlight.copy(alpha = 0.5f)
+                    val bar = size.width * 0.11f
+                    drawLine(
+                        ink,
+                        Offset(bar, bar),
+                        Offset(size.width - bar, size.height - bar),
+                        strokeWidth = bar,
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    )
+                    drawLine(
+                        ink,
+                        Offset(size.width - bar, bar),
+                        Offset(bar, size.height - bar),
+                        strokeWidth = bar,
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The one audio file the night keeps, held the way photographs are: copied
+ * into the app's own directory the moment it is chosen, so playback never
+ * depends on the file staying where the picker found it, and no permission
+ * to read the device is ever asked for — the picker's own grant covers the
+ * single copy. One slot; a new choice replaces the old.
+ */
+private object VoyageMusic {
+    private const val NAME = "voyage-music"
+
+    /** Copies the picked audio into the app's ground; the filename, or null. */
+    fun save(context: Context, uri: Uri): String? = runCatching {
+        val type = context.contentResolver.getType(uri)
+        val name = NAME + when {
+            type?.contains("mpeg") == true || type?.contains("mp3") == true -> ".mp3"
+            type?.contains("flac") == true -> ".flac"
+            type?.contains("wav") == true -> ".wav"
+            type?.contains("ogg") == true -> ".ogg"
+            type?.contains("aac") == true || type?.contains("mp4") == true -> ".m4a"
+            else -> ".audio"
+        }
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            context.filesDir.resolve(name).outputStream().use { output ->
+                input.copyTo(output)
+            }
+        } ?: return null
+        name
+    }.getOrNull()
+
+    /** The copied file itself, or null when nothing is aboard. */
+    fun file(context: Context, name: String): File? =
+        context.filesDir.resolve(name).takeIf { it.isFile && it.length() > 0L }
+
+    /** Puts the night back to its own silence. */
+    fun clear(context: Context) {
+        context.filesDir.listFiles()
+            ?.filter { it.name.startsWith(NAME) }
+            ?.forEach { it.delete() }
     }
 }
 

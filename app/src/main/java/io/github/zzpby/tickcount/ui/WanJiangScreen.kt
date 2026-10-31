@@ -17,6 +17,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.widget.VideoView
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -39,6 +40,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,6 +53,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,6 +81,7 @@ import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.data.Footprint
 import io.github.zzpby.tickcount.data.FootprintMedia
 import io.github.zzpby.tickcount.domain.ChinaPlaces
+import io.github.zzpby.tickcount.domain.ChinaProvinces
 import io.github.zzpby.tickcount.domain.LocationPick
 import io.github.zzpby.tickcount.ui.components.CheckIcon
 import io.github.zzpby.tickcount.ui.components.CloseIcon
@@ -130,6 +134,15 @@ fun WanJiangScreen(
     // place be asked for twice; plain remember, for once consumed the map
     // simply stays where it landed.
     var focus by remember { mutableStateOf<MapFocus?>(null) }
+    // The place a map visit started from, so closing the map comes back to
+    // the row that opened it rather than to the top of a long scrapbook.
+    var returnToPlace by rememberSaveable { mutableStateOf<String?>(null) }
+    // The scroll position is hoisted out of the LazyColumn: the map replaces
+    // the list, and the list must not forget where it was.
+    val listState = rememberLazyListState()
+
+    // The map closes on the back key, exactly as the visible chevron does.
+    BackHandler(enabled = mapMode) { mapMode = false }
 
     // The map is the one page that earns the turn of the wrist: while it
     // shows, the window follows the sensor; the moment it closes, the app
@@ -153,6 +166,54 @@ fun WanJiangScreen(
             .sortedByDescending { visits -> visits.value.maxOf { it.epochDay } }
     }
 
+    // The provinces the footprints stand in — the map's checklist, read
+    // from the same visits the scrapbook keeps rather than tracked apart.
+    val provinceTable = remember {
+        runCatching {
+            context.resources.openRawResource(R.raw.china_provinces)
+                .use { ChinaProvinces.parse(it.bufferedReader().readText()) }
+        }.getOrDefault(emptyList())
+    }
+    val litProvinces = remember(footprints, provinceTable) {
+        footprints.mapNotNull { visit ->
+            val lat = visit.latitude
+            val lng = visit.longitude
+            if (lat != null && lng != null) {
+                ChinaProvinces.provinceOf(provinceTable, lat, lng)
+            } else {
+                null
+            }
+        }.toSet()
+    }
+
+    // Where each place's heading sits in the LazyColumn: one heading item,
+    // then one item for every row of cells and one dated line per visit.
+    // Counted here rather than tagged with a key because scrollToItem wants
+    // an index, not a key.
+    val placeStarts = remember(byPlace) {
+        var index = 0
+        val starts = mutableMapOf<String, Int>()
+        byPlace.forEach { (place, visits) ->
+            starts[place] = index
+            index += 1
+            visits.forEach { visit ->
+                index += visit.photos.ifEmpty { listOf("") }.chunked(3).size
+                index += 1
+            }
+        }
+        starts
+    }
+
+    // Coming back from the map: the list is laid out again before this
+    // effect runs, so the scroll lands on the row that opened the map.
+    LaunchedEffect(mapMode, returnToPlace) {
+        val place = returnToPlace
+        if (!mapMode && place != null) {
+            placeStarts[place]?.let { listState.scrollToItem(it) }
+            returnToPlace = null
+        }
+    }
+
     Column(modifier = modifier.fillMaxSize()) {
         Row(
             modifier = Modifier
@@ -171,14 +232,37 @@ fun WanJiangScreen(
                     val photoCount = footprints.sumOf { it.photos.size }
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = stringResource(R.string.wanjiiang_summary, byPlace.size, photoCount),
+                        text = listOfNotNull(
+                            stringResource(R.string.wanjiiang_summary, byPlace.size, photoCount),
+                            if (provinceTable.isNotEmpty()) {
+                                stringResource(
+                                    R.string.wanjiiang_lit,
+                                    litProvinces.size,
+                                    provinceTable.size,
+                                )
+                            } else {
+                                null
+                            },
+                        ).joinToString(" · "),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
             if (footprints.isNotEmpty()) {
-                IconButton(onClick = { mapMode = !mapMode }) {
+                IconButton(
+                    onClick = {
+                        if (mapMode) {
+                            mapMode = false
+                        } else {
+                            // The header opens the country, not a memory:
+                            // no focus, and no row to return to.
+                            focus = null
+                            returnToPlace = null
+                            mapMode = true
+                        }
+                    },
+                ) {
                     MapIcon(
                         iconSize = 22.dp,
                         color = if (mapMode) {
@@ -196,11 +280,14 @@ fun WanJiangScreen(
         } else if (mapMode) {
             WanJiangMap(
                 footprints = footprints,
+                litProvinces = litProvinces,
                 onPickPlace = { sheetPlace = it },
+                onBackToList = { mapMode = false },
                 focus = focus,
             )
         } else {
             LazyColumn(
+                state = listState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
                     horizontal = Gutter,
@@ -229,6 +316,7 @@ fun WanJiangScreen(
                                 .clickable(enabled = centroid != null) {
                                     centroid?.let { (lat, lon) ->
                                         focus = MapFocus(lat, lon, (focus?.nonce ?: 0) + 1)
+                                        returnToPlace = place
                                         mapMode = true
                                     }
                                 },
@@ -306,6 +394,7 @@ fun WanJiangScreen(
                                             .clickable(enabled = lat != null && lon != null) {
                                                 if (lat != null && lon != null) {
                                                     focus = MapFocus(lat, lon, (focus?.nonce ?: 0) + 1)
+                                                    returnToPlace = place
                                                     mapMode = true
                                                 }
                                             },

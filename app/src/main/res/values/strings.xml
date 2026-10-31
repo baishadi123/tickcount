@@ -174,6 +174,7 @@
 
     <!-- 万疆：the places visited together -->
     <string name="wanjiiang_summary">%1$d places · %2$d photos</string>
+    <string name="wanjiiang_lit">%1$d of %2$d provinces lit</string>
     <string name="wanjiiang_visits">%1$d visits</string>
     <string name="wanjiiang_empty">No footprints yet.\nTap + in the top right to save the first place.</string>
     <string name="wanjiiang_no_media">no photo</string>
@@ -183,11 +184,12 @@
     <string name="footprint_location_off">Note this spot</string>
     <string name="footprint_location_seeking">Locating…</string>
     <string name="footprint_location_missed">Couldn\'t find this spot</string>
-    <string name="footprint_pick_on_map">在图上选</string>
-    <string name="map_pick_confirm">就这里</string>
-    <string name="wanjiiang_map_empty">还没有带上位置的足迹。编辑足迹时点「在图上选」，或「带上此刻的位置」。</string>
-    <string name="wanjiiang_map_attribution">瓦片 © 高德</string>
-    <string name="wanjiiang_picked_label">已在图上标记</string>
+    <string name="footprint_pick_on_map">Pick on the map</string>
+    <string name="map_pick_confirm">Right here</string>
+    <string name="wanjiiang_map_empty">No footprints with a location yet. Tap “Pick on the map” while editing one, or “Note this spot”.</string>
+    <string name="wanjiiang_map_attribution">Tiles © Amap</string>
+    <string name="wanjiiang_map_country">Whole country</string>
+    <string name="wanjiiang_picked_label">Marked on the map</string>
     <string name="footprint_media_hint">Tap a thumbnail to remove it; photos, GIFs and videos all travel</string>
     <string name="drawer_language">Language</string>
     <string name="drawer_changelog">Changelog</string>

@@ -90,6 +90,13 @@ data class AppSettings(
      * counts from. Null until it is set; the count shows the way there.
      */
     val anniversaryEpochDay: Long? = null,
+    /**
+     * The soundtrack of 行舟: the private filename the picked audio was
+     * copied to, looped while the comet rows. Empty until chosen. It is a
+     * file of this device's own ground, so it deliberately does not travel
+     * with backups — the way photographs never did.
+     */
+    val voyageMusicFile: String = "",
 )
 
 /**
@@ -143,6 +150,7 @@ class SettingsStore(context: Context) {
             } else {
                 null
             },
+            voyageMusicFile = prefs.getString(KEY_VOYAGE_MUSIC, "") ?: "",
         )
     }
 
@@ -157,6 +165,7 @@ class SettingsStore(context: Context) {
             putInt(KEY_REMIND_LEAD, settings.remindLeadMinutes)
             putString(KEY_WIDGET_PANEL, settings.widgetPanel.name)
             putString(KEY_WIDGET_TEXT_SIZE, settings.widgetTextSize.name)
+            putString(KEY_VOYAGE_MUSIC, settings.voyageMusicFile)
             settings.anniversaryEpochDay?.let { putLong(KEY_ANNIVERSARY, it) }
         }
     }
@@ -182,5 +191,6 @@ class SettingsStore(context: Context) {
         const val KEY_WIDGET_PANEL = "widget_panel"
         const val KEY_WIDGET_TEXT_SIZE = "widget_text_size"
         const val KEY_ANNIVERSARY = "anniversary_epoch_day"
+        const val KEY_VOYAGE_MUSIC = "voyage_music"
     }
 }

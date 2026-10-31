@@ -57,15 +57,14 @@ import io.github.zzpby.tickcount.data.EventBackgrounds
 import io.github.zzpby.tickcount.domain.CountdownPhase
 import io.github.zzpby.tickcount.domain.calendarSplit
 import io.github.zzpby.tickcount.domain.countdownTo
-import io.github.zzpby.tickcount.domain.daysFromToday
 import io.github.zzpby.tickcount.domain.effectiveDate
 import io.github.zzpby.tickcount.domain.effectiveTarget
-import io.github.zzpby.tickcount.domain.widgetCountdownFor
 import kotlin.math.abs
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.CardShape
 import io.github.zzpby.tickcount.ui.theme.CountdownLineTextStyle
 import io.github.zzpby.tickcount.ui.theme.eventAccent
+import java.time.Duration
 import java.time.ZonedDateTime
 
 /**
@@ -102,30 +101,34 @@ fun EventDetailScreen(
         CountdownPhase.PAST -> stringResource(R.string.label_countdown_ago)
     }
 
-    // The big count goes WITH the clock: it is one less than the list's day count,
-    // because the ticking clock covers the incomplete day. (列表 4 天 → 大字 3 天
-    // 16:00:00；过去 8027 天 → 大字 8026 天 + 当天流逝。)
+    // The big count and the clock divide one distance between them: the gap to
+    // the countdown's own moment — the saved time of day included — measured to
+    // that moment while it is ahead and from it once it has passed. An all-day
+    // countdown's moment is its date's midnight, so that reading keeps its old
+    // shape (列表 4 天 → 大字 3 天 16:00:00；过去 8027 天 → 大字 8026 天 + 当天流逝).
     val bottomDate = when (countdown.phase) {
         CountdownPhase.PAST -> event.date
         else -> event.effectiveDate(now.toLocalDate())
     }
-    val totalDays = remember(bottomDate, now) {
-        (abs(daysFromToday(bottomDate, now.toLocalDate())) - 1).coerceAtLeast(0L)
+    // The anchored moment: the next occurrence while it is ahead, the stored
+    // moment itself afterwards — so a past countdown is measured from the hour
+    // it happened, never from its date's midnight.
+    val anchor = when (countdown.phase) {
+        CountdownPhase.PAST -> event.target(now.zone)
+        else -> event.effectiveTarget(now.zone, now.toLocalDate())
     }
-
-    // The clock that completes the big count: the remaining time to the countdown's
-    // moment while that is under a day away, the time left of today otherwise, and
-    // the time elapsed since midnight once the day has gone by.
-    val clockSeconds = remember(countdown, bottomDate, now) {
-        when (countdown.phase) {
-            CountdownPhase.FUTURE ->
-                widgetCountdownFor(bottomDate, now, event.time).secondsToBoundary
-            CountdownPhase.TODAY ->
-                countdown.parts.hours * 3_600 + countdown.parts.minutes * 60 +
-                    countdown.parts.seconds
-            CountdownPhase.PAST -> now.toLocalTime().toSecondOfDay().toLong()
+    val gapSeconds = remember(countdown, now) {
+        if (countdown.phase == CountdownPhase.FUTURE) {
+            Duration.between(now, anchor).seconds
+        } else {
+            Duration.between(anchor, now).seconds
         }
     }
+
+    // Whole days of the gap in large type; the clock carries the incomplete day,
+    // so the pair adds back to the true distance whichever way the days run.
+    val totalDays = remember(countdown, now) { gapSeconds / 86_400 }
+    val clockSeconds = remember(countdown, now) { gapSeconds - totalDays * 86_400 }
 
     // Under a day to go, the big count would read "0" — arithmetic where a ticking
     // clock says more. There the big type *is* the clock: hours, minutes and seconds

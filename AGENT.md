@@ -12,7 +12,8 @@
 ## 编译 / 测试 / 安装
 
 > **当前开发模式：轻量级——只改代码，验证止于 `testDebugUnitTest` + `compileDebugKotlin`。
-> 不启动虚拟机、不安装新版本（`run.bat` / `installDebug` 暂不用）。**
+> 视觉效果类改动例外：实现后 `installDebug` 装到模拟器即可，效果由用户本人评定，
+> 不做截图 / 自动化视觉验证。**
 
 ```powershell
 $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
@@ -37,7 +38,7 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
 | 作陪（心愿） | `ui/ThingsScreen.kt`、`data/Wish.kt` |
 | 敬心（时光胶囊、拆信动画、信笺分页、声音信） | `ui/CapsuleScreen.kt`、`data/TimeCapsule.kt`（按年分文件、自动迁移）、`data/CapsuleVoice.kt`（录音与私有文件）、`domain/VoiceWaveform.kt`（波形归一）、`ui/components/VoiceNote.kt`（播放行） |
 | 万疆（足迹、媒体、位置、地图） | `ui/WanJiangScreen.kt`、`ui/WanJiangMap.kt`（osmdroid、高德瓦片、年份轨迹、图上选点）、`data/Footprint.kt`、`data/FootprintMedia.kt`；离线地名在 `domain/ChinaPlaces.kt`（资源 `res/raw/china_places.md`，由 `.tools/行政区划/RegionGen.java` 从 kakuilan/china_area_mysql 的 **UTF-8** dump 生成，跑生成器要带 `-Dfile.encoding=UTF-8`，源数据不入仓库） |
-| 行舟（星图、彗星航行） | `ui/VoyageScreen.kt`（全 Canvas，沉浸全屏）、`domain/VoyageLayout.kt` |
+| 行舟（星图、彗星航行、背景音乐——内嵌默认曲 `res/raw/voyage_default.mp3`，可另选并拷入私有目录循环播放，无需存储权限） | `ui/VoyageScreen.kt`（全 Canvas，沉浸全屏）、`domain/VoyageLayout.kt` |
 | 日历（月历、事件标记、当天列表） | `ui/CalendarScreen.kt`、`ui/calendar/MonthCalendar.kt`、`ui/calendar/MonthYearPickerDialog.kt`、`domain/CalendarMath.kt` |
 | 纪念日与整数日（100/365/520/999/1314） | `domain/Milestones.kt`，布线在 `CalendarScreen.kt` 与 `MainViewModel.kt` |
 | 提醒（含胶囊到期） | `notify/Reminders.kt`（`EXTRA_KIND` 区分单闹钟）、`notify/ReminderReceiver.kt`、`notify/BootReceiver.kt`；设置页 `ui/NotificationsScreen.kt` |

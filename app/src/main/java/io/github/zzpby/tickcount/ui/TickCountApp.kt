@@ -599,6 +599,8 @@ fun TickCountApp(
                         milestones = milestonesByDate,
                         footprints = footprints,
                         onOpen = { detailId = it },
+                        musicFile = settings.voyageMusicFile,
+                        onMusicPicked = viewModel::chooseVoyageMusic,
                     )
 
                     screen == AppScreen.REMINDERS -> NotificationsScreen(

@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Build
+import io.github.zzpby.tickcount.domain.MediaRef
 import java.io.File
 
 /**
@@ -35,6 +37,20 @@ object EventBackgrounds {
     // walk out of the directory with a separator in the name.
     private fun isOurs(name: String): Boolean =
         name.startsWith(PREFIX) && name.none { it == '/' || it == '\\' }
+
+    /**
+     * Takes an album photo the picker offered — the detail page's album and
+     * the capsule's both — as a gallery reference where the system allows
+     * one, a scaled private copy where it does not. The background image
+     * keeps [save]: it is a derived thing, cropped and scaled for the page,
+     * and no album original is exactly that.
+     */
+    fun ingestPhoto(context: Context, ownerId: String, uri: Uri): String? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            GalleryMedia.createRef(context, uri) ?: save(context, ownerId, uri)
+        } else {
+            save(context, ownerId, uri)
+        }
 
     /**
      * Copies the image at [uri] into the app's private directory, scaled down, and
@@ -77,7 +93,10 @@ object EventBackgrounds {
         }.getOrNull()
     }
 
-    /** Deletes the background file called [name], if it is one of ours. */
+    /**
+     * Deletes the file called [name] — our own copies only. A gallery
+     * reference is an untieing, not a deletion: the album keeps its original.
+     */
     fun delete(context: Context, name: String?) {
         if (name == null || !isOurs(name)) return
         File(dir(context), name).delete()
@@ -85,10 +104,18 @@ object EventBackgrounds {
 
     /** The decoded background called [name], or null when it is gone or unreadable. */
     fun bitmap(context: Context, name: String?): Bitmap? {
-        if (name == null || !isOurs(name)) return null
+        if (name == null) return null
+        if (MediaRef.isRef(name)) return GalleryMedia.bitmap(context, name)
+        if (!isOurs(name)) return null
         val file = File(dir(context), name)
         if (!file.isFile) return null
         return BitmapFactory.decodeFile(file.absolutePath)
+    }
+
+    /** True when our own copy called [name] still sits in the directory. */
+    fun exists(context: Context, name: String?): Boolean {
+        if (name == null || !isOurs(name)) return false
+        return File(dir(context), name).isFile
     }
 
     /**
@@ -99,7 +126,9 @@ object EventBackgrounds {
      * megabytes of pixels for what is two hundred of them on screen.
      */
     fun thumbnail(context: Context, name: String?, maxEdge: Int = 512): Bitmap? {
-        if (name == null || !isOurs(name)) return null
+        if (name == null) return null
+        if (MediaRef.isRef(name)) return GalleryMedia.thumbnail(context, name, maxEdge)
+        if (!isOurs(name)) return null
         val file = File(dir(context), name)
         if (!file.isFile) return null
 

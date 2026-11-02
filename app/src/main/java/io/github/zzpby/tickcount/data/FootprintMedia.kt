@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Build
+import io.github.zzpby.tickcount.domain.MediaRef
 import java.io.File
 
 /**
@@ -56,11 +58,24 @@ object FootprintMedia {
         return file.takeIf { it.isFile }
     }
 
-    /** True when the name is a video — the viewer plays it rather than showing it. */
-    fun isVideo(name: String): Boolean = extensionOf(name) in VIDEO_EXTENSIONS
+    /**
+     * Where a viewer plays from: a gallery entry streams from its
+     * MediaStore uri, one of our own files opens by path.
+     */
+    fun mediaUri(context: Context, entry: String?): Uri? =
+        when {
+            entry == null -> null
+            MediaRef.isRef(entry) -> GalleryMedia.mediaUri(context, entry)
+            else -> file(context, entry)?.let { Uri.fromFile(it) }
+        }
 
-    /** True when the name is an animated GIF — the viewer animates it on API 28+. */
-    fun isAnimated(name: String): Boolean = extensionOf(name) in ANIMATED_EXTENSIONS
+    /** True when the entry is a moving picture — played rather than shown. */
+    fun isVideo(entry: String): Boolean =
+        if (MediaRef.isRef(entry)) GalleryMedia.isVideo(entry) else extensionOf(entry) in VIDEO_EXTENSIONS
+
+    /** True when the entry is an animated GIF — animated on API 28+. */
+    fun isAnimated(entry: String): Boolean =
+        if (MediaRef.isRef(entry)) GalleryMedia.isAnimated(entry) else extensionOf(entry) in ANIMATED_EXTENSIONS
 
     private fun extensionOf(name: String): String =
         name.substringAfterLast('.', missingDelimiterValue = "")
@@ -83,7 +98,24 @@ object FootprintMedia {
         }.getOrNull()
     }
 
-    /** Deletes the media file called [name], if it is one of ours. */
+    /**
+     * Takes what the picker offered, as a gallery reference where the system
+     * allows one — the album stays the only original, and the phone carries
+     * no second copy — falling back to a private copy on systems too old to
+     * hold a reference, or where the reference could not be read.
+     */
+    fun ingest(context: Context, footprintId: String, uri: Uri): String? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            GalleryMedia.createRef(context, uri) ?: save(context, footprintId, uri)
+        } else {
+            save(context, footprintId, uri)
+        }
+
+    /**
+     * Deletes the media file called [name] — our own copies only. A gallery
+     * reference is an untieing, not a deletion: the album's original belongs
+     * to the album, and removing it from a visit takes nothing away from it.
+     */
     fun delete(context: Context, name: String?) {
         if (name == null || !isOurs(name)) return
         File(dir(context), name).delete()
@@ -92,9 +124,11 @@ object FootprintMedia {
     /**
      * A thumbnail of at most [maxEdge] on its long side: an image the ordinary
      * sampled way — which is also a GIF's first frame — and a video through
-     * its retriever, a second in.
+     * the retriever, a second in.
      */
     fun thumbnail(context: Context, name: String?, maxEdge: Int = 480): Bitmap? {
+        if (name == null) return null
+        if (MediaRef.isRef(name)) return GalleryMedia.thumbnail(context, name, maxEdge)
         val file = file(context, name) ?: return null
         return runCatching {
             if (isVideo(file.name)) videoFrame(file, maxEdge) else stillFrame(file, maxEdge)

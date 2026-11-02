@@ -26,6 +26,7 @@ import io.github.zzpby.tickcount.data.WishStore
 import io.github.zzpby.tickcount.data.WidgetPanel
 import io.github.zzpby.tickcount.data.WidgetTextSize
 import io.github.zzpby.tickcount.data.previewOf
+import io.github.zzpby.tickcount.domain.GalleryRelink
 import io.github.zzpby.tickcount.domain.SortOrder
 import io.github.zzpby.tickcount.domain.icsFor
 import io.github.zzpby.tickcount.notify.Reminders
@@ -155,6 +156,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun removeEvent(id: String) {
         if (_events.value.none { it.id == id }) return
         persist(_events.value.filterNot { it.id == id })
+    }
+
+    /**
+     * 换机后的相册重连：照片随手机克隆到了新相册，MediaStore 的行号变了，
+     * 而指纹没变。体检按指纹找到新位置，这里把新 id 写回记录——只动引用
+     * 条目本身，照片的归属、日期与文字一概不碰。
+     */
+    fun relinkGalleryEntries(mapping: Map<String, String>) {
+        if (mapping.isEmpty()) return
+        val events = _events.value.map { event ->
+            val photos = GalleryRelink.remapPhotos(event.photoUris, mapping)
+            if (photos == null) {
+                event
+            } else {
+                event.copy(
+                    photoUris = photos,
+                    photoCover = GalleryRelink.remapCover(event.photoCover, mapping),
+                )
+            }
+        }
+        if (events != _events.value) persist(events)
+        val capsules = _capsules.value.map { capsule ->
+            val photos = GalleryRelink.remapPhotos(capsule.photos, mapping)
+            if (photos == null) capsule else capsule.copy(photos = photos)
+        }
+        if (capsules != _capsules.value) {
+            _capsules.value = capsules
+            capsuleStore.save(capsules)
+        }
+        val footprints = _footprints.value.map { footprint ->
+            val photos = GalleryRelink.remapPhotos(footprint.photos, mapping)
+            if (photos == null) footprint else footprint.copy(photos = photos)
+        }
+        if (footprints != _footprints.value) {
+            _footprints.value = footprints
+            footprintStore.save(footprints)
+        }
     }
 
     /**

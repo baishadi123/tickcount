@@ -95,6 +95,22 @@ fun TickCountApp(
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val showGuide by viewModel.showGuide.collectAsStateWithLifecycle()
 
+    // The gallery health check's ledger: every picture the records reference,
+    // with the name of the record that references it.
+    val galleryHealthItems = remember(events, capsules, footprints) {
+        buildList {
+            events.forEach { event ->
+                event.photoUris.forEach { add(GalleryHealthItem(event.title, it)) }
+            }
+            capsules.forEach { capsule ->
+                capsule.photos.forEach { add(GalleryHealthItem(capsule.title, it)) }
+            }
+            footprints.forEach { footprint ->
+                footprint.photos.forEach { add(GalleryHealthItem(footprint.place, it)) }
+            }
+        }
+    }
+
     var screenName by rememberSaveable { mutableStateOf(AppScreen.HOME.name) }
     var detailId by rememberSaveable { mutableStateOf<String?>(null) }
     var drawerOpen by rememberSaveable { mutableStateOf(false) }
@@ -635,6 +651,8 @@ fun TickCountApp(
                         onRead = viewModel::readBackup,
                         onApply = viewModel::applyBackup,
                         onExportIcs = viewModel::exportIcs,
+                        galleryHealthItems = galleryHealthItems,
+                        onRelinkGallery = viewModel::relinkGalleryEntries,
                     )
 
                     screen == AppScreen.CHANGELOG -> ChangelogScreen()

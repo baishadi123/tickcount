@@ -84,6 +84,8 @@ fun DataScreen(
     onApply: (backup: Backup, mode: ImportMode) -> Int,
     onExportIcs: () -> String,
     modifier: Modifier = Modifier,
+    galleryHealthItems: List<GalleryHealthItem> = emptyList(),
+    onRelinkGallery: (Map<String, String>) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -91,6 +93,8 @@ fun DataScreen(
     var message by remember { mutableStateOf<Notice?>(null) }
 
     var exportOpen by remember { mutableStateOf(false) }
+    var healthOpen by remember { mutableStateOf(false) }
+    var healthHint by remember { mutableStateOf(false) }
 
     // The password chosen for an export, held from the dialog until the file picker — which
     // is a different activity and answers much later — says where the file goes. Reading
@@ -234,6 +238,17 @@ fun DataScreen(
             body = stringResource(R.string.data_export_ics_body),
             onClick = { createIcs.launch("tickcount-${LocalDate.now()}.ics") },
         )
+        Spacer(Modifier.height(10.dp))
+        // Before a phone migration: every picture the records reference,
+        // checked against the album — a number instead of a hope.
+        ActionCard(
+            title = stringResource(R.string.gallery_health_title),
+            body = stringResource(R.string.gallery_health_body),
+            onClick = {
+                healthHint = false
+                healthOpen = true
+            },
+        )
 
         message?.let { notice ->
             Spacer(Modifier.height(16.dp))
@@ -247,6 +262,21 @@ fun DataScreen(
                 color = MaterialTheme.colorScheme.primary,
             )
         }
+        if (healthHint) {
+            Text(
+                text = stringResource(R.string.data_import_health_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+
+    if (healthOpen) {
+        GalleryHealthDialog(
+            items = galleryHealthItems,
+            onRelink = onRelinkGallery,
+            onDismiss = { healthOpen = false },
+        )
     }
 
     if (exportOpen) {
@@ -284,6 +314,10 @@ fun DataScreen(
                 clearPending()
                 if (count != null) {
                     message = Notice(R.plurals.data_applied, count)
+                    // A restore onto a new phone is the moment the gallery
+                    // health check exists for: the records carry the old
+                    // phone's row numbers until the fingerprints reconnect.
+                    healthHint = true
                 }
             },
         )

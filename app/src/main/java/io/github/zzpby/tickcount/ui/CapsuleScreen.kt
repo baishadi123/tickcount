@@ -103,6 +103,7 @@ import io.github.zzpby.tickcount.ui.components.ReopenIcon
 import io.github.zzpby.tickcount.ui.components.TrashIcon
 import io.github.zzpby.tickcount.ui.components.VoiceNote
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
+import io.github.zzpby.tickcount.ui.components.rememberGalleryReadRequest
 import io.github.zzpby.tickcount.ui.theme.CardGap
 import io.github.zzpby.tickcount.ui.theme.CardShape
 import io.github.zzpby.tickcount.ui.theme.FieldShape
@@ -111,8 +112,10 @@ import io.github.zzpby.tickcount.ui.theme.PillShape
 import io.github.zzpby.tickcount.ui.theme.XingKai
 import io.github.zzpby.tickcount.ui.theme.XinWei
 import io.github.zzpby.tickcount.ui.theme.hairline
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import kotlin.math.min
 
@@ -430,15 +433,27 @@ fun CapsuleEditorScreen(
     }
 
     val dateFormatter = rememberDateFormatter(R.string.date_format_short)
+    val requestGalleryRead = rememberGalleryReadRequest()
+    val ingestScope = rememberCoroutineScope()
     val pickPhotos = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(maxItems = TimeCapsule.MAX_PHOTOS),
     ) { uris ->
-        uris.forEach { uri ->
-            if (photoNames.size >= TimeCapsule.MAX_PHOTOS) return@forEach
-            val saved = EventBackgrounds.save(context, initial.id, uri)
-            if (saved != null && saved !in photoNames) {
-                photoNames = ArrayList(photoNames + saved)
+        // A reference reads back from the album; the permission is asked for
+        // the moment there is something to read.
+        if (uris.isNotEmpty()) requestGalleryRead {}
+        // Hashing a video is the work of seconds; none of it belongs on the
+        // thread that draws.
+        ingestScope.launch {
+            val added = withContext(Dispatchers.IO) {
+                buildList {
+                    uris.forEach { uri ->
+                        if (photoNames.size >= TimeCapsule.MAX_PHOTOS) return@forEach
+                        val saved = EventBackgrounds.ingestPhoto(context, initial.id, uri)
+                        if (saved != null && saved !in photoNames && saved !in this) add(saved)
+                    }
+                }
             }
+            if (added.isNotEmpty()) photoNames = ArrayList(photoNames + added)
         }
     }
 

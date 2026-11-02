@@ -83,21 +83,25 @@ import io.github.zzpby.tickcount.data.FootprintMedia
 import io.github.zzpby.tickcount.domain.ChinaPlaces
 import io.github.zzpby.tickcount.domain.ChinaProvinces
 import io.github.zzpby.tickcount.domain.LocationPick
+import io.github.zzpby.tickcount.domain.MediaRef
 import io.github.zzpby.tickcount.ui.components.CheckIcon
 import io.github.zzpby.tickcount.ui.components.CloseIcon
 import io.github.zzpby.tickcount.ui.components.EditIcon
 import io.github.zzpby.tickcount.ui.components.MapIcon
 import io.github.zzpby.tickcount.ui.components.TrashIcon
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
+import io.github.zzpby.tickcount.ui.components.rememberGalleryReadRequest
 import io.github.zzpby.tickcount.ui.theme.CardGap
 import io.github.zzpby.tickcount.ui.theme.CardShape
 import io.github.zzpby.tickcount.ui.theme.Gutter
 import io.github.zzpby.tickcount.ui.theme.XingKai
 import io.github.zzpby.tickcount.ui.theme.hairline
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
@@ -688,7 +692,12 @@ private fun MediaViewer(photos: List<String>, initialPhoto: String, onDismiss: (
 private fun AnimatedPage(context: android.content.Context, name: String) {
     val drawable = remember(name) {
         runCatching {
-            val source = ImageDecoder.createSource(FootprintMedia.file(context, name)!!)
+            val source = if (MediaRef.isRef(name)) {
+                val uri = FootprintMedia.mediaUri(context, name) ?: return@runCatching null
+                ImageDecoder.createSource(context.contentResolver, uri)
+            } else {
+                ImageDecoder.createSource(FootprintMedia.file(context, name)!!)
+            }
             ImageDecoder.decodeDrawable(source)
         }.getOrNull()
     }
@@ -708,12 +717,12 @@ private fun AnimatedPage(context: android.content.Context, name: String) {
 /** A video through the platform's own player: a tap plays, another pauses. */
 @Composable
 private fun VideoPage(context: android.content.Context, name: String) {
-    val file = remember(name) { FootprintMedia.file(context, name) }
-    if (file == null) return
+    val media = remember(name) { FootprintMedia.mediaUri(context, name) }
+    if (media == null) return
     var playing by remember { mutableStateOf(true) }
     val videoView = remember {
         VideoView(context).apply {
-            setVideoPath(file.absolutePath)
+            setVideoURI(media)
             setOnPreparedListener { it.isLooping = true; start() }
         }
     }
@@ -795,15 +804,28 @@ fun FootprintEditorScreen(
         return true
     }
 
+    val requestGalleryRead = rememberGalleryReadRequest()
+    val ingestScope = rememberCoroutineScope()
+
     val pickMedia = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(maxItems = Footprint.MAX_PHOTOS),
     ) { uris ->
-        uris.forEach { uri ->
-            if (photoNames.size >= Footprint.MAX_PHOTOS) return@forEach
-            val saved = FootprintMedia.save(context, initial.id, uri)
-            if (saved != null && saved !in photoNames) {
-                photoNames = ArrayList(photoNames + saved)
+        // A reference reads back from the album; the permission is asked for
+        // the moment there is something to read.
+        if (uris.isNotEmpty()) requestGalleryRead {}
+        // Hashing a video is the work of seconds; none of it belongs on the
+        // thread that draws.
+        ingestScope.launch {
+            val added = withContext(Dispatchers.IO) {
+                buildList {
+                    uris.forEach { uri ->
+                        if (photoNames.size >= Footprint.MAX_PHOTOS) return@forEach
+                        val saved = FootprintMedia.ingest(context, initial.id, uri)
+                        if (saved != null && saved !in photoNames && saved !in this) add(saved)
+                    }
+                }
             }
+            if (added.isNotEmpty()) photoNames = ArrayList(photoNames + added)
         }
     }
 

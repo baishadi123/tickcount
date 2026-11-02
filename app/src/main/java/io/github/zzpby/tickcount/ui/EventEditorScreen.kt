@@ -61,6 +61,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -95,6 +96,7 @@ import io.github.zzpby.tickcount.ui.components.PhotoStack
 import io.github.zzpby.tickcount.ui.components.PlusIcon
 import io.github.zzpby.tickcount.ui.components.TrashIcon
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
+import io.github.zzpby.tickcount.ui.components.rememberGalleryReadRequest
 import io.github.zzpby.tickcount.ui.theme.FieldShape
 import io.github.zzpby.tickcount.ui.theme.hairline
 import io.github.zzpby.tickcount.ui.theme.PillShape
@@ -104,6 +106,9 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneOffset
 import kotlin.math.max
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Names a countdown, gives it any number of tags, and picks the moment it counts
@@ -212,15 +217,28 @@ fun EventEditorScreen(
     // is on top is a decision, not the order they arrived in.
     var photoCover by rememberSaveable(initial.id) { mutableStateOf(initial.photoCover) }
 
+    val requestGalleryRead = rememberGalleryReadRequest()
+    val scope = rememberCoroutineScope()
+
     val pickPhotos = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(maxItems = CountdownEvent.MAX_PHOTOS),
     ) { uris ->
-        uris.forEach { uri ->
-            if (photoNames.size >= CountdownEvent.MAX_PHOTOS) return@forEach
-            val saved = EventBackgrounds.save(context, initial.id, uri)
-            if (saved != null && saved !in photoNames) {
-                photoNames = ArrayList(photoNames + saved)
+        // A reference is read back from the album, so the album's permission
+        // is asked for the moment there is something to read.
+        if (uris.isNotEmpty()) requestGalleryRead {}
+        // Hashing a video is the work of seconds; none of it belongs on the
+        // thread that draws.
+        scope.launch {
+            val added = withContext(Dispatchers.IO) {
+                buildList {
+                    uris.forEach { uri ->
+                        if (photoNames.size >= CountdownEvent.MAX_PHOTOS) return@forEach
+                        val saved = EventBackgrounds.ingestPhoto(context, initial.id, uri)
+                        if (saved != null && saved !in photoNames && saved !in this) add(saved)
+                    }
+                }
             }
+            if (added.isNotEmpty()) photoNames = ArrayList(photoNames + added)
         }
     }
 

@@ -37,6 +37,7 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
 | 新建 / 编辑 / 一键添加多个 | `ui/EventEditorScreen.kt`、`domain/BatchAdd.kt` |
 | 作陪（心愿） | `ui/ThingsScreen.kt`、`data/Wish.kt` |
 | 敬心（时光胶囊、拆信动画、信笺分页、声音信） | `ui/CapsuleScreen.kt`、`data/TimeCapsule.kt`（按年分文件、自动迁移）、`data/CapsuleVoice.kt`（录音与私有文件）、`domain/VoiceWaveform.kt`（波形归一）、`ui/components/VoiceNote.kt`（播放行） |
+| 照片引用（相册为真身）与体检 | `domain/MediaRef.kt`（`g:` 引用条目：大小/尺寸/拍摄时间/MIME/媒体 id/SHA-256）、`data/GalleryMedia.kt`（选取建档 + 身份阶梯解析 + `relocatedId`）、`domain/GalleryRelink.kt`（重连映射纯规则）、`ui/GalleryHealth.kt`（体检对话框：发现即回写新 id，入口在数据页）、`ui/components/GalleryPermission.kt`；旧私有副本（fp-/bg-）双读兼容，删除引用不动相册。换机走系统克隆：相册随克隆迁移，记录用备份导入，体检自动重连 |
 | 万疆（足迹、媒体、位置、地图） | `ui/WanJiangScreen.kt`、`ui/WanJiangMap.kt`（osmdroid、高德瓦片、年份轨迹、图上选点）、`data/Footprint.kt`、`data/FootprintMedia.kt`；离线地名在 `domain/ChinaPlaces.kt`（资源 `res/raw/china_places.md`，由 `.tools/行政区划/RegionGen.java` 从 kakuilan/china_area_mysql 的 **UTF-8** dump 生成，跑生成器要带 `-Dfile.encoding=UTF-8`，源数据不入仓库） |
 | 行舟（星图、彗星航行、背景音乐——内嵌默认曲 `res/raw/voyage_default.mp3`，可另选并拷入私有目录循环播放，无需存储权限） | `ui/VoyageScreen.kt`（全 Canvas，沉浸全屏）、`domain/VoyageLayout.kt` |
 | 日历（月历、事件标记、当天列表） | `ui/CalendarScreen.kt`、`ui/calendar/MonthCalendar.kt`、`ui/calendar/MonthYearPickerDialog.kt`、`domain/CalendarMath.kt` |

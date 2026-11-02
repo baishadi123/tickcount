@@ -653,6 +653,7 @@ fun TickCountApp(
                         onExportIcs = viewModel::exportIcs,
                         galleryHealthItems = galleryHealthItems,
                         onRelinkGallery = viewModel::relinkGalleryEntries,
+                        onGalleryReady = viewModel::onGalleryPermissionGranted,
                     )
 
                     screen == AppScreen.CHANGELOG -> ChangelogScreen()

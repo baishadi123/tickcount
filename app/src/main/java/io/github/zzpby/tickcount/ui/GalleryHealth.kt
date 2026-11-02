@@ -53,6 +53,7 @@ fun GalleryHealthDialog(
     items: List<GalleryHealthItem>,
     onRelink: (Map<String, String>) -> Unit,
     onDismiss: () -> Unit,
+    onGalleryReady: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val requestRead = rememberGalleryReadRequest()
@@ -61,6 +62,7 @@ fun GalleryHealthDialog(
 
     LaunchedEffect(Unit) {
         requestRead { granted ->
+            if (granted) onGalleryReady()
             state = if (!granted) {
                 HealthState.Denied
             } else if (items.isEmpty()) {

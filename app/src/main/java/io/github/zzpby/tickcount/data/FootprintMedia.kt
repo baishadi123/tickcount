@@ -77,6 +77,10 @@ object FootprintMedia {
     fun isAnimated(entry: String): Boolean =
         if (MediaRef.isRef(entry)) GalleryMedia.isAnimated(entry) else extensionOf(entry) in ANIMATED_EXTENSIONS
 
+    /** The MIME type one of our own file names stands for, by its extension. */
+    fun mimeOf(name: String): String? =
+        EXTENSION_BY_MIME.entries.firstOrNull { it.value == extensionOf(name) }?.key
+
     private fun extensionOf(name: String): String =
         name.substringAfterLast('.', missingDelimiterValue = "")
 

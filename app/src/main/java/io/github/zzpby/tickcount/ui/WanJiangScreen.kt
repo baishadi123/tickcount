@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.graphics.drawable.AnimatedImageDrawable
 import android.location.Location
@@ -56,6 +57,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -538,7 +540,13 @@ private fun PlaceVisitsSheet(
 @Composable
 private fun MediaCell(name: String, footprintId: String, onOpen: () -> Unit) {
     val context = LocalContext.current
-    val thumb = remember(name) { FootprintMedia.thumbnail(context, name) }
+    // Off the main thread: a referenced photo costs an album query and a
+    // stream decode, and a grid full of them synchronously would freeze the
+    // first frame of the page. The square shows its ground first, the
+    // picture the moment it lands.
+    val thumb by produceState<Bitmap?>(initialValue = null, name) {
+        value = withContext(Dispatchers.IO) { FootprintMedia.thumbnail(context, name) }
+    }
 
     Box(
         modifier = Modifier
@@ -549,9 +557,10 @@ private fun MediaCell(name: String, footprintId: String, onOpen: () -> Unit) {
             .hairline(CardShape)
             .clickable(onClick = onOpen),
     ) {
-        if (thumb != null) {
+        val loaded = thumb
+        if (loaded != null) {
             Image(
-                bitmap = thumb.asImageBitmap(),
+                bitmap = loaded.asImageBitmap(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
@@ -1006,7 +1015,11 @@ fun FootprintEditorScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 photoNames.forEach { name ->
-                    val thumb = remember(name) { FootprintMedia.thumbnail(context, name, 240) }
+                    val thumb by produceState<Bitmap?>(initialValue = null, name) {
+                        value = withContext(Dispatchers.IO) {
+                            FootprintMedia.thumbnail(context, name, 240)
+                        }
+                    }
                     Box(
                         modifier = Modifier
                             .size(72.dp)
@@ -1018,9 +1031,10 @@ fun FootprintEditorScreen(
                                 photoNames = ArrayList(photoNames - name)
                             },
                     ) {
-                        if (thumb != null) {
+                        val loaded = thumb
+                        if (loaded != null) {
                             Image(
-                                bitmap = thumb.asImageBitmap(),
+                                bitmap = loaded.asImageBitmap(),
                                 contentDescription = null,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize(),

@@ -86,6 +86,7 @@ fun DataScreen(
     modifier: Modifier = Modifier,
     galleryHealthItems: List<GalleryHealthItem> = emptyList(),
     onRelinkGallery: (Map<String, String>) -> Unit = {},
+    onGalleryReady: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -276,6 +277,7 @@ fun DataScreen(
             items = galleryHealthItems,
             onRelink = onRelinkGallery,
             onDismiss = { healthOpen = false },
+            onGalleryReady = onGalleryReady,
         )
     }
 

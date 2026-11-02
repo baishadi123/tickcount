@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.media.ExifInterface
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import io.github.zzpby.tickcount.domain.MediaRef
 import java.io.File
@@ -128,17 +129,29 @@ object GalleryMedia {
     }.getOrNull()
 
     /**
-     * A sampled [Bitmap] of [entry] at most [maxEdge] on the long side — a
-     * still or a GIF's first frame the ordinary way, a video's frame a second
-     * in through the retriever.
+     * A small [Bitmap] of [entry], at most [maxEdge] on the long side — the
+     * album's own ready-made miniature: the same one the system gallery's
+     * grid shows, generated once by MediaProvider and kept on disk for
+     * everyone. Decoding the original here instead is two orders of
+     * magnitude more work for the same little square, and a grid of them is
+     * the difference between gliding and crawling.
+     *
+     * Falls back to a sampled decode of the stream on systems without the
+     * thumbnail service (a reference restored onto an old device).
      */
     fun thumbnail(context: Context, entry: String, maxEdge: Int): Bitmap? {
         val ref = MediaRef.parse(entry) ?: return null
         return runCatching {
-            if (ref.mime.startsWith("video/")) {
+            val uri = resolveUri(context, ref) ?: return null
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                context.contentResolver.loadThumbnail(
+                    uri,
+                    android.util.Size(maxEdge, maxEdge),
+                    null,
+                )
+            } else if (ref.mime.startsWith("video/")) {
                 videoFrame(context, ref, maxEdge)
             } else {
-                val uri = resolveUri(context, ref) ?: return null
                 sampledDecode(context, uri, ref.width, ref.height, maxEdge)
             }
         }.getOrNull()
@@ -200,6 +213,54 @@ object GalleryMedia {
         return searchByFingerprint(context, ref)?.lastPathSegment?.toLongOrNull()
     }
 
+    /**
+     * Builds a reference for bytes the app already holds: an old private
+     * copy, fingerprinted and matched against the album. The copy and the
+     * album original are the same bytes — that is the whole premise of this
+     * migration — so a match is exact by hash, and the caller may delete the
+     * copy once the record carries the reference instead.
+     *
+     * Null when the file is unreadable, of a type references cannot hold, or
+     * simply not in the album any more — in which case the copy keeps its
+     * job and nothing changes.
+     */
+    fun refFromFile(context: Context, file: File): String? = runCatching {
+        if (!file.isFile || file.length() <= 0) return null
+        val mime = FootprintMedia.mimeOf(file.name) ?: return null
+
+        val sha = file.inputStream().use { MediaRef.sha256Hex(it) } ?: return null
+        val size = file.length()
+
+        var width = 0
+        var height = 0
+        var dateTaken = 0L
+        if (mime.startsWith("image/")) {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(file.absolutePath, bounds)
+            width = bounds.outWidth
+            height = bounds.outHeight
+            if (width <= 0 || height <= 0) return null
+            dateTaken = exifTakenMillis(file)
+        } else {
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(file.absolutePath)
+                width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+                    ?.toIntOrNull() ?: 0
+                height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+                    ?.toIntOrNull() ?: 0
+                if (width <= 0 || height <= 0) return null
+                dateTaken = retrieverTakenMillis(retriever)
+            } finally {
+                retriever.release()
+            }
+        }
+
+        val draft = MediaRef.Ref(size, width, height, dateTaken, mime, 0L, sha)
+        val id = searchByFingerprint(context, draft)?.lastPathSegment?.toLongOrNull() ?: return null
+        MediaRef.encode(draft.copy(mediaStoreId = id))
+    }.getOrNull()
+
     // --- the identity ladder ------------------------------------------------
 
     /**
@@ -228,9 +289,10 @@ object GalleryMedia {
 
     /**
      * Size picks the candidates out of the album in one query; dimensions and
-     * taken-time cut the handful down; and the hash speaks last — even a lone
-     * candidate is confirmed against its bytes, because identity here is the
-     * content, not the coincidence of its measurements.
+     * taken-time cut the handful down — softly, for a rotated photo may carry
+     * its dimensions either way round — and the hash speaks last, even over a
+     * lone candidate: identity here is the content, not the coincidence of
+     * its measurements.
      */
     private fun searchByFingerprint(context: Context, ref: MediaRef.Ref): Uri? = runCatching {
         val resolver = context.contentResolver
@@ -251,16 +313,29 @@ object GalleryMedia {
             val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.WIDTH)
             val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.HEIGHT)
             val takenColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_TAKEN)
-            val candidates = mutableListOf<Uri>()
+            val strict = mutableListOf<Uri>()
+            val loose = mutableListOf<Uri>()
             while (cursor.moveToNext()) {
+                val uri = ContentUris.withAppendedId(collection(ref), cursor.getLong(idColumn))
                 val width = cursor.getInt(widthColumn)
                 val height = cursor.getInt(heightColumn)
-                if (ref.width > 0 && (width != ref.width || height != ref.height)) continue
                 val taken = cursor.getLong(takenColumn)
-                if (ref.dateTakenMillis > 0 && taken > 0 && taken != ref.dateTakenMillis) continue
-                candidates += ContentUris.withAppendedId(collection(ref), cursor.getLong(idColumn))
+                if (ref.dateTakenMillis > 0 && taken > 0 && taken != ref.dateTakenMillis) {
+                    // A different moment with the same weight is almost
+                    // surely another picture; it may still ride along only
+                    // when nothing strict turns up.
+                    loose += uri
+                    continue
+                }
+                if (ref.width > 0 && width > 0 && height > 0 &&
+                    (width != ref.width || height != ref.height)
+                ) {
+                    loose += uri
+                    continue
+                }
+                strict += uri
             }
-            candidates.firstOrNull { candidate ->
+            (strict.ifEmpty { loose }).firstOrNull { candidate ->
                 resolver.openInputStream(candidate)?.use { stream ->
                     MediaRef.sha256Hex(stream) == ref.sha256
                 } ?: false

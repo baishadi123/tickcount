@@ -1,6 +1,7 @@
 package io.github.zzpby.tickcount.ui
 
 import android.app.Application
+import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.zzpby.tickcount.data.AppLanguage
@@ -16,6 +17,7 @@ import io.github.zzpby.tickcount.data.EventStore
 import io.github.zzpby.tickcount.data.Footprint
 import io.github.zzpby.tickcount.data.FootprintMedia
 import io.github.zzpby.tickcount.data.FootprintStore
+import io.github.zzpby.tickcount.data.GalleryMedia
 import io.github.zzpby.tickcount.data.ImportMode
 import io.github.zzpby.tickcount.data.ReadOutcome
 import io.github.zzpby.tickcount.data.SettingsStore
@@ -40,6 +42,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
@@ -112,6 +115,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _visibleMonth = MutableStateFlow(YearMonth.now())
     val visibleMonth: StateFlow<YearMonth> = _visibleMonth.asStateFlow()
 
+    /**
+     * The old private copies a launch has already turned into references:
+     * `fp-` name → `g:` entry. Kept for the life of the process so that a
+     * footprint editor opened before the migration finished cannot save its
+     * stale snapshot over the converted records — [saveFootprint] replays
+     * this map on whatever comes in.
+     */
+    private val convertedCopies = mutableMapOf<String, String>()
+
     init {
         // Placed widgets are redrawn on every launch. It keeps them in step after the
         // app has been away, and it doubles as the way out of a launcher that stopped
@@ -126,6 +138,62 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // nothing else puts it back until the data changes or the phone
             // reboots — so every launch re-arms it from what is stored.
             reschedule()
+        }
+
+        // The old world's copies become references on their own: a private
+        // `fp-` file is the same bytes as the album original it came from, so
+        // wherever the album still holds those bytes the record is rewritten
+        // as a reference and the copy deleted. What the album no longer has
+        // keeps its copy untouched — and is tried again on the next launch.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            viewModelScope.launch { migrateFootprintCopies() }
+        }
+    }
+
+    /**
+     * One quiet pass over the footprint copies. Records are rewritten before
+     * any file is deleted, so the worst an interruption can leave behind is a
+     * copy no record points at — harmless — and never a record pointing at a
+     * deleted file.
+     */
+    private suspend fun migrateFootprintCopies() {
+        val app = getApplication<Application>()
+        val pending = _footprints.value
+            .flatMap { it.photos }
+            .filter { it.startsWith("fp-") && it !in convertedCopies }
+            .distinct()
+        if (pending.isEmpty()) return
+
+        val found = withContext(Dispatchers.IO) {
+            pending.mapNotNull { name ->
+                val file = FootprintMedia.file(app, name) ?: return@mapNotNull null
+                GalleryMedia.refFromFile(app, file)?.let { name to it }
+            }.toMap()
+        }
+        if (found.isEmpty()) return
+        found.forEach { (from, to) -> convertedCopies[from] = to }
+
+        val updated = _footprints.value.map { footprint ->
+            footprint.copy(photos = footprint.photos.map { convertedCopies[it] ?: it })
+        }
+        _footprints.value = updated
+        footprintStore.save(updated)
+
+        // Only now, with the records safely pointing into the album.
+        withContext(Dispatchers.IO) {
+            found.keys.forEach { FootprintMedia.delete(app, it) }
+        }
+    }
+
+    /**
+     * The album has just become readable — the moment the launch migration
+     * has been waiting for, since without the permission every search comes
+     * back empty. Safe to call as often as permissions get granted: the pass
+     * itself decides whether anything is left to do.
+     */
+    fun onGalleryPermissionGranted() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            viewModelScope.launch { migrateFootprintCopies() }
         }
     }
 
@@ -472,11 +540,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Adds a footprint, or replaces the stored one carrying the same id. */
     fun saveFootprint(footprint: Footprint) {
-        val index = _footprints.value.indexOfFirst { it.id == footprint.id }
-        val updated = if (index >= 0) {
-            _footprints.value.toMutableList().also { it[index] = footprint }
+        // An editor opened before the launch migration finished holds a
+        // snapshot from before its copies became references; replaying the
+        // conversion keeps that late save from resurrecting a deleted file's
+        // name.
+        val current = if (convertedCopies.isEmpty()) {
+            footprint
         } else {
-            _footprints.value + footprint
+            footprint.copy(photos = footprint.photos.map { convertedCopies[it] ?: it })
+        }
+        val index = _footprints.value.indexOfFirst { it.id == current.id }
+        val updated = if (index >= 0) {
+            _footprints.value.toMutableList().also { it[index] = current }
+        } else {
+            _footprints.value + current
         }
         _footprints.value = updated
         footprintStore.save(updated)

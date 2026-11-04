@@ -48,6 +48,14 @@ data class Backup(
     val capsules: List<TimeCapsule> = emptyList(),
     /** The footprints, places and days only — the media itself stays behind, the same rule. */
     val footprints: List<Footprint> = emptyList(),
+    /**
+     * The capsules' voice letters, as file name → Base64. A voice is the one
+     * media the album has no original of — there is nowhere else it could
+     * come back from — so unlike every picture it travels inside the backup
+     * itself. A minute of it is about a megabyte, and a life of letters
+     * still fits in a file.
+     */
+    val voices: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -90,6 +98,7 @@ object BackupCodec {
     private const val KEY_CAPSULES = "capsules"
     private const val KEY_FOOTPRINTS = "footprints"
     private const val KEY_SETTINGS = "settings"
+    private const val KEY_VOICES = "voices"
 
     /** [exportedAt] is a parameter rather than read here, so that encoding is repeatable. */
     fun encode(backup: Backup, exportedAt: Long = System.currentTimeMillis()): String =
@@ -102,6 +111,14 @@ object BackupCodec {
             .put(KEY_CAPSULES, CapsuleCodec.encode(backup.capsules))
             .put(KEY_FOOTPRINTS, FootprintCodec.encode(backup.footprints))
             .put(KEY_SETTINGS, settingsToJson(backup.settings))
+            .apply {
+                if (backup.voices.isNotEmpty()) {
+                    put(
+                        KEY_VOICES,
+                        JSONObject().apply { backup.voices.forEach { (name, content) -> put(name, content) } },
+                    )
+                }
+            }
             // Indented: a backup written in plain text is meant to be legible, and one
             // that is not is encrypted before it is written anyway.
             .toString(2)
@@ -118,6 +135,15 @@ object BackupCodec {
             // An older backup may predate a setting; the defaults are the right answer
             // for anything it does not carry.
             settings = root.optJSONObject(KEY_SETTINGS)?.let(::settingsFromJson) ?: AppSettings(),
+            // A backup older than voice letters, or one with none recorded, simply
+            // carries nothing — the field's default is the same silence.
+            voices = root.optJSONObject(KEY_VOICES)?.let { letters ->
+                buildMap {
+                    for (name in letters.keys()) {
+                        letters.optString(name).takeIf { it.isNotEmpty() }?.let { put(name, it) }
+                    }
+                }
+            } ?: emptyMap(),
         )
     }
 

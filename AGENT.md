@@ -1,19 +1,24 @@
 # AGENT.md — TickCount 开发须知
 
-安卓倒数日应用。单模块 Kotlin + Compose；近乎纯离线，第三方运行库仅 osmdroid（万疆地图）。
+安卓倒数日应用。单模块 Kotlin + Compose；第三方运行库仅 osmdroid（万疆地图）。照片以
+相册为真身（引用 + SHA-256 指纹），权限与联网均为按需（通知 / 定位 / 麦克风 / 相册读取；
+地图瓦片）——文档不做「无权限 / 离线」宣传。
 
 ## 环境
 
 - JDK 17：`D:\jdk\jdk-17.0.20`（`run.bat` 已内置；直接跑 gradle 需先 `$env:JAVA_HOME='D:\jdk\jdk-17.0.20'`）
 - Android SDK：`C:\Users\13056748\AppData\Local\Android\Sdk`，adb 在其 `platform-tools\` 下
-- 验证设备：模拟器 **emulator-5554**（装 debug 版）；用户的手机从未连接过
-- Windows + PowerShell，控制台是 GBK，中文输出乱码是显示问题不是文件问题
+- 验证设备：模拟器 **emulator-5554**，AVD 名 `Medium_Phone_API_36`，易掉线——重启：
+  `emulator -avd Medium_Phone_API_36 -no-snapshot-save`（冷启动，但 userdata 不丢，
+  应用数据与相册都在；冷启动后运行时权限会重置，记得 `pm grant`）；用户手机从未连接过
+- Windows + PowerShell 5.1，控制台 GBK：中文输出乱码是显示问题；但脚本与管道有真坑，见「大坑」末三条
 
 ## 编译 / 测试 / 安装
 
-> **当前开发模式：轻量级——只改代码，验证止于 `testDebugUnitTest` + `compileDebugKotlin`。
-> 视觉效果类改动例外：实现后 `installDebug` 装到模拟器即可，效果由用户本人评定，
-> 不做截图 / 自动化视觉验证。**
+> **当前开发模式：轻量为主——`testDebugUnitTest` + `compileDebugKotlin` 必跑，`installDebug`
+> 装机可以代劳；装好之后应用内的一切操作（导航、点按、走查、彩排）由用户本人执行，
+> 助手不写 adb / UI 自动化脚本代劳——需要应用内验证时给用户一份简明步骤清单，
+> 结果听用户回报。**
 
 ```powershell
 $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
@@ -60,9 +65,13 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
   （events / wishes / capsules / footprints / settings）。改动一律三步：
   改 flow → `store.save()` → 受影响的旁路（提醒 `reschedule()`、小组件 `refreshAllWidgets()`）。
 - **持久化四处**：事件+心愿+设置在 `SharedPreferences`（EventStore / WishStore /
-  SettingsStore）；胶囊与足迹按年 JSON 文件（`TimeCapsule.kt` / `Footprint.kt`）；
-  媒体像素在私有目录（`EventBackgrounds` 前缀 `bg-`、`FootprintMedia` 前缀 `fp-`），
-  记录里只存文件名；备份（`Backup.kt`）是五类记录的全集，**媒体像素不随走**。
+  SettingsStore）；胶囊与足迹按年 JSON 文件（`TimeCapsule.kt` / `Footprint.kt`）。
+  **照片以相册为真身**：新选取存 `g:` 引用（指纹），显示直读相册；旧私有副本
+  （`bg-`、`fp-`）双读兼容，且 `fp-` 会在启动时自动迁移为引用并删副本（权限到位后补跑，
+  迁移映射在 `saveFootprint` 重放防踩）。语音信笺（`cv-`）与背景图仍是私有副本。
+  备份（`Backup.kt`）是五类记录的全集，**媒体像素不随走**——相册照片靠「系统换机迁移
+  相册 + 体检按指纹重连」；**语音信笺例外**：它没有相册真身，以 Base64 随备份 JSON 走
+  （`voices` 映射，恢复时只给存活胶囊写回、`isOurs` 校验）；背景图副本不随走（设计如此）。
 - **提醒只有一个闹钟**（`notify/Reminders.kt`），由四处维护：数据持久化后、
   `reschedule()`、开机 `BootReceiver`、闹钟自身触发后重排。
 - **仓库根的两个文档同时是应用内容**：`更新日志.txt` → 更新日志页，
@@ -100,6 +109,15 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
     删除 🗑（TrashIcon）、重录/撤销 ↺（ReopenIcon）——全部出自 `ui/components/ActionIcons.kt`
     的手绘 Canvas 体系，新动作先看这套够不够用，不够就补画一枚同风格的，不引入
     Material 图标也不写「完成 / 删除」字样。
+15. **拉取远端后先编译再动工**——远端提交可能没编译过就推了（漏 import 实录，
+    2026-11-02）。先 `compileDebugKotlin` 清一遍，别把别人的坑叠进自己的改动。
+16. **引用式照片的删除语义**：解除关联 ≠ 删除——`g:` 条目永远不碰相册与文件；
+    迁移/重连一律「先改记录、后动文件」，中断最坏留孤儿文件，绝不留指向已删
+    文件的记录。编辑器保存要重放迁移映射（`convertedCopies`），防止旧快照复活
+    已删副本的名字。
+17. **后台迁移/重连依赖相册读权限**——无权限时指纹搜索全空但静默返回 null。
+    依赖它的启动任务要挂在「权限授予」事件上（见 `onGalleryPermissionGranted`），
+    不能假设首次启动就有效。
 
 ## 发版流程
 
@@ -126,7 +144,26 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
   提交前 `git rev-parse HEAD:更新日志.txt` 校验。
 - **本机的透明加密驱动会翻写 `.txt` / `.csv` 文件**（写入后几秒内变密文，git 提交进
   去就是二进制；`.md` 免疫）。仓库内新生成的数据文件一律用 `.md` 后缀；`.txt` 只保留
-  `更新日志.txt` 一个，动它前先验字节。
+  `更新日志.txt` 一个，动它前先验字节。**它也可能在提交后翻写工作区副本**——以索引
+  blob 为准（`git cat-file -p :更新日志.txt`），别信工作区。
+- **PowerShell + GBK 三坑**（2026-11-02 全数踩过）：
+  ① 外部程序输出过管道会被按 GBK 解码——`git show | Out-File` 中文全花；字节级取数
+  用 `cmd /c "git … > 文件"` 或 `git cat-file -p <sha>`。
+  ② `.ps1` 里写中文字面量（无 BOM 被按 ANSI 解析）会烂——中文字符串用
+  `[char]0x4E07` 码点拼，或把中文放进独立 UTF-8 数据文件由脚本读。
+  ③ `$ErrorActionPreference='Stop'` 时 adb 的 stderr 进度行会终止脚本——脚本容错化
+  （Dump 带重试与大小校验）。另：`$home` 是保留变量不可赋值。
+- **日志拼接以 blob 实际行尾为准**（仓库存 LF、工作区检出 CRLF，autocrlf）：猜错行尾
+  会让插入点漂移、整个文件结构错乱（2026-11-02 实录，标题重复 + 孤字行）。拼接后必须
+  做结构断言：标题整行唯一、行 1 = 标题 / 行 2 = `====` / 行 4 = 新版本号、旧节完整、
+  零 U+FFFD。
+- **模拟器 UI 走查纪律**：每步 `uiautomator dump` 验证再点，盲坐标必漂（应用会恢复
+  上次页面）；权限弹窗、系统选择器、软键盘都会顶偏布局；**`pm clear` 后应用跟随系统
+  语言，查找文案要双语兜底**。`adb shell content delete` 不带 id 会**清空整个集合**
+  （实录：模拟器相册被清空）——只按 id 单行删。
+- **模拟器硬崩会回滚 userdata 写入**（2026-11-03 三次实录）：Download 里的新文件、
+  `pm clear`、应用内写入，崩溃后可能整体消失/复原（QEMU 磁盘缓存未落盘）。涉及数据
+  突变的彩排，改完先重启模拟器确认变化仍在，再下结论；拉到本机的副本才是可信证据。
 - `README.md` / `README.en.md` 的「功能 / 一键添加多个 / （倒计时的读法）/ 桌面小组件」
   二级标题是应用内「项目介绍」的抽取锚点（`domain/Readme.kt`），**勿改名**。
 - CI 的签名密钥在仓库 secrets（`KEYSTORE_BASE64` 等），fork/换仓库要重配。

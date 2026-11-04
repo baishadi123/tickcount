@@ -135,6 +135,38 @@ class BackupTest {
         assertEquals(144f, event.colorHue)
     }
 
+    // -------------------------------------------------------------- voice letters
+
+    @Test
+    fun `voice letters travel with the backup and come back unchanged`() {
+        val voices = mapOf(
+            "cv-abc-1.m4a" to java.util.Base64.getEncoder().encodeToString(byteArrayOf(1, 2, 3, 4)),
+            "cv-def-2.m4a" to java.util.Base64.getEncoder().encodeToString(ByteArray(512) { it.toByte() }),
+        )
+        val restored = BackupCodec.decode(
+            BackupCodec.encode(backup().copy(voices = voices), exportedAt = 1L),
+        )
+
+        assertEquals(voices, restored.voices)
+    }
+
+    @Test
+    fun `a backup from before voice letters carries the same silence`() {
+        val older = BackupCodec.encode(backup(), exportedAt = 1L)
+
+        assertEquals(emptyMap<String, String>(), BackupCodec.decode(older).voices)
+    }
+
+    @Test
+    fun `an empty entry in the voices is dropped rather than restored`() {
+        val withBlank = BackupCodec.encode(
+            backup().copy(voices = mapOf("cv-x.m4a" to "")),
+            exportedAt = 1L,
+        )
+
+        assertEquals(emptyMap<String, String>(), BackupCodec.decode(withBlank).voices)
+    }
+
     // -------------------------------------------------------------- the password
 
     @Test

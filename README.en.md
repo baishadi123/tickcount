@@ -3,12 +3,12 @@
 [![Build](https://github.com/ZZPBY/tickcount/actions/workflows/android.yml/badge.svg)](https://github.com/ZZPBY/tickcount/actions/workflows/android.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A minimal, fully offline countdown calendar for Android. Tap a day, give it a name, and
+A minimal countdown calendar for Android. Tap a day, give it a name, and
 see how long is left — or how long it has been.
 
 [Chinese](README.md)
 
-**About 2 MB · Fully offline · No ads · No account · Open source**
+**No ads · No account · Open source**
 
 <p align="center">
   <img src="docs/screenshot-home.png" width="200" alt="Home: days left for each countdown, the past below" />
@@ -49,12 +49,11 @@ see how long is left — or how long it has been.
 - **Home-screen widgets** — two of them. **Single countdown** puts one countdown on the home
   screen, ticking to the second. **Countdown list** shows what is coming next, one per row.
   Both adapt to their size; their panel — light, dark or the system's — is chosen on the
-  Home-screen widgets page in the drawer, along with the list's text size, and neither asks
-  for a permission.
+  Home-screen widgets page in the drawer, along with the list's text size.
 - **Notifications** — a page of its own in the drawer: a reminder time, one app-wide lead
   time, and an override for any single countdown. It lists what is coming up with the moment
-  each reminder will arrive, and can send a test notification. Reminders use an inexact alarm,
-  so no exact-alarm permission is asked for, and they are put back after a restart.
+  each reminder will arrive, and can send a test notification. Reminders are put back after
+  a restart.
 - **Lunar dates** — a countdown can be picked on the lunar calendar (1900–2100, leap months
   included), and the card and its screen name the lunar day after the solar one. One day, not
   a yearly repeat.
@@ -76,10 +75,6 @@ see how long is left — or how long it has been.
   ready to copy or to open.
 - **Large fonts** — the title bar, the drawer and the cards keep clear of the status bar and
   grow with the system font scale, so nothing is squeezed.
-- **No permissions unless you ask for reminders, no network, no analytics.** One module, no
-  third-party runtime libraries, `minSdk` 27. The optional on-the-day reminder is the only
-  thing that asks for anything — the notification permission, and permission to put its alarm
-  back after a restart.
 
 ## Adding several at once
 
@@ -139,8 +134,6 @@ it says so.
 Both take their panel from **Home-screen widgets** in the drawer: light, dark, or whatever
 the system is using. The list can also be given a smaller or larger text size; the single
 widget keeps its own, because it already fills its cell with the largest text that fits.
-
-**Neither asks for a permission.**
 
 ## Download
 
@@ -260,16 +253,7 @@ live in `tickcount_settings`. All three sit in the app's private directory, and 
 leaves the device on its own.
 
 A backup exported from Backup & data goes wherever you choose to put it, encrypted or not,
-as you decide; the app has no way to send it anywhere.
-The app declares no permissions by default, makes no network requests, and contains no
-analytics or advertising. What is declared is asked for only at the moment of use: the
-optional on-the-day reminder (`POST_NOTIFICATIONS` on Android 13 and up, asked for when the
-switch is turned on and gone when it is turned off, `RECEIVE_BOOT_COMPLETED` to put its alarm
-back after a restart), a footprint's spot (`ACCESS_FINE_LOCATION`, one fix for the moment,
-rounded to the thousandth before it is kept), and a capsule's voice letter (`RECORD_AUDIO`).
-There is a link to this repository in the introduction; tapping it opens the
-address in the browser, because TickCount has no network ability of its own and no
-`INTERNET` permission. The stored data leaves the device only if Android's own cloud backup
+as you decide. The stored data leaves the device only if Android's own cloud backup
 is on, which is what `res/xml/backup_rules.xml` decides.
 
 ## Licence

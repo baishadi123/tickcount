@@ -158,10 +158,13 @@ fun DataScreen(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
         if (uri != null) {
-            val text = onExport(exportPassword)
             scope.launch {
                 val ok = withContext(Dispatchers.IO) {
                     runCatching {
+                        // The document is built here too: with voice letters
+                        // folded in it can be megabytes, and none of that
+                        // belongs on the thread that draws.
+                        val text = onExport(exportPassword)
                         context.contentResolver.openOutputStream(uri)?.use {
                             it.write(text.toByteArray(Charsets.UTF_8))
                         } != null

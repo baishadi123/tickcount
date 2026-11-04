@@ -340,12 +340,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun exportBackup(password: String?): String {
         val document = BackupCodec.encode(
-            Backup(_events.value, _settings.value, _wishes.value, _capsules.value, _footprints.value),
+            Backup(
+                _events.value,
+                _settings.value,
+                _wishes.value,
+                _capsules.value,
+                _footprints.value,
+                voiceLettersFor(_capsules.value),
+            ),
         )
         return if (password.isNullOrEmpty()) {
             document
         } else {
             BackupCrypto.encrypt(document, password.toCharArray())
+        }
+    }
+
+    /**
+     * The capsules' voice letters as file name → Base64. A voice is the one
+     * medium with no original anywhere else — the album holds every picture,
+     * but nobody holds the words spoken into the microphone — so it leaves
+     * with the records that name it.
+     */
+    private fun voiceLettersFor(capsules: List<TimeCapsule>): Map<String, String> {
+        val app = getApplication<Application>()
+        return buildMap {
+            capsules.mapNotNull { it.voice }.distinct().forEach { name ->
+                CapsuleVoice.file(app, name)?.let { file ->
+                    runCatching { file.readBytes() }.getOrNull()?.let { bytes ->
+                        put(name, java.util.Base64.getEncoder().encodeToString(bytes))
+                    }
+                }
+            }
         }
     }
 
@@ -424,8 +450,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // The restored settings decide the widgets' panel and text size too, and the
         // refresh inside persist() ran before they were saved.
         refreshAllWidgets(getApplication())
+        restoreVoiceLetters(capsules, backup.voices)
 
         return events.size
+    }
+
+    /**
+     * Puts the travelled voice letters back on the ground — only for
+     * capsules that survived the merge, so a discarded capsule's voice
+     * leaves no orphan behind. Files land after the records, off the main
+     * thread: a reader that arrives first simply finds the letter a moment
+     * later.
+     */
+    private fun restoreVoiceLetters(capsules: List<TimeCapsule>, voices: Map<String, String>) {
+        if (voices.isEmpty()) return
+        val wanted = capsules.mapNotNull { it.voice }.toSet()
+        if (wanted.isEmpty()) return
+        val app = getApplication<Application>()
+        viewModelScope.launch(Dispatchers.IO) {
+            voices.forEach { (name, encoded) ->
+                if (name !in wanted) return@forEach
+                runCatching { java.util.Base64.getDecoder().decode(encoded) }.getOrNull()
+                    ?.let { bytes -> CapsuleVoice.restore(app, name, bytes) }
+            }
+        }
     }
 
     /** Incoming wins over current, id by id — the merge rule every list follows. */

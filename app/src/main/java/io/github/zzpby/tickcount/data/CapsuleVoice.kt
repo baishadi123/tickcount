@@ -41,6 +41,21 @@ object CapsuleVoice {
         if (name == null || !isOurs(name)) return
         File(dir(context), name).delete()
     }
+
+    /**
+     * Writes a voice letter's [bytes] back where the recorder would have put
+     * them, for a backup putting things back. The name must be one this
+     * store could have minted — a backup must not choose where files land —
+     * and a false answer leaves the capsule's letter silent rather than
+     * wrong, which is the failure a caller can live with.
+     */
+    fun restore(context: Context, name: String?, bytes: ByteArray): Boolean {
+        if (name == null || !isOurs(name)) return false
+        return runCatching {
+            File(dir(context), name).writeBytes(bytes)
+            true
+        }.getOrDefault(false)
+    }
 }
 
 /**

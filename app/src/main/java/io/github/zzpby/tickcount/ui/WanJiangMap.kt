@@ -478,19 +478,6 @@ fun WanJiangMap(
                         },
                 )
             }
-
-            // The tiles' own debt, said plainly in the corner.
-            Text(
-                text = stringResource(R.string.wanjiiang_map_attribution),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 10.dp, bottom = 6.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.82f))
-                    .padding(horizontal = 7.dp, vertical = 3.dp),
-            )
         }
     }
 }
@@ -927,20 +914,22 @@ private fun tileColourFilter(dark: Boolean, mix: Float): ColorFilter {
 
 /** Amap's raster tile hosts, one name four doors, load spread by tile. */
 private val AMAP_HOSTS = arrayOf(
-    "https://webrd01.is.autonavi.com/appmaptile",
-    "https://webrd02.is.autonavi.com/appmaptile",
-    "https://webrd03.is.autonavi.com/appmaptile",
-    "https://webrd04.is.autonavi.com/appmaptile",
+    "https://wprd01.is.autonavi.com/appmaptile",
+    "https://wprd02.is.autonavi.com/appmaptile",
+    "https://wprd03.is.autonavi.com/appmaptile",
+    "https://wprd04.is.autonavi.com/appmaptile",
 )
 
 /**
  * Amap's raster road tiles: fast in China, labelled in Chinese, no key
  * asked. Unofficial for third-party apps — a note the README carries too —
- * and replaceable by one tile-source change if it ever fades.
+ * and replaceable by one tile-source change if it ever fades. The wprd
+ * farm is the only one that still answers one level deeper, so the map
+ * can reach street names at 19.
  */
 private object AmapTiles : OnlineTileSourceBase(
     "Amap",
-    3, 18, 256, ".png",
+    3, 19, 256, ".png",
     AMAP_HOSTS,
     "© 高德",
 ) {
@@ -949,7 +938,7 @@ private object AmapTiles : OnlineTileSourceBase(
         val y = MapTileIndex.getY(pMapTileIndex)
         val z = MapTileIndex.getZoom(pMapTileIndex)
         val host = AMAP_HOSTS[(x + y).mod(AMAP_HOSTS.size)]
-        return "$host?x=$x&y=$y&z=$z&lang=zh_cn&size=1&scale=1&style=8"
+        return "$host?x=$x&y=$y&z=$z&lang=zh_cn&size=1&scale=1&style=7"
     }
 }
 

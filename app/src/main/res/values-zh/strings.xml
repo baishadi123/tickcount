@@ -101,7 +101,6 @@
     <string name="footprint_pick_on_map">在图上选</string>
     <string name="map_pick_confirm">就这里</string>
     <string name="wanjiiang_map_empty">还没有带上位置的足迹。编辑足迹时点「在图上选」，或「带上此刻的位置」。</string>
-    <string name="wanjiiang_map_attribution">瓦片 © 高德</string>
     <string name="wanjiiang_map_country">全国</string>
     <string name="wanjiiang_picked_label">已在图上标记</string>
     <string name="footprint_media_hint">点缩略图移除；照片、动图和视频都可以</string>

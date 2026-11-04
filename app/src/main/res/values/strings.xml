@@ -200,7 +200,6 @@
     <string name="footprint_pick_on_map">Pick on the map</string>
     <string name="map_pick_confirm">Right here</string>
     <string name="wanjiiang_map_empty">No footprints with a location yet. Tap “Pick on the map” while editing one, or “Note this spot”.</string>
-    <string name="wanjiiang_map_attribution">Tiles © Amap</string>
     <string name="wanjiiang_map_country">Whole country</string>
     <string name="wanjiiang_picked_label">Marked on the map</string>
     <string name="footprint_media_hint">Tap a thumbnail to remove it; photos, GIFs and videos all travel</string>

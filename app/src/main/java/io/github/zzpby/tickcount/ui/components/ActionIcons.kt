@@ -211,16 +211,18 @@ fun MapIcon(
         val h = size.height
         val stroke = strokeWidth.toPx()
 
-        // Three panels zigzagging down: left up, middle down, right up.
+        // Three panels zigzagging down: left up, middle down, right up. The
+        // peaks stay a stroke's width inside the canvas so the round caps
+        // never kiss the edge and the fold never reads as clipped.
         val outline = Path().apply {
-            moveTo(w * 0.10f, h * 0.14f)
-            lineTo(w * 0.38f, h * 0.05f)
-            lineTo(w * 0.62f, h * 0.14f)
-            lineTo(w * 0.90f, h * 0.05f)
-            lineTo(w * 0.90f, h * 0.86f)
-            lineTo(w * 0.62f, h * 0.95f)
-            lineTo(w * 0.38f, h * 0.86f)
-            lineTo(w * 0.10f, h * 0.95f)
+            moveTo(w * 0.10f, h * 0.20f)
+            lineTo(w * 0.38f, h * 0.11f)
+            lineTo(w * 0.62f, h * 0.20f)
+            lineTo(w * 0.90f, h * 0.11f)
+            lineTo(w * 0.90f, h * 0.89f)
+            lineTo(w * 0.62f, h * 0.80f)
+            lineTo(w * 0.38f, h * 0.89f)
+            lineTo(w * 0.10f, h * 0.80f)
             close()
         }
         drawPath(
@@ -232,15 +234,15 @@ fun MapIcon(
         // The two folds.
         drawLine(
             color,
-            Offset(w * 0.38f, h * 0.05f),
-            Offset(w * 0.38f, h * 0.86f),
+            Offset(w * 0.38f, h * 0.11f),
+            Offset(w * 0.38f, h * 0.89f),
             strokeWidth = stroke,
             cap = StrokeCap.Round,
         )
         drawLine(
             color,
-            Offset(w * 0.62f, h * 0.14f),
-            Offset(w * 0.62f, h * 0.95f),
+            Offset(w * 0.62f, h * 0.20f),
+            Offset(w * 0.62f, h * 0.80f),
             strokeWidth = stroke,
             cap = StrokeCap.Round,
         )

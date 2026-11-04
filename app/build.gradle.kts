@@ -173,8 +173,8 @@ android {
         // A calendar version: year.month.day.sequence, the sequence counting the updates made
         // that day. The version code stays one increasing integer for Play: the date squeezed
         // together with the sequence in the last two digits — 2026.10.18.2 becomes 26101802.
-        versionCode = 26110402
-        versionName = "2026.11.4.2"
+        versionCode = 26110403
+        versionName = "2026.11.4.3"
     }
 
     signingConfigs {
@@ -257,6 +257,24 @@ kotlin {
         // Defaults to compileOptions.targetCompatibility, stated here for clarity.
         jvmTarget = JvmTarget.JVM_17
     }
+}
+
+// Several tests read repository files by path at run time — the changelog
+// guard, the README renderers, the China tables — rather than through a
+// pipeline Gradle already watches. Unless they are declared as inputs, a
+// plain `testDebugUnitTest` after touching one of those files is reported
+// up to date and skips the very test that exists to check it. Declared
+// here, an incremental run re-runs exactly the affected tests in seconds,
+// and the release flow needs no `--rerun-tasks`: CI runs the full suite on
+// every tag before the APK is built anyway.
+tasks.withType<Test>().configureEach {
+    listOf(
+        rootProject.layout.projectDirectory.file("更新日志.txt"),
+        rootProject.layout.projectDirectory.file("README.md"),
+        rootProject.layout.projectDirectory.file("README.en.md"),
+        layout.projectDirectory.file("src/main/res/raw/china_places.md"),
+        layout.projectDirectory.file("src/main/res/raw/china_outline.md"),
+    ).forEach { inputs.file(it) }
 }
 
 dependencies {

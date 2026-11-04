@@ -88,6 +88,19 @@ import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Overlay
 import org.osmdroid.views.overlay.Polyline
+import org.osmdroid.tileprovider.MapTileProviderBasic
+import org.osmdroid.tileprovider.modules.IFilesystemCache
+import org.osmdroid.tileprovider.modules.INetworkAvailablityCheck
+import org.osmdroid.tileprovider.modules.MapTileDownloader
+import org.osmdroid.tileprovider.modules.SqlTileWriter
+import org.osmdroid.tileprovider.modules.TileDownloader
+import org.osmdroid.tileprovider.tilesource.ITileSource
+import android.content.res.Resources
+import android.graphics.BitmapFactory
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.io.File
 import java.time.LocalDate
 import java.util.concurrent.atomic.AtomicLong
@@ -216,15 +229,19 @@ fun WanJiangMap(
     )
     val map = remember {
         MapView(context).apply {
-            setTileSource(AmapTiles)
+            setTileProvider(StitchedProvider(context))
             setMultiTouchControls(true)
             setBuiltInZoomControls(false)
             isTilesScaledToDpi = true
             // China framed and no farther out: the page is the country the
             // two of you walk, not the planet it sits on. The centre cannot
-            // leave the country either — wandering ends at the border.
-            minZoomLevel = 3.0
-            controller.setZoom(3.0)
+            // leave the country either — wandering ends at the border. The
+            // one level of headroom past the source's own top is the same
+            // pinch the map always had; the topmost data feeds the level
+            // below it, upscaled.
+            minZoomLevel = 2.0
+            maxZoomLevel = 19.0
+            controller.setZoom(2.0)
             controller.setCenter(GeoPoint(35.5, 104.5))
             setScrollableAreaLimitDouble(CHINA)
             // No grey grid while a tile is in flight: the page's own paper
@@ -570,11 +587,12 @@ fun MapPickerDialog(
     }
     val map = remember {
         MapView(context).apply {
-            setTileSource(AmapTiles)
+            setTileProvider(StitchedProvider(context))
             setMultiTouchControls(true)
             setBuiltInZoomControls(false)
             isTilesScaledToDpi = true
-            minZoomLevel = 3.0
+            minZoomLevel = 2.0
+            maxZoomLevel = 19.0
             // The picking map keeps the same honesty as the other: the
             // country only, its border drawn, the beyond kept as paper.
             mapOverlay.setLoadingBackgroundColor(android.graphics.Color.TRANSPARENT)
@@ -587,7 +605,7 @@ fun MapPickerDialog(
             )
             val lat = initialLatitude ?: 35.5
             val lon = initialLongitude ?: 104.5
-            controller.setZoom(if (initialLatitude != null) 12.0 else 3.0)
+            controller.setZoom(if (initialLatitude != null) 11.0 else 2.0)
             controller.setCenter(GeoPoint(lat, lon))
             addOnFirstLayoutListener { _, _, _, _, _ ->
                 minZoomLevel = countryZoomFor(this)
@@ -920,33 +938,131 @@ private val AMAP_HOSTS = arrayOf(
     "https://wprd04.is.autonavi.com/appmaptile",
 )
 
+/** One 256-px Amap road tile at the zoom the service actually serves. */
+private fun amapChildUrl(x: Int, y: Int, z: Int): String {
+    val host = AMAP_HOSTS[(x + y).mod(AMAP_HOSTS.size)]
+    return "$host?x=$x&y=$y&z=$z&lang=zh_cn&size=1&scale=1&style=7"
+}
+
 /**
- * Amap's raster road tiles: fast in China, labelled in Chinese, no key
- * asked. Unofficial for third-party apps — a note the README carries too —
- * and replaceable by one tile-source change if it ever fades. The wprd
- * farm is the only one that still answers one level deeper, so the map
- * can reach street names at 19.
+ * Amap's road tiles at twice the resolution the service admits to. The
+ * source claims 512-px tiles while the downloader quietly fetches the
+ * four 256-px tiles one level deeper and sews them into one bitmap, so
+ * the map's lettering carries two source pixels where it used to carry
+ * one and reads sharp on dense screens — same farm, same style, same
+ * country. Declared levels 2..18 stand for the service's 3..19, which
+ * means every zoom constant in this file sits one level below the zoom
+ * it reads as on the screen.
  */
-private object AmapTiles : OnlineTileSourceBase(
-    "Amap",
-    3, 19, 256, ".png",
+private object AmapTiles2x : OnlineTileSourceBase(
+    "Amap2x",
+    2, 18, 512, ".png",
     AMAP_HOSTS,
     "© 高德",
 ) {
+    /** The loader only uses this as its go-signal and retry key — the
+     *  sewing hand builds the four real URLs itself — and the honest
+     *  answer is the first of the four children. */
     override fun getTileURLString(pMapTileIndex: Long): String {
-        val x = MapTileIndex.getX(pMapTileIndex)
-        val y = MapTileIndex.getY(pMapTileIndex)
-        val z = MapTileIndex.getZoom(pMapTileIndex)
-        val host = AMAP_HOSTS[(x + y).mod(AMAP_HOSTS.size)]
-        return "$host?x=$x&y=$y&z=$z&lang=zh_cn&size=1&scale=1&style=7"
+        val z = MapTileIndex.getZoom(pMapTileIndex) + 1
+        return amapChildUrl(MapTileIndex.getX(pMapTileIndex) * 2, MapTileIndex.getY(pMapTileIndex) * 2, z)
     }
 }
+
+/** The size the source claims, and the size of each child it sews. */
+private const val STITCHED_TILE = 512
+private const val CHILD_TILE = 256
+
+/**
+ * The sewing hand: for the 512-px tile osmdroid asks of it, downloads the
+ * four 256-px children one level down, lays them into one bitmap, and
+ * files that bitmap in the tile cache — which is the only delivery that
+ * matters, for osmdroid's downloader throws its drawable away and waits
+ * for the cache to serve the tile. Any child that fails fails the whole
+ * tile, which osmdroid counts as a retry, never as a quarter-blank map.
+ *
+ * The [pTargetUrl] handed in is the source's own single-tile answer; the
+ * sewing hand ignores it and builds the four real URLs itself.
+ */
+private class Stitcher : TileDownloader() {
+    override fun downloadTile(
+        pMapTileIndex: Long,
+        pRedirectCount: Int,
+        pTargetUrl: String,
+        pCache: IFilesystemCache?,
+        pTileSource: OnlineTileSourceBase?,
+    ): android.graphics.drawable.Drawable? {
+        val z = MapTileIndex.getZoom(pMapTileIndex)
+        if (z !in 2..18) return null
+        val childZ = z + 1
+        val childX = MapTileIndex.getX(pMapTileIndex) * 2
+        val childY = MapTileIndex.getY(pMapTileIndex) * 2
+
+        val bitmap = Bitmap.createBitmap(STITCHED_TILE, STITCHED_TILE, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = Paint(Paint.FILTER_BITMAP_FLAG)
+        for (row in 0..1) {
+            for (col in 0..1) {
+                val child = fetchTile(amapChildUrl(childX + col, childY + row, childZ)) ?: return null
+                canvas.drawBitmap(child, col * CHILD_TILE.toFloat(), row * CHILD_TILE.toFloat(), paint)
+            }
+        }
+
+        if (pCache != null && pTileSource != null) {
+            runCatching {
+                val sewn = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, sewn)
+                pCache.saveFile(
+                    pTileSource,
+                    pMapTileIndex,
+                    ByteArrayInputStream(sewn.toByteArray()),
+                    null,
+                )
+            }
+        }
+        return android.graphics.drawable.BitmapDrawable(Resources.getSystem(), bitmap)
+    }
+
+    /** One child, as a bitmap, or nothing — plain HTTP with the app's own
+     *  name said, the way the rest of the app's traffic says it. */
+    private fun fetchTile(url: String): Bitmap? {
+        val connection = URL(url).openConnection() as? HttpURLConnection ?: return null
+        return try {
+            connection.connectTimeout = 10_000
+            connection.readTimeout = 20_000
+            connection.setRequestProperty("User-Agent", Configuration.getInstance().userAgentValue)
+            connection.connect()
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) return null
+            val bytes = connection.inputStream.use { it.readBytes() }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        } catch (_: Exception) {
+            null
+        } finally {
+            connection.disconnect()
+        }
+    }
+}
+
+/**
+ * The default provider stack — cache first, then the network — over the
+ * stitched source, with only the downloader swapped for the sewing hand.
+ */
+private fun StitchedProvider(context: Context): MapTileProviderBasic =
+    object : MapTileProviderBasic(context, AmapTiles2x, SqlTileWriter()) {
+        override fun createDownloaderProvider(
+            pNetworkAvailabilityCheck: INetworkAvailablityCheck?,
+            pTileSource: ITileSource?,
+        ): MapTileDownloader =
+            super.createDownloaderProvider(pNetworkAvailabilityCheck, pTileSource).apply {
+                setTileDownloader(Stitcher())
+            }
+    }
 
 /** The country the page is about, framed the first time the map opens. */
 private val CHINA = BoundingBox(53.55, 135.08, 18.16, 73.66)
 
 /** The zoom a place card's spot is flown to. */
-private const val FOCUS_ZOOM = 11.5
+private const val FOCUS_ZOOM = 10.5
 
 /**
  * The country is the app's own drawing until a place is close enough to be
@@ -955,14 +1071,14 @@ private const val FOCUS_ZOOM = 11.5
  * wash. Tiles come back at the regional view, where streets and Chinese
  * names are wanted.
  */
-private const val TILES_FROM_ZOOM = 4.0
+private const val TILES_FROM_ZOOM = 3.0
 
 /**
  * The zoom by which the lit provinces have thinned away entirely. Over the
  * country frame and the regional tiles they stay lit — the checklist is
  * the point — but a street view is about the street, not the province.
  */
-private const val LIT_TO_ZOOM = 7.0
+private const val LIT_TO_ZOOM = 6.0
 
 /**
  * How far past [TILES_FROM_ZOOM] the tiles take to reach full strength: the
@@ -976,8 +1092,8 @@ private const val TILE_FADE_SPAN = 0.8
  * city is a view, a street is not. Below [PIN_FRAME_MIN_ZOOM] the pins are
  * too far apart to be the subject, so the country keeps the frame.
  */
-private const val PIN_FRAME_MIN_ZOOM = 6.5
-private const val PIN_FRAME_MAX_ZOOM = 10.0
+private const val PIN_FRAME_MIN_ZOOM = 5.5
+private const val PIN_FRAME_MAX_ZOOM = 9.0
 
 /**
  * The zoom the map opens at when the pins do not frame a span of their
@@ -985,10 +1101,10 @@ private const val PIN_FRAME_MAX_ZOOM = 10.0
  * province capitals — the region reads as a whole before the cities do,
  * and the whole country stays one 全国 tap away.
  */
-private const val ENTRY_ZOOM = 5.0
+private const val ENTRY_ZOOM = 4.0
 
 /** Closer than the country, a place name is worth drawing on the map. */
-private const val LABEL_MIN_ZOOM = 7.0
+private const val LABEL_MIN_ZOOM = 6.0
 
 /** At the country view, names are drawn only while the pins are few. */
 private const val LABELS_AT_OVERVIEW_MAX = 10
@@ -1010,7 +1126,7 @@ data class MapFocus(val latitude: Double, val longitude: Double, val nonce: Int)
 private fun zoomFor(map: MapView, box: BoundingBox, padding: Double = 0.45): Double {
     val spanLat = max(box.latitudeSpan, 1e-4)
     val spanLon = max(box.longitudeSpan, 1e-4)
-    if (spanLat < 0.02 && spanLon < 0.02) return 12.0
+    if (spanLat < 0.02 && spanLon < 0.02) return 11.0
     val width = max(map.width, 256)
     val height = max(map.height, 256)
     val tile = org.osmdroid.util.TileSystem.getTileSize().toDouble()

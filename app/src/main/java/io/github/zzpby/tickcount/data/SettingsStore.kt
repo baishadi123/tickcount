@@ -77,10 +77,8 @@ data class AppSettings(
     val language: AppLanguage = AppLanguage.SYSTEM,
     /** Whether a notification is posted on the day a countdown lands. */
     val remind: Boolean = false,
-    /** Minutes after midnight at which the reminder is delivered. 540 is 09:00. */
+    /** Minutes after midnight at which an all-day countdown's reminder is delivered. 540 is 09:00. */
     val remindMinutes: Int = 540,
-    /** How many minutes before the countdown the reminder arrives: 0 is at that moment. */
-    val remindLeadMinutes: Int = 0,
     /** The widgets' panel, which may differ from the one the app itself is painted in. */
     val widgetPanel: WidgetPanel = WidgetPanel.SYSTEM,
     /** How large the list widget's text is, as a multiple of the layout's own sizes. */
@@ -142,7 +140,6 @@ class SettingsStore(context: Context) {
             language = language,
             remind = prefs.getBoolean(KEY_REMIND, false),
             remindMinutes = prefs.getInt(KEY_REMIND_TIME, 540),
-            remindLeadMinutes = prefs.getInt(KEY_REMIND_LEAD, 0),
             widgetPanel = widgetPanel,
             widgetTextSize = widgetTextSize,
             anniversaryEpochDay = if (prefs.contains(KEY_ANNIVERSARY)) {
@@ -162,7 +159,6 @@ class SettingsStore(context: Context) {
             putString(KEY_LANGUAGE, settings.language.name)
             putBoolean(KEY_REMIND, settings.remind)
             putInt(KEY_REMIND_TIME, settings.remindMinutes)
-            putInt(KEY_REMIND_LEAD, settings.remindLeadMinutes)
             putString(KEY_WIDGET_PANEL, settings.widgetPanel.name)
             putString(KEY_WIDGET_TEXT_SIZE, settings.widgetTextSize.name)
             putString(KEY_VOYAGE_MUSIC, settings.voyageMusicFile)
@@ -185,7 +181,6 @@ class SettingsStore(context: Context) {
         const val KEY_LANGUAGE = "language"
         const val KEY_SECONDS = "seconds"
         const val KEY_REMIND_TIME = "remind_time"
-        const val KEY_REMIND_LEAD = "remind_lead"
         const val KEY_GUIDE = "guide_seen"
         const val KEY_REMIND = "remind"
         const val KEY_WIDGET_PANEL = "widget_panel"

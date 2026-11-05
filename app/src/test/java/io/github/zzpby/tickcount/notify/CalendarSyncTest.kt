@@ -25,8 +25,13 @@ class CalendarSyncTest {
     private fun allDay(
         id: String = "a",
         date: LocalDate = LocalDate.of(2026, 11, 9),
-        lead: Int? = null,
-    ) = CountdownEvent(id = id, date = date, title = "旅行", remindLeadMinutes = lead)
+    ) = CountdownEvent(id = id, date = date, title = "旅行")
+
+    private fun timed(
+        id: String = "b",
+        date: LocalDate = LocalDate.of(2026, 11, 5),
+        time: LocalTime = LocalTime.of(9, 0),
+    ) = CountdownEvent(id = id, date = date, title = "开会", time = time)
 
     private fun capsule(
         id: String = "c",
@@ -46,9 +51,9 @@ class CalendarSyncTest {
     // ------------------------------------------------------------ desiredEntries
 
     @Test
-    fun `a future countdown is one entry at its anchor moment, lead as the reminder`() {
+    fun `a future countdown is one entry at its own moment, reminded as it starts`() {
         val entries = Reminders.desiredEntries(
-            listOf(allDay()), emptyList(), minutes = 9 * 60, leadMinutes = 30,
+            listOf(allDay()), emptyList(), minutes = 9 * 60,
             appName = "App", now = now, zone = zone,
         )
         assertEquals(1, entries.size)
@@ -56,49 +61,37 @@ class CalendarSyncTest {
         assertEquals("event/a", entry.key)
         assertEquals("旅行", entry.title)
         assertEquals(LocalDate.of(2026, 11, 9).atTime(9, 0), local(entry.start))
-        assertEquals(30, entry.reminderMinutes)
+        assertEquals(0, entry.reminderMinutes)
     }
 
     @Test
-    fun `a countdown's own lead is the entry's reminder, not the app-wide one`() {
-        val entries = Reminders.desiredEntries(
-            listOf(allDay(lead = 3 * 24 * 60)), emptyList(), 9 * 60, 30,
-            "App", now, zone,
-        )
-        assertEquals(3 * 24 * 60, entries.first().reminderMinutes)
-    }
-
-    @Test
-    fun `a countdown whose reminder moment has passed is not written`() {
-        // The anchor is tomorrow 09:00, the lead two days: the reminder was due
-        // yesterday, and yesterday is not worth a reminder.
-        val past = allDay(date = LocalDate.of(2026, 11, 6), lead = 2 * 24 * 60)
-        val entries = Reminders.desiredEntries(listOf(past), emptyList(), 9 * 60, 0, "App", now, zone)
+    fun `a countdown whose moment has passed is not written`() {
+        // Today's 09:00 is already behind a 12:00 now.
+        val earlierToday = timed()
+        val entries = Reminders.desiredEntries(listOf(earlierToday), emptyList(), 9 * 60, "App", now, zone)
         assertTrue(entries.isEmpty())
     }
 
     @Test
     fun `an opened capsule is never written`() {
         val opened = capsule(opened = LocalDate.of(2026, 11, 1))
-        val entries = Reminders.desiredEntries(emptyList(), listOf(opened), 9 * 60, 0, "App", now, zone)
+        val entries = Reminders.desiredEntries(emptyList(), listOf(opened), 9 * 60, "App", now, zone)
         assertTrue(entries.isEmpty())
     }
 
     @Test
-    fun `an unopened capsule with a future day is written at the app's time of day`() {
-        val entries = Reminders.desiredEntries(
-            emptyList(), listOf(capsule()), 9 * 60, 60, "App", now, zone,
-        )
-        val entry = entries.first()
-        assertEquals("capsule/c", entry.key)
-        assertEquals(LocalDate.of(2026, 11, 20).atTime(9, 0), local(entry.start))
-        assertEquals(60, entry.reminderMinutes)
+    fun `a sealed letter is written whatever its opening day says`() {
+        // A letter past due and still sealed is as much news as one due next
+        // month — it stays in the calendar until the day it is opened.
+        val overdue = capsule(opens = LocalDate.of(2026, 10, 20))
+        val entries = Reminders.desiredEntries(emptyList(), listOf(overdue), 9 * 60, "App", now, zone)
+        assertEquals(LocalDate.of(2026, 10, 20).atTime(9, 0), local(entries.single().start))
     }
 
     @Test
     fun `a capsule without a title is written under the app's own name`() {
         val entries = Reminders.desiredEntries(
-            emptyList(), listOf(capsule(title = "")), 9 * 60, 0, "倒数日", now, zone,
+            emptyList(), listOf(capsule(title = "")), 9 * 60, "倒数日", now, zone,
         )
         assertEquals("倒数日", entries.first().title)
     }
@@ -111,8 +104,19 @@ class CalendarSyncTest {
             title = "生日",
             yearlyRepeat = true,
         )
-        val entries = Reminders.desiredEntries(listOf(birthday), emptyList(), 9 * 60, 0, "App", now, zone)
+        val entries = Reminders.desiredEntries(listOf(birthday), emptyList(), 9 * 60, "App", now, zone)
         assertEquals(LocalDate.of(2026, 11, 9).atTime(9, 0), local(entries.first().start))
+    }
+
+    // ----------------------------------------------------------------- nextAt
+
+    @Test
+    fun `the next moment spans countdowns and capsules, opened letters aside`() {
+        val event = allDay(date = LocalDate.of(2026, 11, 8))
+        val sealedSoon = capsule(opens = LocalDate.of(2026, 11, 7))
+        val opened = capsule(opens = LocalDate.of(2026, 11, 6), opened = LocalDate.of(2026, 11, 1))
+        val at = Reminders.nextAt(listOf(event), listOf(sealedSoon, opened), 9 * 60, now, zone)
+        assertEquals(LocalDate.of(2026, 11, 7).atTime(9, 0), local(at!!))
     }
 
     // ---------------------------------------------------------------- syncPlan
@@ -121,14 +125,13 @@ class CalendarSyncTest {
         key: String,
         title: String = "旅行",
         start: Instant = LocalDate.of(2026, 11, 9).atTime(9, 0).atZone(zone).toInstant(),
-        lead: Int = 30,
         rowId: Long = 1,
-    ) = Reminders.ExistingEntry(rowId, key, title, start, lead)
+    ) = Reminders.ExistingEntry(rowId, key, title, start, 0)
 
     @Test
     fun `a key the calendar does not hold is inserted`() {
         val plan = Reminders.syncPlan(
-            listOf(Reminders.CalendarEntry("event/a", "旅行", now.plusSeconds(60), 30)),
+            listOf(Reminders.CalendarEntry("event/a", "旅行", now.plusSeconds(60), 0)),
             listOf(existing("event/other")),
         )
         assertEquals(listOf("event/a"), plan.insert.map { it.key })
@@ -137,17 +140,16 @@ class CalendarSyncTest {
     }
 
     @Test
-    fun `a changed moment, title or lead rewrites the row in place`() {
-        val entry = Reminders.CalendarEntry("event/a", "旅行(改)", now.plusSeconds(120), 45)
+    fun `a changed moment or title rewrites the row in place`() {
+        val entry = Reminders.CalendarEntry("event/a", "旅行(改)", now.plusSeconds(120), 0)
         val plan = Reminders.syncPlan(listOf(entry), listOf(existing("event/a")))
         assertTrue(plan.insert.isEmpty() && plan.delete.isEmpty())
         assertEquals(listOf("event/a"), plan.update.map { it.second.key })
-        assertEquals(45, plan.update.first().second.reminderMinutes)
     }
 
     @Test
     fun `a row that already says the right thing is left alone`() {
-        val entry = Reminders.CalendarEntry("event/a", "旅行", existing("event/a").start, 30)
+        val entry = Reminders.CalendarEntry("event/a", "旅行", existing("event/a").start, 0)
         val plan = Reminders.syncPlan(listOf(entry), listOf(existing("event/a")))
         assertTrue(plan.insert.isEmpty() && plan.update.isEmpty() && plan.delete.isEmpty())
     }

@@ -9,6 +9,7 @@ import android.provider.CalendarContract
 import android.provider.CalendarContract.Calendars
 import android.provider.CalendarContract.Events
 import android.provider.CalendarContract.Reminders
+import android.util.Log
 import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.data.CountdownEvent
 import io.github.zzpby.tickcount.data.TimeCapsule
@@ -23,8 +24,10 @@ import java.util.concurrent.Executors
  * The reminder, delivered by the system's own calendar.
  *
  * Every countdown and capsule becomes one event in a calendar of the app's own,
- * local to the device and synchronized with nothing, and the calendar's reminder
- * — offset by the same lead the app has always used — is what arrives. The
+ * local to the device and synchronized with nothing, and the calendar's
+ * reminder at the event's own start — a countdown with a time of day at that
+ * time, an all-day one at the reminder time of day, a letter at the time of
+ * day on the day it opens — is what arrives. The
  * calendar stack is privileged where an app's alarms are not: it is never killed
  * for the app being swiped away, and its reminders are the punctual kind. The
  * app itself holds no alarm, no receiver and no channel any more; its whole job
@@ -36,18 +39,20 @@ import java.util.concurrent.Executors
  */
 object Reminders {
 
-    /** How far ahead a reminder may be set: a month, which is as far as anyone plans ahead. */
-    const val MAX_LEAD_MINUTES = 30 * 24 * 60
-
-    /** What the one alarm is for: a countdown, or a capsule coming due. */
+    /** What the next reminder is for: a countdown, or a capsule coming due. */
     data class Planned(val event: CountdownEvent, val at: Instant)
 
     /**
-     * The instant a countdown's reminder anchors to, before any lead is taken
-     * off — the calendar event's own start. The reminder offset is applied by
-     * the calendar, so the moment it fires stays [momentOf] either way.
+     * When a countdown is reminded: its own time of day when it names one, the
+     * reminder time of day when it is all day — and nothing else. There was
+     * once a "how early" offset on top of this, and it is gone: a reminder
+     * that arrives before the moment it is about confused more than it
+     * helped, and the calendar fires at the event's own start. The day it
+     * anchors to is [effectiveDate]: a repeating countdown is reminded about
+     * its next occurrence, which is what keeps a birthday reminded about
+     * every year.
      */
-    fun baseMomentOf(
+    fun momentOf(
         event: CountdownEvent,
         minutes: Int,
         zone: ZoneId = ZoneId.systemDefault(),
@@ -60,34 +65,14 @@ object Reminders {
             .atZone(zone).toInstant()
     }
 
-    /**
-     * When the reminder for [event] falls, in [zone], as seen from [now].
-     *
-     * Anchored to the countdown itself — its own time when it names one, the reminder time
-     * of day when it is all day — and then moved back by its own offset if it has one, or by
-     * the app-wide [leadMinutes] if it does not. The day it anchors to is
-     * [effectiveDate]: a repeating countdown is reminded about its next occurrence, which
-     * is what keeps a birthday reminded about every year.
-     */
-    fun momentOf(
-        event: CountdownEvent,
-        minutes: Int,
-        leadMinutes: Int,
-        zone: ZoneId = ZoneId.systemDefault(),
-        now: Instant = Instant.now(),
-    ): Instant =
-        baseMomentOf(event, minutes, zone, now)
-            .minusSeconds((event.remindLeadMinutes ?: leadMinutes).toLong() * 60)
-
     fun planned(
         events: List<CountdownEvent>,
         minutes: Int,
-        leadMinutes: Int,
         now: Instant = Instant.now(),
         zone: ZoneId = ZoneId.systemDefault(),
     ): Planned? {
         return events
-            .map { event -> Planned(event, momentOf(event, minutes, leadMinutes, zone, now)) }
+            .map { event -> Planned(event, momentOf(event, minutes, zone, now)) }
             // Ordered by the moment itself, not by day: two countdowns can share
             // a date with different times of day, and the earlier clock has to
             // win however the list happens to be stored.
@@ -95,8 +80,12 @@ object Reminders {
             .firstOrNull { it.at.isAfter(now) }
     }
 
-    /** The instant a capsule's reminder anchors to, before any lead is taken off. */
-    fun capsuleBaseMomentOf(
+    /**
+     * When a capsule is reminded: the reminder time of day on the day it
+     * opens — the same rule an all-day countdown follows, because a capsule
+     * is a whole day's business too.
+     */
+    fun capsuleMomentOf(
         capsule: TimeCapsule,
         minutes: Int,
         zone: ZoneId = ZoneId.systemDefault(),
@@ -104,32 +93,6 @@ object Reminders {
         LocalDate.ofEpochDay(capsule.opensEpochDay)
             .atTime(LocalTime.of(minutes / 60, minutes % 60))
             .atZone(zone).toInstant()
-
-    /**
-     * When the reminder for a capsule falls: the reminder time of day on the day
-     * it opens, moved back by the app-wide lead — the same rule an all-day
-     * countdown follows, because a capsule is a whole day's business too.
-     */
-    fun capsuleMomentOf(
-        capsule: TimeCapsule,
-        minutes: Int,
-        leadMinutes: Int,
-        zone: ZoneId = ZoneId.systemDefault(),
-    ): Instant =
-        capsuleBaseMomentOf(capsule, minutes, zone)
-            .minusSeconds(leadMinutes.toLong() * 60)
-
-    /** The first capsule whose reminder has not already passed, earliest to open first. */
-    fun plannedCapsule(
-        capsules: List<TimeCapsule>,
-        minutes: Int,
-        leadMinutes: Int,
-        now: Instant = Instant.now(),
-        zone: ZoneId = ZoneId.systemDefault(),
-    ): TimeCapsule? =
-        capsules
-            .sortedBy { it.opensEpochDay }
-            .firstOrNull { capsuleMomentOf(it, minutes, leadMinutes, zone).isAfter(now) }
 
     // ------------------------------------------------------ the diff, pure
 
@@ -160,45 +123,65 @@ object Reminders {
 
     /**
      * The events the calendar should hold right now: one per countdown and one
-     * per unopened capsule, each at its anchor moment with its own lead as the
-     * reminder offset. Anything whose reminder moment has already passed is
-     * left out — a reminder for a moment gone is noise, not news. Repeating
-     * countdowns appear at their next occurrence only; when that day comes and
-     * goes, the next sync moves the event on to the following year.
+     * per sealed capsule, at its own moment, with the reminder at the event's
+     * start — no offset anywhere. A countdown whose moment has already passed
+     * is left out — a reminder for a moment gone is noise, not news, and a
+     * past one-shot countdown is finished business. A capsule is the other
+     * way round: it stays news until the day it is opened, so a sealed letter
+     * is written whatever its opening day says. Repeating countdowns appear
+     * at their next occurrence only; when that day comes and goes, the next
+     * sync moves the event on to the following year.
      */
     fun desiredEntries(
         events: List<CountdownEvent>,
         capsules: List<TimeCapsule>,
         minutes: Int,
-        leadMinutes: Int,
         appName: String = "TickCount",
         now: Instant = Instant.now(),
         zone: ZoneId = ZoneId.systemDefault(),
     ): List<CalendarEntry> {
         val wanted = ArrayList<CalendarEntry>()
         for (event in events) {
-            val start = baseMomentOf(event, minutes, zone, now)
-            val lead = (event.remindLeadMinutes ?: leadMinutes).toLong()
-            if (!start.minusSeconds(lead * 60).isAfter(now)) continue
-            wanted += CalendarEntry("event/${event.id}", event.title, start, lead.toInt())
+            val start = momentOf(event, minutes, zone, now)
+            if (!start.isAfter(now)) continue
+            wanted += CalendarEntry("event/${event.id}", event.title, start, 0)
         }
         for (capsule in capsules) {
             if (capsule.openedEpochDay != null) continue
-            val start = capsuleBaseMomentOf(capsule, minutes, zone)
-            if (!start.minusSeconds(leadMinutes * 60L).isAfter(now)) continue
             wanted += CalendarEntry(
                 "capsule/${capsule.id}",
                 capsule.title.ifBlank { appName },
-                start,
-                leadMinutes,
+                capsuleMomentOf(capsule, minutes, zone),
+                0,
             )
         }
         return wanted
     }
 
     /**
-     * Rows are matched by key alone. A row that differs in moment, title or
-     * lead is rewritten rather than recreated, which keeps the calendar app's
+     * The earliest reminder moment still to come, across countdowns and
+     * capsules both — what the reminder page points at when it says when the
+     * next one is. A sealed letter counts only while its moment is still
+     * ahead; one already due is pointed at by the page it belongs to.
+     */
+    fun nextAt(
+        events: List<CountdownEvent>,
+        capsules: List<TimeCapsule>,
+        minutes: Int,
+        now: Instant = Instant.now(),
+        zone: ZoneId = ZoneId.systemDefault(),
+    ): Instant? = listOfNotNull(
+        planned(events, minutes, now, zone)?.at,
+        capsules.asSequence()
+            .filter { it.openedEpochDay == null }
+            .map { capsuleMomentOf(it, minutes, zone) }
+            .filter { it.isAfter(now) }
+            .minOrNull(),
+    ).minOrNull()
+
+    /**
+     * Rows are matched by key alone. A row that differs in moment or title is
+     * rewritten rather than recreated, which keeps the calendar app's
      * idea of "the same event" intact; a row whose countdown is gone is
      * deleted — including one the user deleted in the calendar app itself,
      * because a row we put back after its owner died would be a ghost.
@@ -233,25 +216,31 @@ object Reminders {
             PackageManager.PERMISSION_GRANTED
     }
 
-    /** Puts the calendar in step with the list: one call, on one worker, in order. */
+    /** Puts the calendar in step with the list: one call, on one worker, in order.
+     *  Failures are said out loud in the log, because a silent calendar is
+     *  indistinguishable from an empty one. */
     fun sync(
         context: Context,
         events: List<CountdownEvent>,
         capsules: List<TimeCapsule>,
         minutes: Int,
-        leadMinutes: Int,
     ) {
         val host = context.applicationContext
         worker.execute {
             runCatching {
                 if (!canUseCalendar(host)) return@execute
-                val calendarId = ensureCalendar(host) ?: return@execute
+                val calendarId = ensureCalendar(host) ?: run {
+                    Log.w(TAG, "the app's calendar could not be created")
+                    return@execute
+                }
                 val desired = desiredEntries(
-                    events, capsules, minutes, leadMinutes,
+                    events, capsules, minutes,
                     host.getString(R.string.app_name),
                 )
-                apply(host, calendarId, syncPlan(desired, readExisting(host, calendarId)))
-            }
+                val plan = syncPlan(desired, readExisting(host, calendarId))
+                apply(host, calendarId, plan)
+                Log.i(TAG, "calendar in step: +${plan.insert.size} ~${plan.update.size} -${plan.delete.size}")
+            }.onFailure { Log.w(TAG, "sync failed", it) }
         }
     }
 
@@ -314,6 +303,7 @@ object Reminders {
     private const val ACCOUNT = "io.github.zzpby.tickcount.reminders"
     private const val URI_SCHEME = "tickcount"
     private const val TEST_KEY = "test"
+    private const val TAG = "TickCountCalendar"
 
     /** One worker, so syncs queue in the order the app asked for them. */
     private val worker = Executors.newSingleThreadExecutor { runnable ->

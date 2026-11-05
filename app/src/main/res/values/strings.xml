@@ -268,34 +268,7 @@
     <string name="notify_grant">Allow permission</string>
     <string name="notify_time">Reminder time</string>
     <string name="notify_time_all_day">Time for all-day countdowns</string>
-    <string name="notify_time_note">A countdown with a time of its own is reminded before that time, not this one.</string>
-    <string name="notify_advance">How early</string>
-    <string name="notify_lead_none">On time</string>
-    <plurals name="notify_lead_minutes">
-        <item quantity="one">%1$d minute before</item>
-        <item quantity="other">%1$d minutes before</item>
-    </plurals>
-    <plurals name="notify_lead_hours">
-        <item quantity="one">%1$d hour before</item>
-        <item quantity="other">%1$d hours before</item>
-    </plurals>
-    <plurals name="notify_lead_days">
-        <item quantity="one">%1$d day before</item>
-        <item quantity="other">%1$d days before</item>
-    </plurals>
-    <string name="notify_lead_title">How early</string>
-    <string name="notify_lead_amount">Amount</string>
-    <string name="notify_lead_unit_minutes">Minutes</string>
-    <string name="notify_lead_unit_hours">Hours</string>
-    <string name="notify_lead_unit_days">Days</string>
-    <string name="notify_lead_max">Up to 30 days</string>
-    <string name="notify_events_title">Per countdown</string>
-    <string name="notify_events_hint">Tap one to set how early it is reminded</string>
-    <string name="notify_follow_global">Follow the app setting</string>
-    <string name="notify_custom">Custom</string>
-    <string name="notify_search_hint">Search name or tag</string>
-    <string name="notify_filter_all">All</string>
-    <string name="notify_events_empty">Nothing matches</string>
+    <string name="notify_time_note">A countdown with a time of its own is reminded at that time, not this one.</string>
     <string name="notify_permission">Calendar access</string>
     <string name="notify_granted">Allowed</string>
     <string name="notify_not_granted">Not allowed</string>
@@ -305,7 +278,7 @@
     <string name="notify_refresh">Refresh</string>
     <string name="notify_test">Schedule a test reminder</string>
     <string name="notify_test_written">Written — the calendar will remind you in a minute or two</string>
-    <string name="notify_footnote">Reminders are written into the system calendar and delivered by it — the app never needs to run in the background, and being cleaned away changes nothing. If none arrives, check the calendar app\'s own reminder settings.</string>
+    <string name="notify_footnote">Reminders are written into the system calendar and delivered by it — the app never needs to run in the background, and being cleaned away changes nothing. If TickCount is missing from the calendar, enable it in the calendar app\'s list of calendars; if reminders never arrive, check the calendar app\'s notifications.</string>
     <string name="calendar_name">TickCount</string>
     <string name="appearance_custom_hue">Pick a hue</string>
     <string name="appearance_custom_hint">The whole app repaints as you drag, so this screen is the preview.</string>

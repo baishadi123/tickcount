@@ -326,7 +326,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 events,
                 _capsules.value,
                 _settings.value.remindMinutes,
-                _settings.value.remindLeadMinutes,
             )
         }
     }
@@ -696,24 +695,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         reschedule()
     }
 
-    /** The time of day the reminder arrives, as minutes after midnight. */
+    /** The time of day an all-day countdown's reminder is delivered, as minutes after midnight. */
     fun chooseRemindMinutes(minutes: Int) {
         updateSettings(_settings.value.copy(remindMinutes = minutes))
-        reschedule()
-    }
-
-    /**
-     * How many minutes before the countdown the reminder arrives; 0 is at that moment.
-     *
-     * Minutes rather than days: the offset is open-ended, so "half an hour before" and "two
-     * days before" are the same setting with a different number.
-     */
-    fun chooseRemindLead(minutes: Int) {
-        updateSettings(
-            _settings.value.copy(
-                remindLeadMinutes = minutes.coerceIn(0, Reminders.MAX_LEAD_MINUTES),
-            )
-        )
         reschedule()
     }
 
@@ -721,21 +705,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun sendTestNotification() {
         Reminders.writeTestEntry(getApplication())
         Toast.makeText(getApplication(), R.string.notify_test_written, Toast.LENGTH_SHORT).show()
-    }
-
-    /**
-     * This countdown's own reminder offset, or null to follow the app-wide one.
-     *
-     * A copy of the event rather than a field somewhere else: the offset belongs to the
-     * countdown, is exported with it, and disappears when it does.
-     */
-    fun chooseEventLead(id: String, leadMinutes: Int?) {
-        val event = _events.value.firstOrNull { it.id == id } ?: return
-        saveEvent(
-            event.copy(
-                remindLeadMinutes = leadMinutes?.coerceIn(0, Reminders.MAX_LEAD_MINUTES),
-            )
-        )
     }
 
     private fun reschedule() {
@@ -746,7 +715,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _events.value,
                 _capsules.value,
                 settings.remindMinutes,
-                settings.remindLeadMinutes,
             )
         } else {
             Reminders.purge(getApplication())

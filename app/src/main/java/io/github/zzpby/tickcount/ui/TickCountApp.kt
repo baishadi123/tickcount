@@ -621,16 +621,13 @@ fun TickCountApp(
 
                     screen == AppScreen.REMINDERS -> NotificationsScreen(
                         settings = settings,
-                        next = Reminders.planned(
+                        nextAt = Reminders.nextAt(
                             events,
+                            capsules,
                             settings.remindMinutes,
-                            settings.remindLeadMinutes,
                         ),
                         onRemind = viewModel::chooseRemind,
                         onMinutes = viewModel::chooseRemindMinutes,
-                        onLead = viewModel::chooseRemindLead,
-                        onEventLead = viewModel::chooseEventLead,
-                        events = events,
                         onTest = viewModel::sendTestNotification,
                     )
 

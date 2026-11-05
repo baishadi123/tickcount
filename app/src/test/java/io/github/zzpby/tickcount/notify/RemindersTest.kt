@@ -13,8 +13,9 @@ import org.junit.Test
 /**
  * When a reminder falls.
  *
- * The arithmetic is the whole feature — an alarm set at the wrong instant fails silently —
- * so it is tested away from the alarm manager.
+ * The rule is one line — a countdown's own time, or the reminder time of day —
+ * but the arithmetic is the whole feature, so it is tested away from the
+ * calendar provider.
  */
 class RemindersTest {
 
@@ -23,39 +24,26 @@ class RemindersTest {
     private fun allDay(
         id: String = "a",
         date: LocalDate = LocalDate.of(2026, 10, 26),
-        lead: Int? = null,
-    ) = CountdownEvent(id = id, date = date, title = "旅行", remindLeadMinutes = lead)
+    ) = CountdownEvent(id = id, date = date, title = "旅行")
 
     private fun timed(
         id: String = "b",
         date: LocalDate = LocalDate.of(2026, 10, 26),
         time: LocalTime = LocalTime.of(14, 30),
-        lead: Int? = null,
-    ) = CountdownEvent(id = id, date = date, title = "开会", time = time, remindLeadMinutes = lead)
+    ) = CountdownEvent(id = id, date = date, title = "开会", time = time)
 
     private fun local(instant: Instant) = instant.atZone(zone).toLocalDateTime()
 
     @Test
-    fun `an all-day countdown is reminded at the app's time of day, less the lead`() {
-        val moment = Reminders.momentOf(allDay(), minutes = 9 * 60, leadMinutes = 120, zone = zone)
-        assertEquals(LocalDate.of(2026, 10, 26).atTime(7, 0), local(moment))
+    fun `an all-day countdown is reminded at the app's time of day`() {
+        val moment = Reminders.momentOf(allDay(), minutes = 9 * 60, zone = zone)
+        assertEquals(LocalDate.of(2026, 10, 26).atTime(9, 0), local(moment))
     }
 
     @Test
     fun `a countdown with its own time ignores the app's time of day`() {
-        val moment = Reminders.momentOf(timed(), minutes = 9 * 60, leadMinutes = 30, zone = zone)
-        assertEquals(LocalDate.of(2026, 10, 26).atTime(14, 0), local(moment))
-    }
-
-    @Test
-    fun `a countdown's own lead wins over the app-wide one`() {
-        val moment = Reminders.momentOf(
-            timed(lead = 3 * 24 * 60),
-            minutes = 9 * 60,
-            leadMinutes = 30,
-            zone = zone,
-        )
-        assertEquals(LocalDate.of(2026, 10, 23).atTime(14, 30), local(moment))
+        val moment = Reminders.momentOf(timed(), minutes = 9 * 60, zone = zone)
+        assertEquals(LocalDate.of(2026, 10, 26).atTime(14, 30), local(moment))
     }
 
     @Test
@@ -64,10 +52,11 @@ class RemindersTest {
         val soon = allDay(id = "soon", date = LocalDate.of(2026, 10, 26))
         val now = LocalDate.of(2026, 10, 18).atTime(12, 0).atZone(zone).toInstant()
 
-        val planned = Reminders.planned(listOf(soon, past), 9 * 60, 0, now, zone)
+        val planned = Reminders.planned(listOf(soon, past), 9 * 60, now, zone)
 
         assertEquals("soon", planned?.event?.id)
-        assertEquals(LocalDate.of(2026, 10, 26).atTime(9, 0), local(planned!!.at))    }
+        assertEquals(LocalDate.of(2026, 10, 26).atTime(9, 0), local(planned!!.at))
+    }
 
     @Test
     fun `two countdowns on one day are ordered by the clock, not the list`() {
@@ -75,21 +64,14 @@ class RemindersTest {
         val early = timed(id = "early", time = LocalTime.of(9, 0))
         val now = LocalDate.of(2026, 10, 26).atTime(8, 0).atZone(zone).toInstant()
 
-        assertEquals("early", Reminders.planned(listOf(late, early), 9 * 60, 0, now, zone)?.event?.id)
+        assertEquals("early", Reminders.planned(listOf(late, early), 9 * 60, now, zone)?.event?.id)
     }
 
     @Test
     fun `a list whose reminders have all passed has nothing to schedule`() {
         val past = allDay(date = LocalDate.of(2026, 10, 20))
         val now = LocalDate.of(2026, 10, 21).atTime(12, 0).atZone(zone).toInstant()
-        assertNull(Reminders.planned(listOf(past), 9 * 60, 0, now, zone))
-    }
-
-    @Test
-    fun `a lead can move a reminder into the past, which is then skipped`() {
-        val event = allDay(date = LocalDate.of(2026, 10, 26), lead = 7 * 24 * 60)
-        val now = LocalDate.of(2026, 10, 20).atTime(12, 0).atZone(zone).toInstant()
-        assertNull(Reminders.planned(listOf(event), 9 * 60, 0, now, zone))
+        assertNull(Reminders.planned(listOf(past), 9 * 60, now, zone))
     }
 
     // ----------------------------------------------------------------- capsules
@@ -100,25 +82,8 @@ class RemindersTest {
     ) = TimeCapsule(id = id, message = "信", opensEpochDay = opens.toEpochDay())
 
     @Test
-    fun `a capsule is reminded at the app's time of day on its open day, less the lead`() {
-        val moment = Reminders.capsuleMomentOf(capsule(), minutes = 9 * 60, leadMinutes = 60, zone = zone)
-        assertEquals(LocalDate.of(2026, 10, 26).atTime(8, 0), local(moment))
-    }
-
-    @Test
-    fun `the next capsule is the earliest one not already passed`() {
-        val past = capsule(id = "past", opens = LocalDate.of(2026, 10, 10))
-        val soon = capsule(id = "soon", opens = LocalDate.of(2026, 10, 26))
-        val later = capsule(id = "later", opens = LocalDate.of(2026, 11, 1))
-        val now = LocalDate.of(2026, 10, 18).atTime(12, 0).atZone(zone).toInstant()
-
-        assertEquals("soon", Reminders.plannedCapsule(listOf(later, soon, past), 9 * 60, 0, now, zone)?.id)
-    }
-
-    @Test
-    fun `a capsule whose reminder has passed is skipped, like a countdown's`() {
-        val past = capsule(opens = LocalDate.of(2026, 10, 20))
-        val now = LocalDate.of(2026, 10, 21).atTime(12, 0).atZone(zone).toInstant()
-        assertNull(Reminders.plannedCapsule(listOf(past), 9 * 60, 0, now, zone))
+    fun `a capsule is reminded at the app's time of day on its open day`() {
+        val moment = Reminders.capsuleMomentOf(capsule(), minutes = 9 * 60, zone = zone)
+        assertEquals(LocalDate.of(2026, 10, 26).atTime(9, 0), local(moment))
     }
 }

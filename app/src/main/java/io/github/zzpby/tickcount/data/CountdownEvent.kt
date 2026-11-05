@@ -88,15 +88,6 @@ data class CountdownEvent(
      */
     val photoCover: String? = null,
     /**
-     * How early to be reminded about this one, in minutes, or null to follow the app-wide
-     * setting.
-     *
-     * Minutes rather than days because the useful offsets are unevenly spaced — half an hour
-     * before a deadline, two days before a birthday — and null rather than a sentinel so
-     * "nobody has said anything about this one" is a state the code can test for.
-     */
-    val remindLeadMinutes: Int? = null,
-    /**
      * The lunar date this countdown was entered as, when it was entered that way.
      *
      * Kept beside the solar [date] rather than instead of it: the countdown still counts down

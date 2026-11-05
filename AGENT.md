@@ -30,7 +30,7 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
 
 - `run.bat` = 编译 + 安装 + `adb shell am start` 启动，设备用 `adb devices` 确认。
 - 本地 `assembleRelease` 直接出**可升级的同签名 APK**（签名读 `.tools/签名密钥文件/keystore.properties`，无它则退回 debug 签名）。
-- 改了 `更新日志.txt` 后跑测试要加 `--rerun-tasks`：它不是 gradle 的任务输入，否则可能 UP-TO-DATE 吃旧结果（假绿）。
+- `更新日志.txt` / README / china_*.md 已声明为测试任务输入（`app/build.gradle.kts` 的 `tasks.withType<Test>` 块）：改后普通增量 `testDebugUnitTest` 自动重跑受影响测试，不假绿，无需 `--rerun-tasks`。
 
 ## 功能 → 文件
 
@@ -101,8 +101,8 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
 10. **列表删除按 id，不按下标**；Compose 各 item 的 key 前缀互异。
 11. **测试盲区自警**：单测只覆盖 domain/ 纯逻辑；store 迁移、备份 apply、闹钟接线、
     Compose UI 全靠人审。改这些文件时，把上面 1–10 逐条对一遍。
-12. 改 `更新日志.txt` 或 README 后跑测试加 `--rerun-tasks`（它们不是 gradle 任务输入，
-    会假绿）。
+12. `更新日志.txt` / README / china_*.md 已在 `app/build.gradle.kts` 声明为测试输入，
+    改后增量测试自动重跑、不会假绿；`--rerun-tasks` 纪律已废除（2026-11-04）。
 13. **图形 / 视觉类新功能先用最小可视样确认审美，再铺开实现**——星图真实天文渲染
     一次做完，结果整体返工（2026-10-27）。文字与规则层面的功能没有这个风险。
 14. **操作一律图标化，不写文字按钮**：保存 ✓（CheckIcon）、关闭 ×（CloseIcon）、
@@ -121,17 +121,25 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
 
 ## 发版流程
 
+**极简三步，本地不跑任何验证（2026-11-04 用户钦定）：**
+
 1. **bump 版本**（`app/build.gradle.kts`）：日历方案 `年.月.日.当天序号`；`versionCode` =
    年月日紧缩 + 两位序号（如 `2026.10.26.1` → `26102601`）。
-2. **写更新日志**：`更新日志.txt` 顶部加同号小节（`版本号` 下接一行 `----`，条目行用
-   ✨/🎨/🔄/🔧，末行 `📦 安装：下载 TickCount-<版本>.apk 直接安装`）。
-   **`ChangelogTest` 强制：最新节版本号 == versionName，且条目 > 5 行。**
-3. **本地验证**：`.\gradlew.bat testDebugUnitTest --rerun-tasks`（必须真跑，见上）。
-4. **提交** → 打标签 `v<版本号>` → 推 `main` + 标签。
-5. CI（`.github/workflows/android.yml`）自动：单测 → `assembleRelease`（密钥来自仓库
-   secrets，本地无需操作）→ 发 GitHub Release，APK 名 `TickCount-<版本>.apk`，
-   Release 说明取自更新日志对应小节（`writeReleaseNotes` 任务，缺节会直接报错）。
-6. 发布后到 Releases 页确认 APK 已挂。
+2. **拼更新日志**：`更新日志.txt` 顶部加同号小节（`版本号` 下接一行 `----`，条目行用
+   ✨/🎨/🔄/🔧，末行 `📦 安装：下载 TickCount-<版本>.apk 直接安装`）。受加密驱动所迫，
+   从 HEAD blob 拼、写到 `%TEMP%`、断言结构（行 1 标题 / 行 2 `====` / 行 4 新版本号、
+   标题整行唯一、零 U+FFFD、LF），再 `git hash-object -w` + `update-index --cacheinfo`
+   入索引——这是唯一保留的机械步骤。**写够行数**：ChangelogTest 要求最新节条目 > 5 行
+   （`主要变化` + ≥4 条 + 安装行）、版本号 == versionName，由 CI 强制。
+3. **提交 → 打标签 `v<版本号>` → 推 `main` + 标签。完事。**
+
+- **CI 是唯一闸门**（`.github/workflows/android.yml`）：tag 上自动 单测 → `assembleRelease`
+  → 发 Release 挂 `TickCount-<版本>.apk`（说明取自更新日志对应小节）。本地不再跑测试、
+  不 `--rerun-tasks`、不 `installDebug` 验证——功能在开发时已测过，重复闸门浪费用户
+  时间（2026-11-04 裁决；同日 `--rerun-tasks` 纪律废除，测试输入已在
+  `app/build.gradle.kts` 声明，增量测试对日志/README 变更自动敏感）。
+- **发版提交不加塞**：只含 版本号 + 日志 + 本发功能文件。任何顺手改动（哪怕工程优化）
+  先问过用户、单独提交。
 
 ## 大坑（务必避开）
 

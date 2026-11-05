@@ -2,9 +2,11 @@ package io.github.zzpby.tickcount.ui
 
 import android.app.Application
 import android.os.Build
+import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.zzpby.tickcount.data.AppLanguage
+import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.data.AppSettings
 import io.github.zzpby.tickcount.data.Backup
 import io.github.zzpby.tickcount.data.BackupCodec
@@ -316,10 +318,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Any placed widget is showing one of these countdowns and has no way of
         // knowing one was renamed, re-timed, moved, or removed.
         refreshAllWidgets(getApplication())
-        // The reminder is for the next thing worth a word, countdown or capsule,
-        // so both lists are in it and a change to either re-picks.
+        // The reminder is a calendar kept in step with the list, so a change to
+        // either side — countdowns or capsules — re-diffs it.
         if (_settings.value.remind) {
-            Reminders.schedule(
+            Reminders.sync(
                 getApplication(),
                 events,
                 _capsules.value,
@@ -715,9 +717,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         reschedule()
     }
 
-    /** A notification to prove that the permission and the channel work. */
+    /** A reminder a minute out, written into the calendar, to prove the whole chain works. */
     fun sendTestNotification() {
-        Reminders.deliverTest(getApplication())
+        Reminders.writeTestEntry(getApplication())
+        Toast.makeText(getApplication(), R.string.notify_test_written, Toast.LENGTH_SHORT).show()
     }
 
     /**
@@ -738,7 +741,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun reschedule() {
         val settings = _settings.value
         if (settings.remind) {
-            Reminders.schedule(
+            Reminders.sync(
                 getApplication(),
                 _events.value,
                 _capsules.value,
@@ -746,7 +749,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 settings.remindLeadMinutes,
             )
         } else {
-            Reminders.cancel(getApplication())
+            Reminders.purge(getApplication())
         }
     }
 

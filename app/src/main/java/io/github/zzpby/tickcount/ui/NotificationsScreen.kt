@@ -1,8 +1,6 @@
 package io.github.zzpby.tickcount.ui
 
 import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ScrollState
@@ -95,8 +93,7 @@ fun NotificationsScreen(
     var timeDialogOpen by remember { mutableStateOf(false) }
     var leadDialogOpen by remember { mutableStateOf(false) }
 
-    val allowed = remember(refreshKey, settings.remind) { Reminders.canNotify(context) }
-    val granted = allowed || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+    val granted = remember(refreshKey, settings.remind) { Reminders.canUseCalendar(context) }
     val scheduled = settings.remind && next != null
     var eventQuery by rememberSaveable { mutableStateOf("") }
     var eventFilter by rememberSaveable { mutableStateOf(EventFilter.ALL.name) }
@@ -124,10 +121,10 @@ fun NotificationsScreen(
             timeText(minutesOf(next))
     }
 
-    val notificationPermission = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { ok ->
-        if (ok) onRemind(true)
+    val calendarPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        if (grants.values.all { it }) onRemind(true)
         refreshKey++
     }
 
@@ -175,9 +172,7 @@ fun NotificationsScreen(
                     when {
                         !want -> onRemind(false)
                         granted -> onRemind(true)
-                        else -> notificationPermission.launch(
-                            Manifest.permission.POST_NOTIFICATIONS
-                        )
+                        else -> calendarPermission.launch(CALENDAR_PERMISSIONS)
                     }
                 },
             )
@@ -367,7 +362,7 @@ fun NotificationsScreen(
                 if (granted) {
                     onTest()
                 } else {
-                    notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    calendarPermission.launch(CALENDAR_PERMISSIONS)
                 }
             },
             shape = PillShape,
@@ -387,7 +382,7 @@ fun NotificationsScreen(
             Spacer(Modifier.weight(1f))
             TextButton(
                 onClick = {
-                    if (!granted) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    if (!granted) calendarPermission.launch(CALENDAR_PERMISSIONS)
                 },
                 enabled = !granted,
             ) {
@@ -773,6 +768,12 @@ private val EVENT_VIEWPORT = 66.dp * 3
 
 /** Which countdowns the per-event list is narrowed to. */
 private enum class EventFilter { ALL, CUSTOM, GLOBAL }
+
+/** The pair the reminder runs on: reading the rows back is half of keeping them true. */
+private val CALENDAR_PERMISSIONS = arrayOf(
+    Manifest.permission.READ_CALENDAR,
+    Manifest.permission.WRITE_CALENDAR,
+)
 
 /**
  * A scroll bar for [state].

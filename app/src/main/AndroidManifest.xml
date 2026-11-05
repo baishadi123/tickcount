@@ -4,18 +4,19 @@
     <!--
       TickCount needs no permissions to count down. Declared ones are all
       optional and asked for only at the moment of use:
-      POST_NOTIFICATIONS (Android 13+) for the reminder, RECEIVE_BOOT_COMPLETED
-      to put the alarm back after a restart, ACCESS_FINE_LOCATION (with the
-      coarse one beside it, which the system asks alongside) inside 万疆 when
-      a footprint is noted with its spot, and RECORD_AUDIO inside 敬心 when
-      a voice letter is being recorded — never at launch, never by
-      themselves. The one standing permission is INTERNET, and it exists for
-      a single purpose: 万疆's map tiles. Everything else works with it
-      refused or absent; the map shows pins and lines on a plain ground and
-      serves tiles only from its own cache.
+      the calendar pair, when the reminder is turned on — reminders are written
+      into a calendar of the app's own and delivered by the system's calendar
+      stack, which keeps them punctual without the app ever running in the
+      background; ACCESS_FINE_LOCATION (with the coarse one beside it, which the
+      system asks alongside) inside 万疆 when a footprint is noted with its
+      spot, and RECORD_AUDIO inside 敬心 when a voice letter is being recorded —
+      never at launch, never by themselves. The one standing permission is
+      INTERNET, and it exists for a single purpose: 万疆's map tiles. Everything
+      else works with it refused or absent; the map shows pins and lines on a
+      plain ground and serves tiles only from its own cache.
     -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -54,14 +55,13 @@
             </intent-filter>
         </activity>
 
-        <!--
-          The two home-screen widgets. No permission is involved in either: the launcher
-          talks to these receivers through AppWidgetManager, and the midnight refresh uses
-          AlarmManager.setAndAllowWhileIdle — the inexact variant, which needs no alarm
-          permission.
+        <!-- The two home-screen widgets. No permission is involved in either: the launcher
+             talks to these receivers through AppWidgetManager, and the midnight refresh uses
+             AlarmManager.setAndAllowWhileIdle — the inexact variant, which needs no alarm
+             permission.
 
-          Each carries its own name, because a picker offering two entries both called
-          TickCount would be asking the user to guess.
+             Each carries its own name, because a picker offering two entries both called
+             TickCount would be asking the user to guess.
         -->
         <receiver
             android:name=".ui.widget.CountdownWidgetProvider"
@@ -98,20 +98,6 @@
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
             </intent-filter>
         </activity>
-
-        <!-- The alarm's own receiver: it only ever posts a notification. -->
-        <receiver
-            android:name=".notify.ReminderReceiver"
-            android:exported="false" />
-
-        <!-- Alarms do not survive a restart, so this puts the next one back. -->
-        <receiver
-            android:name=".notify.BootReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
 
     </application>
 

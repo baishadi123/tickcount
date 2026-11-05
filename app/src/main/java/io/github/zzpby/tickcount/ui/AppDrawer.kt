@@ -30,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.zzpby.tickcount.R
+import io.github.zzpby.tickcount.ui.theme.GlassAlpha
 import io.github.zzpby.tickcount.data.AppLanguage
 import io.github.zzpby.tickcount.ui.components.GearIcon
 
@@ -114,7 +115,8 @@ fun AppDrawerContent(
         // The card colour, which is pure white in the white theme. What separates the panel
         // from the page there is the shadow below and the rounded edge, not a different tone:
         // a grey drawer on a white page reads as a stray piece of the old palette.
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        // Glass, like every other panel — the app's picture shows through the drawer too.
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha),
         shape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp),
         // A real shadow rather than a tonal elevation: tonal elevation tints the surface
         // towards the primary colour, which on a white theme is a grey — the one thing this
@@ -188,6 +190,9 @@ internal fun DrawerRow(
     selected: Boolean,
     onClick: () -> Unit,
     trailing: String? = null,
+    /** True where no panel sits behind the row: there the row is its own glass
+     *  island, rather than letting the drawer's pane show through it. */
+    rowOwnsPane: Boolean = false,
 ) {
     Row(
         modifier = Modifier
@@ -195,10 +200,14 @@ internal fun DrawerRow(
             .padding(horizontal = 10.dp, vertical = 2.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(
-                if (selected) MaterialTheme.colorScheme.secondaryContainer
-                // Transparent rather than a card colour, so an ordinary row is the drawer's
-                // own panel showing through and only the current destination is lifted.
-                else Color.Transparent
+                when {
+                    selected -> MaterialTheme.colorScheme.secondaryContainer
+                    // In the drawer, transparent is the drawer's own panel showing
+                    // through and only the current destination is lifted.
+                    rowOwnsPane -> MaterialTheme.colorScheme.surfaceContainerHigh
+                        .copy(alpha = GlassAlpha)
+                    else -> Color.Transparent
+                }
             )
             .clickable(onClick = onClick)
             // A floor rather than a fixed height: at a large system font the row has to

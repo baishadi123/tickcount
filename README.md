@@ -1,6 +1,6 @@
 # TickCount
 
-[![Build](https://github.com/ZZPBY/tickcount/actions/workflows/android.yml/badge.svg)](https://github.com/ZZPBY/tickcount/actions/workflows/android.yml)
+[![Build](https://github.com/baishadi123/tickcount/actions/workflows/android.yml/badge.svg)](https://github.com/baishadi123/tickcount/actions/workflows/android.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 一个极简的安卓倒数日日历。在日历上点一天、起个名字，就能看到离那一天还有多久，

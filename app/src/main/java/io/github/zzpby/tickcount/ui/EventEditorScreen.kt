@@ -101,6 +101,8 @@ import io.github.zzpby.tickcount.ui.theme.FieldShape
 import io.github.zzpby.tickcount.ui.theme.hairline
 import io.github.zzpby.tickcount.ui.theme.PillShape
 import io.github.zzpby.tickcount.ui.theme.tintWash
+import io.github.zzpby.tickcount.ui.theme.CardShape
+import io.github.zzpby.tickcount.ui.theme.GlassAlpha
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -170,44 +172,7 @@ fun EventEditorScreen(
     var enteredAsLunar by rememberSaveable(initial.id) { mutableStateOf(initial.enteredAsLunar) }
     var timePickerOpen by rememberSaveable { mutableStateOf(false) }
 
-    // The detail screen's own background. The image is copied into the app's private
-    // directory the moment it is picked, so what travels through [filledIn] is a file
-    // name rather than a content URI that could be revoked.
-    var backgroundName by rememberSaveable(initial.id) { mutableStateOf(initial.backgroundUri) }
-
-    // The manual framing of the background, as the two drag/pinch states the
-    // preview adjusts. Held as state objects rather than delegated vars because
-    // the gesture handler in the preview reads them at event time, not at
-    // composition time — a float captured into the closure there would be stale
-    // towards the end of the very gesture that changed it.
-    val backgroundZoomState = rememberSaveable(initial.id) {
-        mutableFloatStateOf(initial.backgroundZoom)
-    }
-    val backgroundFocusXState = rememberSaveable(initial.id) {
-        mutableFloatStateOf(initial.backgroundFocusX)
-    }
-    val backgroundFocusYState = rememberSaveable(initial.id) {
-        mutableFloatStateOf(initial.backgroundFocusY)
-    }
-
     val context = LocalContext.current
-    val pickBackground = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) {
-            val saved = EventBackgrounds.save(context, initial.id, uri)
-            if (saved != null) {
-                // The previous file is ours to clean up once the new name is in hand.
-                if (backgroundName != null && backgroundName != saved) {
-                    EventBackgrounds.delete(context, backgroundName)
-                }
-                backgroundName = saved
-                // A fresh picture gets the plain cover back: the old framing said
-                // where the old picture's subject sat, and says nothing of this one.
-                backgroundZoomState.floatValue = CountdownEvent.DEFAULT_BACKGROUND_ZOOM
-                backgroundFocusXState.floatValue = CountdownEvent.DEFAULT_BACKGROUND_FOCUS
-                backgroundFocusYState.floatValue = CountdownEvent.DEFAULT_BACKGROUND_FOCUS
-            }
-        }
-    }
 
     // The gallery photos, as the pile the detail page shows. An ArrayList for the
     // same reason the tags are one: it is what a Bundle carries across a rotation.
@@ -274,10 +239,6 @@ fun EventEditorScreen(
         colorHue = hue.takeIf { coloured },
         yearlyRepeat = yearlyRepeat,
         enteredAsLunar = enteredAsLunar,
-        backgroundUri = backgroundName,
-        backgroundZoom = backgroundZoomState.floatValue,
-        backgroundFocusX = backgroundFocusXState.floatValue,
-        backgroundFocusY = backgroundFocusYState.floatValue,
         photoUris = photoNames.toList(),
         photoCover = photoCover?.takeIf { it in photoNames },
         pinned = pinned,
@@ -305,10 +266,6 @@ fun EventEditorScreen(
         hue,
         coloured,
         enteredAsLunar,
-        backgroundName,
-        backgroundZoomState.floatValue,
-        backgroundFocusXState.floatValue,
-        backgroundFocusYState.floatValue,
         photoNames,
         photoCover,
         initial,
@@ -393,11 +350,20 @@ fun EventEditorScreen(
         // Everything below the actions scrolls. On a screen rather than in a dialog, this is
         // the only thing that ever moves: the fields can be as tall as they like, and the
         // screen does not change size underneath them.
+        //
+        // The form is one glass sheet: a dense page of labels and fields cannot
+        // wear halos the way a lone title can, so the whole of it sits on a
+        // single bounded pane over the app's picture — an island, not a film,
+        // with the picture breathing around its edges.
         Column(
             modifier = Modifier
                 .weight(1f)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .clip(CardShape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f))
+                .hairline(CardShape)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 8.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
                 OutlinedTextField(
                     value = title,
@@ -439,7 +405,7 @@ fun EventEditorScreen(
                         .fillMaxWidth()
                         .clip(FieldShape)
                         .clickable { lunarPickerOpen = true }
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                        .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
                         .hairline(FieldShape)
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -565,60 +531,6 @@ fun EventEditorScreen(
                     HueSlider(hue = hue, onHueChange = { hue = it })
                 }
 
-                // The detail screen's own background, picked from the gallery and copied
-                // into the app's private directory — no storage permission, and nothing
-                // the system can take back. Colour is how the countdown is tinted; this
-                // is the picture the detail screen sits on.
-                Spacer(Modifier.height(12.dp))
-                FieldRow(
-                    label = stringResource(R.string.field_background),
-                    value = stringResource(
-                        if (backgroundName != null) R.string.background_set else R.string.background_unset
-                    ),
-                    onClick = { pickBackground.launch("image/*") },
-                )
-                if (backgroundName != null) {
-                    Spacer(Modifier.height(8.dp))
-
-                    // The preview is the detail screen's own drawing, small: the
-                    // same component, the same crop, the same scrim. Drag or pinch
-                    // inside it to say what the big screen frames.
-                    val previewBitmap = remember(backgroundName) {
-                        EventBackgrounds.bitmap(context, backgroundName)
-                    }
-                    BackgroundAdjustPreview(
-                        bitmap = previewBitmap,
-                        zoom = backgroundZoomState,
-                        focusX = backgroundFocusXState,
-                        focusY = backgroundFocusYState,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(R.string.background_adjust_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                    ) {
-                        TextButton(onClick = {
-                            EventBackgrounds.delete(context, backgroundName)
-                            backgroundName = null
-                            backgroundZoomState.floatValue = CountdownEvent.DEFAULT_BACKGROUND_ZOOM
-                            backgroundFocusXState.floatValue = CountdownEvent.DEFAULT_BACKGROUND_FOCUS
-                            backgroundFocusYState.floatValue = CountdownEvent.DEFAULT_BACKGROUND_FOCUS
-                        }) {
-                            Text(
-                                text = stringResource(R.string.action_remove_background),
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        }
-                    }
-                }
-
                 // The gallery photos: several at once from the picker, kept as the
                 // pile the detail page shows. Managed here by thumbnail, because
                 // the pile itself is one thing and one photo is one thing.
@@ -640,12 +552,13 @@ fun EventEditorScreen(
                 )
                 if (photoNames.isNotEmpty()) {
                     Spacer(Modifier.height(10.dp))
-                    // The pile as it will read, the chosen photo on top.
+                    // The pile as it will read, the chosen photo on top —
+                    // first of the list, first of the pile.
                     val pilePreviews = remember(photoNames, photoCover) {
                         val loaded = photoNames.mapNotNull { name ->
                             EventBackgrounds.thumbnail(context, name)?.let { name to it }
                         }
-                        loaded.sortedBy { it.first == photoCover }
+                        loaded.sortedByDescending { it.first == photoCover }
                     }
                     Box(
                         modifier = Modifier.fillMaxWidth(),
@@ -833,7 +746,7 @@ fun EventEditorScreen(
  * the gesture began.
  */
 @Composable
-private fun BackgroundAdjustPreview(
+internal fun BackgroundAdjustPreview(
     bitmap: Bitmap?,
     zoom: MutableFloatState,
     focusX: MutableFloatState,
@@ -865,7 +778,7 @@ private fun BackgroundAdjustPreview(
                 .fillMaxWidth()
                 .height(previewHeight)
                 .clip(FieldShape)
-                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
                 .hairline(FieldShape)
                 .onSizeChanged { viewport = it }
                 .pointerInput(Unit) {
@@ -948,7 +861,7 @@ internal fun PhotoThumb(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
                     .hairline(RoundedCornerShape(8.dp)),
             )
         }
@@ -1072,7 +985,7 @@ internal fun FieldRow(label: String, value: String, onClick: () -> Unit) {
         // The panel colour, not the card colour: a card is white in the white and teal
         // themes, which left the date and time rows as the only white things on a tinted
         // page. This is the tone that moves with the theme.
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth(),
     ) {

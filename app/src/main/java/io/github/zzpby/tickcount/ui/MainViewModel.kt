@@ -1,6 +1,7 @@
 package io.github.zzpby.tickcount.ui
 
 import android.app.Application
+import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
@@ -118,10 +119,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * The old private copies a launch has already turned into references:
-     * `fp-` name → `g:` entry. Kept for the life of the process so that a
-     * footprint editor opened before the migration finished cannot save its
-     * stale snapshot over the converted records — [saveFootprint] replays
-     * this map on whatever comes in.
+     * an `fp-` or `bg-` name → `g:` entry. Kept for the life of the process
+     * so that an editor opened before the migration finished cannot save its
+     * stale snapshot over the converted records — [saveEvent], [saveCapsule]
+     * and [saveFootprint] replay this map on whatever comes in.
      */
     private val convertedCopies = mutableMapOf<String, String>()
 
@@ -141,48 +142,87 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             reschedule()
         }
 
-        // The old world's copies become references on their own: a private
-        // `fp-` file is the same bytes as the album original it came from, so
-        // wherever the album still holds those bytes the record is rewritten
-        // as a reference and the copy deleted. What the album no longer has
-        // keeps its copy untouched — and is tried again on the next launch.
+        // The old world's copies become references on their own, whatever
+        // record they landed in: a private `fp-` or `bg-` file is the same
+        // bytes as the album original it came from, so wherever the album
+        // still holds those bytes the record is rewritten as a reference and
+        // the copy deleted. What the album no longer has keeps its copy
+        // untouched — and is tried again on the next launch.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            viewModelScope.launch { migrateFootprintCopies() }
+            viewModelScope.launch { migrateCopies() }
         }
+
+        // The one-time hand-over: a countdown's background becomes the app's
+        // own, if any countdown still carries one.
+        viewModelScope.launch(Dispatchers.IO) { adoptLegacyBackground() }
     }
 
     /**
-     * One quiet pass over the footprint copies. Records are rewritten before
-     * any file is deleted, so the worst an interruption can leave behind is a
-     * copy no record points at — harmless — and never a record pointing at a
-     * deleted file.
+     * One quiet pass over the private copies of every kind — footprints,
+     * countdown photos, capsule photos. Records are rewritten before any file
+     * is deleted, so the worst an interruption can leave behind is a copy no
+     * record points at — harmless — and never a record pointing at a deleted
+     * file. A countdown's background stays a copy on purpose: it is a
+     * cropped, scaled derivative, and no album original is exactly that.
      */
-    private suspend fun migrateFootprintCopies() {
+    private suspend fun migrateCopies() {
         val app = getApplication<Application>()
-        val pending = _footprints.value
-            .flatMap { it.photos }
-            .filter { it.startsWith("fp-") && it !in convertedCopies }
+        val pending = (
+                _footprints.value.flatMap { it.photos } +
+                    _events.value.flatMap { it.photoUris } +
+                    _capsules.value.flatMap { it.photos }
+                )
+            .filter { (it.startsWith("fp-") || it.startsWith("bg-")) && it !in convertedCopies }
             .distinct()
         if (pending.isEmpty()) return
 
         val found = withContext(Dispatchers.IO) {
             pending.mapNotNull { name ->
-                val file = FootprintMedia.file(app, name) ?: return@mapNotNull null
+                val file = when {
+                    name.startsWith("fp-") -> FootprintMedia.file(app, name)
+                    else -> EventBackgrounds.file(app, name)
+                } ?: return@mapNotNull null
                 GalleryMedia.refFromFile(app, file)?.let { name to it }
             }.toMap()
         }
         if (found.isEmpty()) return
         found.forEach { (from, to) -> convertedCopies[from] = to }
 
-        val updated = _footprints.value.map { footprint ->
-            footprint.copy(photos = footprint.photos.map { convertedCopies[it] ?: it })
+        val remap: (String) -> String = { convertedCopies[it] ?: it }
+
+        val footprints = _footprints.value.map { it.copy(photos = it.photos.map(remap)) }
+        if (footprints != _footprints.value) {
+            _footprints.value = footprints
+            footprintStore.save(footprints)
         }
-        _footprints.value = updated
-        footprintStore.save(updated)
+
+        val events = _events.value.map { event ->
+            if (event.photoUris.none { it in convertedCopies }) {
+                event
+            } else {
+                event.copy(
+                    photoUris = event.photoUris.map(remap),
+                    photoCover = event.photoCover?.let { convertedCopies[it] ?: it },
+                )
+            }
+        }
+        if (events != _events.value) persist(events)
+
+        val capsules = _capsules.value.map { capsule ->
+            if (capsule.photos.none { it in convertedCopies }) capsule
+            else capsule.copy(photos = capsule.photos.map(remap))
+        }
+        if (capsules != _capsules.value) {
+            _capsules.value = capsules
+            capsuleStore.save(capsules)
+        }
 
         // Only now, with the records safely pointing into the album.
         withContext(Dispatchers.IO) {
-            found.keys.forEach { FootprintMedia.delete(app, it) }
+            found.keys.forEach { name ->
+                if (name.startsWith("fp-")) FootprintMedia.delete(app, name)
+                else EventBackgrounds.delete(app, name)
+            }
         }
     }
 
@@ -194,7 +234,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun onGalleryPermissionGranted() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            viewModelScope.launch { migrateFootprintCopies() }
+            viewModelScope.launch { migrateCopies() }
         }
     }
 
@@ -213,11 +253,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Adds [event], or replaces the stored one carrying the same id. */
     fun saveEvent(event: CountdownEvent) {
-        val index = _events.value.indexOfFirst { it.id == event.id }
-        val updated = if (index >= 0) {
-            _events.value.toMutableList().also { it[index] = event }
+        // An editor opened before the launch migration finished holds a
+        // snapshot from before its copies became references; replaying the
+        // conversion keeps that late save from resurrecting a deleted file's
+        // name.
+        val current = if (convertedCopies.isEmpty() || event.photoUris.none { it in convertedCopies }) {
+            event
         } else {
-            _events.value + event
+            event.copy(
+                photoUris = event.photoUris.map { convertedCopies[it] ?: it },
+                photoCover = event.photoCover?.let { convertedCopies[it] ?: it },
+            )
+        }
+        val index = _events.value.indexOfFirst { it.id == current.id }
+        val updated = if (index >= 0) {
+            _events.value.toMutableList().also { it[index] = current }
+        } else {
+            _events.value + current
         }
         persist(updated)
     }
@@ -440,6 +492,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // refresh inside persist() ran before they were saved.
         refreshAllWidgets(getApplication())
         restoreVoiceLetters(capsules, backup.voices)
+        // An older backup carries its backgrounds on the countdowns; the
+        // hand-over runs again so the first of them becomes the app's own.
+        adoptLegacyBackground()
 
         return events.size
     }
@@ -520,11 +575,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Adds a capsule, or replaces the stored one carrying the same id. */
     fun saveCapsule(capsule: TimeCapsule) {
-        val index = _capsules.value.indexOfFirst { it.id == capsule.id }
-        val updated = if (index >= 0) {
-            _capsules.value.toMutableList().also { it[index] = capsule }
+        // The same late-save guard as an event's: a letter being edited
+        // while its photos become references must not write the old copy
+        // names back over the conversion.
+        val current = if (convertedCopies.isEmpty() || capsule.photos.none { it in convertedCopies }) {
+            capsule
         } else {
-            _capsules.value + capsule
+            capsule.copy(photos = capsule.photos.map { convertedCopies[it] ?: it })
+        }
+        val index = _capsules.value.indexOfFirst { it.id == current.id }
+        val updated = if (index >= 0) {
+            _capsules.value.toMutableList().also { it[index] = current }
+        } else {
+            _capsules.value + current
         }
         _capsules.value = updated
         capsuleStore.save(updated)
@@ -609,6 +672,86 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun chooseTheme(preset: ThemePreset) {
         updateSettings(_settings.value.copy(preset = preset))
+    }
+
+    /**
+     * The picture the whole app sits on: the picked image is copied into the
+     * app's own ground (nothing the system can revoke), the previous one is
+     * let go, and the framing starts at its plain cover — a fresh picture
+     * says nothing about where its subject sat in the last one.
+     */
+    fun pickAppBackground(uri: Uri) {
+        val saved = EventBackgrounds.save(getApplication(), "app", uri) ?: return
+        val previous = _settings.value.appBackground
+        if (previous != null && previous != saved) {
+            EventBackgrounds.delete(getApplication(), previous)
+        }
+        updateSettings(
+            _settings.value.copy(
+                appBackground = saved,
+                appBackgroundZoom = CountdownEvent.DEFAULT_BACKGROUND_ZOOM,
+                appBackgroundFocusX = CountdownEvent.DEFAULT_BACKGROUND_FOCUS,
+                appBackgroundFocusY = CountdownEvent.DEFAULT_BACKGROUND_FOCUS,
+            )
+        )
+    }
+
+    /** The app's own background off; its file goes with the choice. */
+    fun clearAppBackground() {
+        val previous = _settings.value.appBackground ?: return
+        EventBackgrounds.delete(getApplication(), previous)
+        updateSettings(
+            _settings.value.copy(
+                appBackground = null,
+                appBackgroundZoom = CountdownEvent.DEFAULT_BACKGROUND_ZOOM,
+                appBackgroundFocusX = CountdownEvent.DEFAULT_BACKGROUND_FOCUS,
+                appBackgroundFocusY = CountdownEvent.DEFAULT_BACKGROUND_FOCUS,
+            )
+        )
+    }
+
+    /** Where the app's background is framed, as the appearance preview set it. */
+    fun frameAppBackground(zoom: Float, focusX: Float, focusY: Float) {
+        updateSettings(
+            _settings.value.copy(
+                appBackgroundZoom = zoom,
+                appBackgroundFocusX = focusX,
+                appBackgroundFocusY = focusY,
+            )
+        )
+    }
+
+    /**
+     * The background stopped belonging to a countdown and became the app's
+     * own. The first countdown that still carries one hands it over — its
+     * picture, its framing — and every other lets its file go; the records
+     * are rewritten bare so the pass never has anything to do again. Old
+     * backups restore with backgrounds on their countdowns, so the pass also
+     * runs after an import.
+     */
+    private fun adoptLegacyBackground() {
+        if (_settings.value.appBackground != null) return
+        val first = _events.value.firstOrNull { it.backgroundUri != null } ?: return
+        val adopted = first.backgroundUri!!
+        val adoptedZoom = first.backgroundZoom
+        val adoptedFocusX = first.backgroundFocusX
+        val adoptedFocusY = first.backgroundFocusY
+
+        updateSettings(
+            _settings.value.copy(
+                appBackground = adopted,
+                appBackgroundZoom = adoptedZoom,
+                appBackgroundFocusX = adoptedFocusX,
+                appBackgroundFocusY = adoptedFocusY,
+            )
+        )
+        val app = getApplication<Application>()
+        val stripped = _events.value.map { event ->
+            val name = event.backgroundUri ?: return@map event
+            if (name != adopted) EventBackgrounds.delete(app, name)
+            event.copy(backgroundUri = null)
+        }
+        if (stripped != _events.value) persist(stripped)
     }
 
     /**

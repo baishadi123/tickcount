@@ -40,8 +40,10 @@ fun PhotoStack(
 ) {
     if (photos.isEmpty()) return
 
-    // The back of the pile first, so the front lands on top in the Box.
-    val visible = photos.takeLast(VISIBLE_LAYERS).asReversed()
+    // The pile's front is the list's first photo — it is drawn last, so it
+    // lands square on top; the photos behind it fall in behind it, in order,
+    // and a pile deeper than four layers shows its first four.
+    val visible = photos.take(VISIBLE_LAYERS).asReversed()
 
     Box(
         modifier = modifier

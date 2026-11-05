@@ -72,6 +72,7 @@ import io.github.zzpby.tickcount.domain.ChinaOutline
 import io.github.zzpby.tickcount.domain.ChinaProvinces
 import io.github.zzpby.tickcount.ui.components.ChevronIcon
 import io.github.zzpby.tickcount.ui.components.GlobeIcon
+import io.github.zzpby.tickcount.ui.components.dialogWindowGuard
 import io.github.zzpby.tickcount.ui.theme.hairline
 import io.github.zzpby.tickcount.ui.theme.isDarkScheme
 import org.osmdroid.config.Configuration
@@ -662,6 +663,7 @@ fun MapPickerDialog(
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             modifier = Modifier
+                .dialogWindowGuard()
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface),
         ) {

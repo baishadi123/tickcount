@@ -119,6 +119,17 @@ object EventBackgrounds {
     }
 
     /**
+     * The stored copy called [name], when it is ours and still on disk — the
+     * handle the launch migration reads bytes from while matching the copy
+     * back to the album original it came from.
+     */
+    fun file(context: Context, name: String): File? {
+        if (!isOurs(name)) return null
+        val file = File(dir(context), name)
+        return if (file.isFile) file else null
+    }
+
+    /**
      * The same picture, sampled down to at most [maxEdge] on its long side.
      *
      * The full decode is what the detail screen's one big backdrop wants; a stack

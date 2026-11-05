@@ -46,6 +46,8 @@ import io.github.zzpby.tickcount.ui.theme.Gutter
 import io.github.zzpby.tickcount.ui.theme.PillShape
 import io.github.zzpby.tickcount.ui.theme.hairline
 import io.github.zzpby.tickcount.ui.theme.tintWash
+import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.textHalo
 import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
@@ -116,7 +118,7 @@ fun NotificationsScreen(
         Spacer(Modifier.height(8.dp))
         Text(
             text = stringResource(R.string.settings_notifications),
-            style = MaterialTheme.typography.displaySmall,
+            style = MaterialTheme.typography.displaySmall.copy(shadow = textHalo()),
             color = MaterialTheme.colorScheme.onSurface,
         )
 
@@ -188,7 +190,7 @@ fun NotificationsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(CardShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
                     .hairline(CardShape)
                     .padding(horizontal = 18.dp, vertical = 14.dp),
             ) {

@@ -17,13 +17,19 @@
       one at draw time. The unprefixed names below are what the layout and the picker's
       preview start from, and they follow the device as they always have.
     -->
-    <color name="widget_light_background">#FFFFFFFF</color>
-    <color name="widget_light_outline">#FFE3DED3</color>
-    <color name="widget_light_text_primary">#FF1C1B18</color>
-    <color name="widget_light_text_secondary">#FF6F6A60</color>
-
-    <color name="widget_dark_background">#FF1D1C19</color>
-    <color name="widget_dark_outline">#FF352F28</color>
+    <!-- The panel itself is drawn at 80% (the app's own GlassAlpha), so the
+     wallpaper shows through the widget the way the app's picture shows
+     through its cards. -->
+<!-- The values below are the same numbers as PaperSurfaces / DarkSurfaces in
+     ui/theme/Schemes.kt — the widget cannot run Compose, so the palette is
+     spelled out twice, and these must move together with it. The outline is
+     outlineVariant there, the one the app's own card hairlines use. -->
+<color name="widget_light_background">#CCFFFFFF</color>
+<color name="widget_light_outline">#FFEFEBE2</color>
+<color name="widget_light_text_primary">#FF1C1B18</color>
+<color name="widget_light_text_secondary">#FF6F6A60</color>
+<color name="widget_dark_background">#CC1D1C19</color>
+<color name="widget_dark_outline">#FF2A2622</color>
     <color name="widget_dark_text_primary">#FFF3F1EA</color>
     <color name="widget_dark_text_secondary">#FFA8A296</color>
 

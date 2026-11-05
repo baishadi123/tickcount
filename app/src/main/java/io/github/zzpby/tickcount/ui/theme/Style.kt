@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.unit.dp
 import io.github.zzpby.tickcount.R
 
@@ -42,6 +43,17 @@ val Gutter = 20.dp
 val CardGap = 10.dp
 
 /**
+ * How much of a card's own surface colour is actually drawn.
+ *
+ * The rest of the pane lets the app's background picture through, which is
+ * what makes the cards read as glass laid on the picture rather than paint
+ * laid over it — frosted by translucency, since the toolkit cannot blur what
+ * sits behind a card. The hairline each card already carries is the pane's
+ * edge.
+ */
+const val GlassAlpha = 0.80f
+
+/**
  * The one-pixel outline a card carries.
  *
  * A function rather than a constant so it follows the scheme, and so a card can pass a
@@ -62,3 +74,18 @@ fun Modifier.hairline(
  */
 @Composable
 fun tintWash() = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+
+/**
+ * The halo every piece of naked text wears over the app's background picture:
+ * a soft glow of the page's own colour, so dark ink stands off a dark
+ * photograph and light ink off a light one — the page colour is already the
+ * opposite tone of the page's own ink, which is exactly the pair needed.
+ *
+ * The voyage's star names have worn the fixed-colour original of this since
+ * they were first drawn; this is that idea, following the theme.
+ */
+@Composable
+fun textHalo(): Shadow = Shadow(
+    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+    blurRadius = 16f,
+)

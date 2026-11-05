@@ -2,9 +2,7 @@ package io.github.zzpby.tickcount.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -16,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.zzpby.tickcount.R
+import androidx.compose.ui.graphics.Color
 import io.github.zzpby.tickcount.data.AppLanguage
 
 /**
@@ -37,10 +36,14 @@ fun SettingsScreen(
     onSelect: (AppScreen) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // The page itself carries nothing: the app's picture is the page, the
+    // same as home, and the rows and sections on it are the glass. A page-wide
+    // translucent fill was tried and read as a dirty film over everything.
     Surface(
         modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.surface,
+        color = Color.Transparent,
     ) {
+        // Top to bottom, each row against the next: a menu, not a mosaic.
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -52,16 +55,15 @@ fun SettingsScreen(
                 trailing = stringResource(language.labelRes),
                 selected = false,
                 onClick = onLanguage,
+                rowOwnsPane = true,
             )
 
-            Spacer(Modifier.height(GroupSpacing))
-
             AppScreen.entries.filter { it.inSettings }.forEach { screen ->
-                if (screen.startsGroup) Spacer(Modifier.height(GroupSpacing))
                 DrawerRow(
                     label = stringResource(screen.labelRes),
                     selected = screen == current,
                     onClick = { onSelect(screen) },
+                    rowOwnsPane = true,
                 )
             }
         }

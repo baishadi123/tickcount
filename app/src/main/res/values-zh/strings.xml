@@ -124,7 +124,7 @@
     <string name="field_opens">封存到哪一天</string>
     <string name="capsule_exit_hint">轻触任意处离开</string>
     <string name="field_title">标题</string>
-    <string name="field_background">详情页背景</string>
+    <string name="field_background">背景图</string>
     <string name="background_set">已设置</string>
     <string name="background_unset">未设置</string>
     <string name="action_remove_background">移除背景</string>
@@ -168,7 +168,6 @@
     <!-- 下面小字的年月日换算：与上方的总天数出自同一段距离，满一年带年，满一月带月 -->
     <string name="detail_days">%1$d天</string>
     <string name="detail_days_unit">天</string>
-    <string name="detail_row_repeat">重复</string>
     <string name="detail_repeat_lunar">每年 · 农历</string>
     <string name="detail_repeat_solar">每年 · 公历</string>
     <string name="period_ymd">%1$d年%2$d个月%3$d天</string>
@@ -265,7 +264,8 @@
     <string name="appearance_custom_hue">拖动选择色相</string>
     <string name="appearance_custom_hint">拖的时候整个应用会立刻换色，这个画面就是预览。</string>
     <string name="appearance_surfaces">各层深浅</string>
-    <string name="appearance_background">页面底色</string>
+    <string name="appearance_background">应用背景</string>
+    <string name="appearance_surface_page">页面底色</string>
     <string name="appearance_panel">面板</string>
     <string name="appearance_card">卡片</string>
     <!-- 桌面小组件自己的外观，和应用主题分开 -->

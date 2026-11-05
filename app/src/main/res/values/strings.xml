@@ -105,7 +105,7 @@
     <string name="field_opens">Sealed until</string>
     <string name="capsule_exit_hint">Tap anywhere to leave</string>
     <string name="field_title">Title</string>
-    <string name="field_background">Detail background</string>
+    <string name="field_background">Background</string>
     <string name="background_set">Set</string>
     <string name="background_unset">Not set</string>
     <string name="action_remove_background">Remove background</string>
@@ -156,7 +156,6 @@
     <!-- The bottom line reads the same distance as a date; the big count keeps the days. -->
     <string name="detail_days">%1$d days</string>
     <string name="detail_days_unit">days</string>
-    <string name="detail_row_repeat">Repeat</string>
     <string name="detail_repeat_lunar">Yearly · lunar</string>
     <string name="detail_repeat_solar">Yearly · solar</string>
     <string name="period_ymd">%1$d years %2$d months %3$d days</string>
@@ -280,7 +279,8 @@
     <string name="appearance_custom_hue">Pick a hue</string>
     <string name="appearance_custom_hint">The whole app repaints as you drag, so this screen is the preview.</string>
     <string name="appearance_surfaces">Surface levels</string>
-    <string name="appearance_background">Page background</string>
+    <string name="appearance_background">App background</string>
+    <string name="appearance_surface_page">Page</string>
     <string name="appearance_panel">Panels</string>
     <string name="appearance_card">Cards</string>
     <!-- The home-screen widgets' own appearance, separate from the theme above. -->
@@ -362,7 +362,7 @@
       every language — so these live here only and are deliberately absent from
       values-zh rather than duplicated.
     -->
-    <string name="about_link_url" translatable="false">https://github.com/ZZPBY/tickcount</string>
+    <string name="about_link_url" translatable="false">https://github.com/baishadi123/tickcount</string>
 
     <!--
       Home-screen widget. The name shown in the widget picker comes from app_name

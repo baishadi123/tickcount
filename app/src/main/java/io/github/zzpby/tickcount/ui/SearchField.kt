@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.zzpby.tickcount.R
+import io.github.zzpby.tickcount.ui.theme.GlassAlpha
 import io.github.zzpby.tickcount.domain.SearchScope
 import io.github.zzpby.tickcount.ui.components.SearchIcon
 import io.github.zzpby.tickcount.ui.components.ChevronIcon
@@ -82,8 +83,8 @@ fun SearchField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = MaterialTheme.colorScheme.primary,
             unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha),
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha),
             cursorColor = MaterialTheme.colorScheme.primary,
         ),
         modifier = modifier.fillMaxWidth(),

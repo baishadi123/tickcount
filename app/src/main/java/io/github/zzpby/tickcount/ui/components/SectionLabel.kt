@@ -8,18 +8,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import io.github.zzpby.tickcount.ui.theme.textHalo
 
 /**
  * A small heading over one group of settings, and the gap that belongs under it.
  *
  * The gap is part of the label so that every group starts the same distance from its
  * heading; a caller that added its own would be a caller free to make it different.
+ * It sits on the app's picture with nothing under it, so it wears the halo.
  */
 @Composable
 fun SectionLabel(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.titleSmall,
+        style = MaterialTheme.typography.titleSmall.copy(shadow = textHalo()),
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )

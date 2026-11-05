@@ -20,19 +20,17 @@ import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.data.CountdownEvent
 import io.github.zzpby.tickcount.data.TimeCapsule
 import io.github.zzpby.tickcount.data.Wish
-import io.github.zzpby.tickcount.domain.SearchScope
 import io.github.zzpby.tickcount.domain.SortOrder
 import io.github.zzpby.tickcount.domain.countdownList
 import io.github.zzpby.tickcount.domain.dayNumberOf
 import io.github.zzpby.tickcount.domain.effectiveDate
-import io.github.zzpby.tickcount.domain.matchesQuery
-import io.github.zzpby.tickcount.domain.searchText
 import io.github.zzpby.tickcount.ui.calendar.MonthCalendar
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.CardGap
 import io.github.zzpby.tickcount.ui.theme.CardShape
 import io.github.zzpby.tickcount.ui.theme.hairline
 import io.github.zzpby.tickcount.ui.theme.tintWash
+import io.github.zzpby.tickcount.ui.theme.GlassAlpha
 import java.time.LocalDate
 import java.time.YearMonth
 import androidx.compose.foundation.Canvas
@@ -78,12 +76,8 @@ fun CalendarScreen(
     anniversaryDate: LocalDate?,
     /** The milestone days from that anniversary, by the day number they land on. */
     milestonesByDate: Map<LocalDate, Long>,
-    query: String,
-    onQueryChange: (String) -> Unit,
-    scope: SearchScope,
-    onScopeChange: (SearchScope) -> Unit,
+    /** The order the day's cards read in, following whatever the home list is set to. */
     sortOrder: SortOrder,
-    onSortChange: (SortOrder) -> Unit,
     onSelectDate: (LocalDate) -> Unit,
     onStepMonth: (Long) -> Unit,
     onMonthClick: () -> Unit,
@@ -121,39 +115,10 @@ fun CalendarScreen(
             return@Column
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            SearchField(
-                query = query,
-                onQueryChange = onQueryChange,
-                scope = scope,
-                onScopeChange = onScopeChange,
-                modifier = Modifier.weight(1f),
-            )
-            Spacer(Modifier.width(8.dp))
-            SortButton(current = sortOrder, onPick = onSortChange)
-        }
-
+        // A tapped day shows everything the day holds, plainly: a search
+        // filter over one day's handful of cards asked a question nobody had,
+        // and the searching that matters happens on the home list.
         val entries = countdownList(eventsByDate[selectedDate].orEmpty(), today, sortOrder)
-        val visible = entries.filter { entry ->
-            matchesQuery(
-                haystack = searchText(
-                    event = entry.event,
-                    scope = scope,
-                    // Every card here is the same date, so the line under the name
-                    // carries the time instead — the date is the grid above. The date
-                    // a repeating countdown is searched by is its next occurrence, the
-                    // same day its card counts to.
-                    dateText = entry.event.effectiveDate(today).format(dateFormatter),
-                    timeText = entry.event.time?.format(timeFormatter) ?: allDay,
-                ),
-                query = query,
-            )
-        }
 
         val dayCapsules = capsulesByDate[selectedDate].orEmpty()
         val dayWishes = wishesByDate[selectedDate].orEmpty()
@@ -170,11 +135,6 @@ fun CalendarScreen(
             when {
                 entries.isEmpty() && !dayHasMore ->
                     CentredNotice(stringResource(R.string.calendar_day_empty))
-
-                visible.isEmpty() && !dayHasMore ->
-                    CentredNotice(
-                        stringResource(R.string.home_no_matches, query.trim())
-                    )
 
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -198,7 +158,7 @@ fun CalendarScreen(
                             MilestoneRow(day = dayMilestone)
                         }
                     }
-                    items(visible, key = { it.event.id }) { entry ->
+                    items(entries, key = { it.event.id }) { entry ->
                         EventCard(
                             entry = entry,
                             today = today,
@@ -238,7 +198,7 @@ private fun CapsuleDayRow(capsule: TimeCapsule, onClick: () -> Unit) {
             .fillMaxWidth()
             .padding(vertical = CardGap / 2)
             .clip(CardShape)
-            .background(scheme.surfaceContainerHigh)
+            .background(scheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
             .hairline(CardShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -294,7 +254,7 @@ private fun WishDayRow(wish: Wish, onClick: () -> Unit) {
             .fillMaxWidth()
             .padding(vertical = CardGap / 2)
             .clip(CardShape)
-            .background(scheme.surfaceContainerHigh)
+            .background(scheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
             .hairline(CardShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -419,7 +379,7 @@ private fun SetAnniversaryRow(onSet: () -> Unit) {
             .fillMaxWidth()
             .padding(vertical = CardGap / 2)
             .clip(CardShape)
-            .background(scheme.surfaceContainerHigh)
+            .background(scheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
             .hairline(CardShape)
             .clickable(onClick = onSet)
             .padding(horizontal = 16.dp, vertical = 12.dp),

@@ -1,5 +1,6 @@
 package io.github.zzpby.tickcount.ui
 
+import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -10,11 +11,13 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -43,6 +47,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
@@ -54,6 +60,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.data.AppLanguage
 import io.github.zzpby.tickcount.data.CountdownEvent
+import io.github.zzpby.tickcount.data.EventBackgrounds
+import io.github.zzpby.tickcount.ui.components.BackgroundCrop
 import io.github.zzpby.tickcount.domain.SearchScope
 import io.github.zzpby.tickcount.domain.SortOrder
 import io.github.zzpby.tickcount.domain.solarLunarDay
@@ -64,9 +72,11 @@ import io.github.zzpby.tickcount.ui.components.EditIcon
 import io.github.zzpby.tickcount.ui.components.PlusIcon
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.XingKai
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 /** Sentinel for "no day chosen", which is not a valid epoch day. */
@@ -136,15 +146,12 @@ fun TickCountApp(
     var pendingBatch by remember { mutableStateOf<List<CountdownEvent>?>(null) }
 
     // Held here rather than in the screens so that opening a countdown and coming
-    // back leaves the search as it was. The calendar keeps its own, because it is
-    // searching a different list.
+    // back leaves the search as it was. The calendar no longer keeps one — a
+    // tapped day shows everything it holds, plainly.
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var searchScopeName by rememberSaveable { mutableStateOf(SearchScope.NAME.name) }
-    var calendarQuery by rememberSaveable { mutableStateOf("") }
-    var calendarScopeName by rememberSaveable { mutableStateOf(SearchScope.NAME.name) }
 
     val searchScope = remember(searchScopeName) { searchScopeName.toScope() }
-    val calendarScope = remember(calendarScopeName) { calendarScopeName.toScope() }
 
     // The editor is described by what it was opened for, not by a copy of the
     // countdown: an id for an existing one, or a day for a new one.
@@ -340,8 +347,59 @@ fun TickCountApp(
     val uriHandler = LocalUriHandler.current
     val linkUrl = stringResource(R.string.about_link_url)
 
+    // The app's own picture, under every screen: decoded once, framed as the
+    // appearance page set it, and shown as it is — no wash over it, the photo
+    // is the app's colour. Every screen's own colouring is either translucent
+    // over it or a card on it, so one layer here is the whole app's background.
+    val context = LocalContext.current
+    val appBackgroundName = settings.appBackground
+    val appBackground by produceState<Bitmap?>(null, appBackgroundName) {
+        if (appBackgroundName != null) {
+            value = withContext(Dispatchers.IO) {
+                EventBackgrounds.bitmap(context, appBackgroundName)
+            }
+        }
+    }
+
+    // A rightward drag on the page opens the drawer — the same hand movement
+    // the menu button stands in for. The gesture rides the scaffold itself
+    // rather than a layer over it, so every button and list beneath it keeps
+    // first claim on its own touches; only a horizontal drag the content does
+    // not want falls through to the drawer. Not at the screen's edge, which
+    // belongs to the system's back gesture; and only where the menu button
+    // is: not on the voyage's sky, not inside a countdown, an editor or a
+    // settings page, where a swipe belongs to the content or to going back.
+    val drawerByDrag = !drawerOpen && screen != AppScreen.VOYAGE && detailEvent == null &&
+        !editorOpen && !wishEditorOpen && !capsuleEditorOpen && !footprintEditorOpen &&
+        !screen.inSettings
+    var edgeDrag by remember { mutableStateOf(0f) }
+
     Box(modifier = Modifier.fillMaxSize()) {
+        if (appBackground != null) {
+            BackgroundCrop(
+                bitmap = appBackground!!,
+                zoom = settings.appBackgroundZoom,
+                focusX = settings.appBackgroundFocusX,
+                focusY = settings.appBackgroundFocusY,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         Scaffold(
+            containerColor = Color.Transparent,
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(drawerByDrag) {
+                    if (!drawerByDrag) return@pointerInput
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            if (edgeDrag > 40.dp.toPx()) drawerOpen = true
+                            edgeDrag = 0f
+                        },
+                    ) { change, dragAmount ->
+                        change.consume()
+                        edgeDrag += dragAmount
+                    }
+                },
             topBar = {
                 // The voyage page is the sky itself: no bar over it, the system
                 // bars hidden by the screen, the back key the way out. A
@@ -592,12 +650,7 @@ fun TickCountApp(
                         wishesByDate = wishesByDate,
                         anniversaryDate = anniversaryDate,
                         milestonesByDate = milestonesByDate,
-                        query = calendarQuery,
-                        onQueryChange = { calendarQuery = it },
-                        scope = calendarScope,
-                        onScopeChange = { calendarScopeName = it.name },
                         sortOrder = settings.sortOrder,
-                        onSortChange = viewModel::chooseSortOrder,
                         onSelectDate = { calendarEpochDay = it.toEpochDay() },
                         onStepMonth = viewModel::stepMonth,
                         onMonthClick = { monthPickerOpen = true },
@@ -635,6 +688,9 @@ fun TickCountApp(
                         settings = settings,
                         onPreset = viewModel::chooseTheme,
                         onCustomHue = viewModel::chooseCustomHue,
+                        onPickBackground = viewModel::pickAppBackground,
+                        onClearBackground = viewModel::clearAppBackground,
+                        onFrameBackground = viewModel::frameAppBackground,
                     )
 
                     screen == AppScreen.WIDGETS -> WidgetSettingsScreen(
@@ -684,17 +740,34 @@ fun TickCountApp(
             enter = slideInHorizontally { -it },
             exit = slideOutHorizontally { -it },
         ) {
-            AppDrawerContent(
-                // Nothing is highlighted while a countdown's own screen is open,
-                // because that screen belongs to no drawer entry.
-                current = if (detailEvent == null) screen else null,
-                onSelect = { picked ->
-                    screenName = picked.name
-                    detailId = null
-                    drawerOpen = false
+            // The panel answers the mirror gesture: dragged left, it leaves —
+            // a tap still works, and so does the scrim behind.
+            var panelDrag by remember { mutableStateOf(0f) }
+            Box(
+                modifier = Modifier.pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            if (panelDrag < -40.dp.toPx()) drawerOpen = false
+                            panelDrag = 0f
+                        },
+                    ) { change, dragAmount ->
+                        change.consume()
+                        panelDrag += dragAmount
+                    }
                 },
-                modifier = Modifier.fillMaxWidth(0.5f),
-            )
+            ) {
+                AppDrawerContent(
+                    // Nothing is highlighted while a countdown's own screen is open,
+                    // because that screen belongs to no drawer entry.
+                    current = if (detailEvent == null) screen else null,
+                    onSelect = { picked ->
+                        screenName = picked.name
+                        detailId = null
+                        drawerOpen = false
+                    },
+                    modifier = Modifier.fillMaxWidth(0.5f),
+                )
+            }
         }
 
         // The launch page: the mark the launcher wears, and under it the line the

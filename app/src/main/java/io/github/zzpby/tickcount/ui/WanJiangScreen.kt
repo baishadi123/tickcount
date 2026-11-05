@@ -91,6 +91,7 @@ import io.github.zzpby.tickcount.ui.components.CloseIcon
 import io.github.zzpby.tickcount.ui.components.EditIcon
 import io.github.zzpby.tickcount.ui.components.MapIcon
 import io.github.zzpby.tickcount.ui.components.TrashIcon
+import io.github.zzpby.tickcount.ui.components.dialogWindowGuard
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.components.rememberGalleryReadRequest
 import io.github.zzpby.tickcount.ui.theme.CardGap
@@ -98,6 +99,8 @@ import io.github.zzpby.tickcount.ui.theme.CardShape
 import io.github.zzpby.tickcount.ui.theme.Gutter
 import io.github.zzpby.tickcount.ui.theme.XingKai
 import io.github.zzpby.tickcount.ui.theme.hairline
+import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.textHalo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -230,7 +233,7 @@ fun WanJiangScreen(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.drawer_wanjiiang),
-                    style = MaterialTheme.typography.displaySmall,
+                    style = MaterialTheme.typography.displaySmall.copy(shadow = textHalo()),
                     fontFamily = XingKai,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -553,7 +556,7 @@ private fun MediaCell(name: String, footprintId: String, onOpen: () -> Unit) {
             .padding(vertical = 3.dp)
             .size(104.dp)
             .clip(CardShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
             .hairline(CardShape)
             .clickable(onClick = onOpen),
     ) {
@@ -612,6 +615,7 @@ private fun MediaViewer(photos: List<String>, initialPhoto: String, onDismiss: (
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(
             modifier = Modifier
+                .dialogWindowGuard()
                 .fillMaxSize()
                 .background(Color.Black),
         ) {
@@ -890,7 +894,7 @@ fun FootprintEditorScreen(
                 .fillMaxWidth()
                 .clip(CardShape)
                 .clickable { datePickerOpen = true }
-                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
                 .hairline(CardShape)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
         ) {
@@ -923,7 +927,7 @@ fun FootprintEditorScreen(
                         )
                     }
                 }
-                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
                 .hairline(CardShape)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
         ) {
@@ -956,7 +960,7 @@ fun FootprintEditorScreen(
                 .fillMaxWidth()
                 .clip(CardShape)
                 .clickable { mapPickerOpen = true }
-                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
                 .hairline(CardShape)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -987,7 +991,7 @@ fun FootprintEditorScreen(
                         )
                     }
                 }
-                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
                 .hairline(CardShape)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -1024,7 +1028,7 @@ fun FootprintEditorScreen(
                         modifier = Modifier
                             .size(72.dp)
                             .clip(CardShape)
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
                             .hairline(CardShape)
                             .clickable {
                                 FootprintMedia.delete(context, name)

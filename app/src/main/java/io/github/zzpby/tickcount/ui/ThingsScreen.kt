@@ -52,6 +52,8 @@ import io.github.zzpby.tickcount.ui.theme.Gutter
 import io.github.zzpby.tickcount.ui.theme.PillShape
 import io.github.zzpby.tickcount.ui.theme.XingKai
 import io.github.zzpby.tickcount.ui.theme.hairline
+import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.textHalo
 import java.time.LocalDate
 
 /**
@@ -86,7 +88,7 @@ fun ThingsScreen(
         ) {
             Text(
                 text = stringResource(R.string.page_things),
-                style = MaterialTheme.typography.displaySmall,
+                style = MaterialTheme.typography.displaySmall.copy(shadow = textHalo()),
                 fontFamily = XingKai,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -164,7 +166,7 @@ private fun WishCard(
             .fillMaxWidth()
             .padding(vertical = CardGap / 2)
             .clip(CardShape)
-            .background(scheme.surfaceContainerHigh)
+            .background(scheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
             .hairline(CardShape)
             .combinedClickable(
                 onClick = { if (!wish.done) onToggle() },

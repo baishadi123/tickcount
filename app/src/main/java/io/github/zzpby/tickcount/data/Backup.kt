@@ -154,6 +154,10 @@ object BackupCodec {
         .put("language", settings.language.name)
         .put("widgetPanel", settings.widgetPanel.name)
         .put("widgetTextSize", settings.widgetTextSize.name)
+        .put("appBackground", settings.appBackground ?: "")
+        .put("appBackgroundZoom", settings.appBackgroundZoom.toDouble())
+        .put("appBackgroundFocusX", settings.appBackgroundFocusX.toDouble())
+        .put("appBackgroundFocusY", settings.appBackgroundFocusY.toDouble())
 
     private fun settingsFromJson(json: JSONObject): AppSettings = AppSettings(
         preset = json.optString("theme").toEnum(ThemePreset.entries, AppSettings().preset),
@@ -164,6 +168,19 @@ object BackupCodec {
             .toEnum(WidgetPanel.entries, AppSettings().widgetPanel),
         widgetTextSize = json.optString("widgetTextSize")
             .toEnum(WidgetTextSize.entries, AppSettings().widgetTextSize),
+        appBackground = json.optString("appBackground").takeIf { it.isNotEmpty() },
+        appBackgroundZoom = json.optDouble(
+            "appBackgroundZoom",
+            CountdownEvent.DEFAULT_BACKGROUND_ZOOM.toDouble(),
+        ).toFloat(),
+        appBackgroundFocusX = json.optDouble(
+            "appBackgroundFocusX",
+            CountdownEvent.DEFAULT_BACKGROUND_FOCUS.toDouble(),
+        ).toFloat(),
+        appBackgroundFocusY = json.optDouble(
+            "appBackgroundFocusY",
+            CountdownEvent.DEFAULT_BACKGROUND_FOCUS.toDouble(),
+        ).toFloat(),
     )
 
     /** The named constant, or [fallback] when the name is missing or from a newer build. */

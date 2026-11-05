@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -102,6 +103,7 @@ import io.github.zzpby.tickcount.ui.components.PhotoStack
 import io.github.zzpby.tickcount.ui.components.ReopenIcon
 import io.github.zzpby.tickcount.ui.components.TrashIcon
 import io.github.zzpby.tickcount.ui.components.VoiceNote
+import io.github.zzpby.tickcount.ui.components.dialogWindowGuard
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.components.rememberGalleryReadRequest
 import io.github.zzpby.tickcount.ui.theme.CardGap
@@ -112,6 +114,8 @@ import io.github.zzpby.tickcount.ui.theme.PillShape
 import io.github.zzpby.tickcount.ui.theme.XingKai
 import io.github.zzpby.tickcount.ui.theme.XinWei
 import io.github.zzpby.tickcount.ui.theme.hairline
+import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.textHalo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -158,7 +162,7 @@ fun CapsuleScreen(
         ) {
             Text(
                 text = stringResource(R.string.drawer_capsule),
-                style = MaterialTheme.typography.displaySmall,
+                style = MaterialTheme.typography.displaySmall.copy(shadow = textHalo()),
                 fontFamily = XingKai,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -240,7 +244,7 @@ private fun SealedCapsuleCard(
             .fillMaxWidth()
             .padding(vertical = CardGap / 2)
             .clip(CardShape)
-            .background(scheme.surfaceContainerHigh)
+            .background(scheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
             .hairline(CardShape)
             .combinedClickable(onClick = {}, onLongClick = onLongClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -289,7 +293,7 @@ private fun ArrivedCapsuleCard(
             .fillMaxWidth()
             .padding(vertical = CardGap / 2)
             .clip(CardShape)
-            .background(scheme.surfaceContainerHigh)
+            .background(scheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
             .hairline(CardShape)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -604,7 +608,7 @@ fun CapsuleEditorScreen(
                     .fillMaxWidth()
                     .clip(FieldShape)
                     .clickable { datePickerOpen = true }
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
                     .hairline(FieldShape)
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -722,6 +726,7 @@ private fun CapsuleView(
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(
             modifier = Modifier
+                .dialogWindowGuard()
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
@@ -1186,14 +1191,24 @@ private fun LetterPage(
                         EventBackgrounds.bitmap(context, capsule.photos[page])
                     }
                     if (photo != null) {
-                        Image(
-                            bitmap = photo.asImageBitmap(),
-                            contentDescription = null,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 300.dp),
-                        )
+                        // The print takes its own shape on the sheet: a
+                        // landscape lies full width, a portrait stands tall in
+                        // the middle — a photograph laid on the letter, not a
+                        // window it is squeezed into. The box matches the
+                        // photo's aspect, so the crop crops nothing.
+                        val aspect = photo.width.toFloat() / photo.height
+                        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                            val printWidth = minOf(maxWidth, 360.dp * aspect)
+                            Image(
+                                bitmap = photo.asImageBitmap(),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .width(printWidth)
+                                    .height(printWidth / aspect)
+                                    .align(Alignment.Center),
+                            )
+                        }
                     }
                 }
                 Text(

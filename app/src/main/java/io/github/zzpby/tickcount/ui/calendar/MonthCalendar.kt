@@ -43,6 +43,7 @@ import io.github.zzpby.tickcount.domain.weekDaysInOrder
 import io.github.zzpby.tickcount.ui.components.ChevronIcon
 import io.github.zzpby.tickcount.ui.components.currentLocale
 import io.github.zzpby.tickcount.ui.theme.eventAccent
+import io.github.zzpby.tickcount.ui.theme.GlassAlpha
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -88,7 +89,7 @@ fun MonthCalendar(
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha),
         tonalElevation = 0.dp,
     ) {
         Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp)) {
@@ -141,7 +142,7 @@ private fun MonthHeader(
         // than stepping through months when the target is years away.
         Surface(
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha),
             modifier = Modifier
                 .weight(1f)
                 .clip(CircleShape)

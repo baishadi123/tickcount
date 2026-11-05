@@ -34,7 +34,9 @@ import io.github.zzpby.tickcount.data.EventBackgrounds
 import io.github.zzpby.tickcount.data.FootprintMedia
 import io.github.zzpby.tickcount.data.GalleryMedia
 import io.github.zzpby.tickcount.domain.MediaRef
+import io.github.zzpby.tickcount.ui.components.dialogWindowGuard
 import io.github.zzpby.tickcount.ui.components.rememberGalleryReadRequest
+import io.github.zzpby.tickcount.ui.theme.GlassAlpha
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -118,6 +120,7 @@ fun GalleryHealthDialog(
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             modifier = Modifier
+                .dialogWindowGuard()
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(horizontal = 20.dp, vertical = 16.dp),
@@ -224,7 +227,7 @@ private fun HealthReport(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                        .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

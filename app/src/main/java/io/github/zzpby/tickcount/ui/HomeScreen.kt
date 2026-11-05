@@ -45,6 +45,8 @@ import io.github.zzpby.tickcount.ui.theme.Gutter
 import io.github.zzpby.tickcount.ui.theme.XingKai
 import io.github.zzpby.tickcount.ui.theme.hairline
 import io.github.zzpby.tickcount.ui.theme.tintWash
+import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.textHalo
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -227,7 +229,7 @@ private fun HomeHeader(entries: List<CountdownListEntry>, today: LocalDate) {
     ) {
         Text(
             text = stringResource(R.string.drawer_home),
-            style = MaterialTheme.typography.displaySmall,
+            style = MaterialTheme.typography.displaySmall.copy(shadow = textHalo()),
             fontFamily = XingKai,
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -299,7 +301,7 @@ private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
                 if (selected) {
                     MaterialTheme.colorScheme.secondaryContainer
                 } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
+                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha)
                 }
             )
             .hairline(shape)
@@ -318,7 +320,7 @@ private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
 private fun PastSectionHeading(modifier: Modifier = Modifier) {
     Text(
         text = stringResource(R.string.home_past_section),
-        style = MaterialTheme.typography.labelLarge,
+        style = MaterialTheme.typography.labelLarge.copy(shadow = textHalo()),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier.padding(start = 4.dp, top = 16.dp, bottom = 4.dp),
     )

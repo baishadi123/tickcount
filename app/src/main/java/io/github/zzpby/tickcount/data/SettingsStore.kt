@@ -95,6 +95,18 @@ data class AppSettings(
      * with backups — the way photographs never did.
      */
     val voyageMusicFile: String = "",
+    /**
+     * The picture the whole app sits on, washed faint — one shared background
+     * rather than one per countdown. A private filename inside the app's own
+     * directory, or null for none. The name travels with a backup; the pixels,
+     * as ever, do not.
+     */
+    val appBackground: String? = null,
+    /** The framing of [appBackground]: zoom over the plain cover crop. */
+    val appBackgroundZoom: Float = CountdownEvent.DEFAULT_BACKGROUND_ZOOM,
+    /** The framing of [appBackground]: the point of the picture kept centred. */
+    val appBackgroundFocusX: Float = CountdownEvent.DEFAULT_BACKGROUND_FOCUS,
+    val appBackgroundFocusY: Float = CountdownEvent.DEFAULT_BACKGROUND_FOCUS,
 )
 
 /**
@@ -148,6 +160,19 @@ class SettingsStore(context: Context) {
                 null
             },
             voyageMusicFile = prefs.getString(KEY_VOYAGE_MUSIC, "") ?: "",
+            appBackground = prefs.getString(KEY_APP_BACKGROUND, null)?.takeIf { it.isNotEmpty() },
+            appBackgroundZoom = prefs.getFloat(
+                KEY_APP_BACKGROUND_ZOOM,
+                CountdownEvent.DEFAULT_BACKGROUND_ZOOM,
+            ),
+            appBackgroundFocusX = prefs.getFloat(
+                KEY_APP_BACKGROUND_FOCUS_X,
+                CountdownEvent.DEFAULT_BACKGROUND_FOCUS,
+            ),
+            appBackgroundFocusY = prefs.getFloat(
+                KEY_APP_BACKGROUND_FOCUS_Y,
+                CountdownEvent.DEFAULT_BACKGROUND_FOCUS,
+            ),
         )
     }
 
@@ -162,6 +187,14 @@ class SettingsStore(context: Context) {
             putString(KEY_WIDGET_PANEL, settings.widgetPanel.name)
             putString(KEY_WIDGET_TEXT_SIZE, settings.widgetTextSize.name)
             putString(KEY_VOYAGE_MUSIC, settings.voyageMusicFile)
+            if (settings.appBackground != null) {
+                putString(KEY_APP_BACKGROUND, settings.appBackground)
+            } else {
+                remove(KEY_APP_BACKGROUND)
+            }
+            putFloat(KEY_APP_BACKGROUND_ZOOM, settings.appBackgroundZoom)
+            putFloat(KEY_APP_BACKGROUND_FOCUS_X, settings.appBackgroundFocusX)
+            putFloat(KEY_APP_BACKGROUND_FOCUS_Y, settings.appBackgroundFocusY)
             settings.anniversaryEpochDay?.let { putLong(KEY_ANNIVERSARY, it) }
         }
     }
@@ -187,5 +220,9 @@ class SettingsStore(context: Context) {
         const val KEY_WIDGET_TEXT_SIZE = "widget_text_size"
         const val KEY_ANNIVERSARY = "anniversary_epoch_day"
         const val KEY_VOYAGE_MUSIC = "voyage_music"
+        const val KEY_APP_BACKGROUND = "app_background"
+        const val KEY_APP_BACKGROUND_ZOOM = "app_background_zoom"
+        const val KEY_APP_BACKGROUND_FOCUS_X = "app_background_focus_x"
+        const val KEY_APP_BACKGROUND_FOCUS_Y = "app_background_focus_y"
     }
 }

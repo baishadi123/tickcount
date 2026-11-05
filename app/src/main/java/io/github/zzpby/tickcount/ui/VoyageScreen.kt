@@ -104,6 +104,7 @@ import io.github.zzpby.tickcount.ui.theme.eventAccent
 import kotlinx.coroutines.launch
 import java.io.File
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -114,6 +115,9 @@ import kotlin.math.sin
 
 /** How far down the night the star river runs. */
 private const val RIVER_FRACTION = 0.60f
+
+/** The day a station marks, written along the river: `26.10.1`, no century, no padding. */
+private val RIVER_DATE = DateTimeFormatter.ofPattern("yy.M.d")
 
 /** Where the comet rides across the screen: left of centre, so names float ahead of it. */
 private const val COMET_ANCHOR_FRACTION = 0.34f
@@ -647,6 +651,17 @@ fun VoyageScreen(
                         nameTopPx = nameTops[stop.event.id],
                     )
                 }
+
+                // The day itself, set small under the river — one quiet row of
+                // dates along the line, so the voyage reads as time without a
+                // word said about it.
+                FloatingDate(
+                    stop = stop,
+                    boatX = boatX,
+                    canvasSize = canvasSize,
+                    appear = appear,
+                    arrived = arrivedStation,
+                )
             }
         }
 
@@ -1161,9 +1176,22 @@ private fun FloatingPhoto(
     val unit = with(density) { 1.dp.toPx() }
     val boatPx = boatX * unit
 
+    // The card takes the picture's own shape within a small bound: a wide one
+    // rides low, a tall one stands narrow — a print pinned by its corner,
+    // rather than a window the photo is pushed through. The box matches the
+    // photo's aspect, so the crop below crops nothing.
+    val cardSize = remember(photo) {
+        val aspect = photo.width.toFloat() / photo.height
+        if (aspect >= 1f) {
+            80.dp to (80.dp / aspect).coerceAtLeast(52.dp)
+        } else {
+            (80.dp * aspect).coerceAtLeast(40.dp) to 80.dp
+        }
+    }
+
     Box(
         modifier = Modifier
-            .size(width = 80.dp, height = 58.dp)
+            .size(width = cardSize.first, height = cardSize.second)
             .hungAbove {
                 if (canvasSize == IntSize.Zero) return@hungAbove Offset.Zero
                 val x = canvasSize.width * COMET_ANCHOR_FRACTION + stop.position * unit - boatPx
@@ -1188,6 +1216,52 @@ private fun FloatingPhoto(
             modifier = Modifier.fillMaxSize(),
         )
     }
+}
+
+/**
+ * The day a station marks, set small under the river's line.
+ *
+ * All the dates hang at one depth, so together they read as the marks on the
+ * voyage's own axis; each rides its star's appearing, and a day still to come
+ * is dated as quietly as it is named.
+ */
+@Composable
+private fun FloatingDate(
+    stop: VoyageStop,
+    boatX: Float,
+    canvasSize: IntSize,
+    appear: Float,
+    arrived: Boolean,
+) {
+    if (appear <= 0.01f) return
+
+    val density = LocalDensity.current
+    val unit = with(density) { 1.dp.toPx() }
+    val boatPx = boatX * unit
+
+    Text(
+        text = remember(stop.event.id) { stop.event.date.format(RIVER_DATE) },
+        style = MaterialTheme.typography.labelSmall.copy(
+            fontSize = 11.sp,
+            letterSpacing = 0.5.sp,
+            shadow = Shadow(color = Color(0xCC04060F), blurRadius = 8f),
+        ),
+        color = Starlight.copy(alpha = if (arrived) 0.62f else 0.34f),
+        maxLines = 1,
+        modifier = Modifier
+            .hungAbove {
+                if (canvasSize == IntSize.Zero) return@hungAbove Offset.Zero
+                val x = canvasSize.width * COMET_ANCHOR_FRACTION + stop.position * unit - boatPx
+                with(density) {
+                    Offset(x, canvasSize.height * RIVER_FRACTION + 26.dp.toPx())
+                }
+            }
+            .graphicsLayer {
+                alpha = appear.coerceIn(0f, 1f)
+                translationY = (1f - appear) * 8.dp.toPx()
+            }
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+    )
 }
 
 /** The small round button that holds the oar: drawn rather than an icon set. */

@@ -1,5 +1,9 @@
 package io.github.zzpby.tickcount.ui
 
+import android.graphics.Bitmap
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,17 +25,24 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.data.AppSettings
+import io.github.zzpby.tickcount.data.EventBackgrounds
 import io.github.zzpby.tickcount.data.ThemePreset
 import io.github.zzpby.tickcount.ui.components.HueSlider
 import io.github.zzpby.tickcount.ui.components.SectionLabel
@@ -70,8 +81,16 @@ fun AppearanceScreen(
     settings: AppSettings,
     onPreset: (ThemePreset) -> Unit,
     onCustomHue: (Float) -> Unit,
+    onPickBackground: (Uri) -> Unit,
+    onClearBackground: () -> Unit,
+    onFrameBackground: (zoom: Float, focusX: Float, focusY: Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val pickBackground = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri -> if (uri != null) onPickBackground(uri) }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -113,6 +132,70 @@ fun AppearanceScreen(
         SectionLabel(stringResource(R.string.appearance_surfaces))
         Spacer(Modifier.height(10.dp))
         SurfaceLadder()
+
+        // The app's own background: one picture under everything, washed faint.
+        // The framing preview is the app itself — every drag re-frames the real
+        // screen behind this page, which is why the preview needs no
+        // save button and no imagining.
+        Spacer(Modifier.height(24.dp))
+        SectionLabel(stringResource(R.string.appearance_background))
+        Spacer(Modifier.height(10.dp))
+        FieldRow(
+            label = stringResource(R.string.field_background),
+            value = stringResource(
+                if (settings.appBackground != null) {
+                    R.string.background_set
+                } else {
+                    R.string.background_unset
+                }
+            ),
+            onClick = { pickBackground.launch("image/*") },
+        )
+        if (settings.appBackground != null) {
+            Spacer(Modifier.height(8.dp))
+            val previewBitmap = remember(settings.appBackground) {
+                EventBackgrounds.bitmap(context, settings.appBackground)
+            }
+            val zoom = remember(settings.appBackground) {
+                mutableFloatStateOf(settings.appBackgroundZoom)
+            }
+            val focusX = remember(settings.appBackground) {
+                mutableFloatStateOf(settings.appBackgroundFocusX)
+            }
+            val focusY = remember(settings.appBackground) {
+                mutableFloatStateOf(settings.appBackgroundFocusY)
+            }
+            // Every gesture lands in the settings at once — the whole app is
+            // the preview, and what it shows is what is kept.
+            LaunchedEffect(settings.appBackground) {
+                snapshotFlow { Triple(zoom.floatValue, focusX.floatValue, focusY.floatValue) }
+                    .collect { (z, x, y) -> onFrameBackground(z, x, y) }
+            }
+            BackgroundAdjustPreview(
+                bitmap = previewBitmap,
+                zoom = zoom,
+                focusX = focusX,
+                focusY = focusY,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.background_adjust_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onClearBackground) {
+                    Text(
+                        text = stringResource(R.string.action_remove_background),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        }
 
         Spacer(Modifier.height(36.dp))
     }
@@ -188,7 +271,7 @@ private fun SurfaceLadder() {
             .border(1.dp, scheme.outlineVariant, RoundedCornerShape(18.dp))
             .padding(12.dp),
     ) {
-        LadderStep(stringResource(R.string.appearance_background), scheme.surface, scheme.onSurface)
+        LadderStep(stringResource(R.string.appearance_surface_page), scheme.surface, scheme.onSurface)
         Spacer(Modifier.height(8.dp))
         LadderStep(
             stringResource(R.string.appearance_panel),

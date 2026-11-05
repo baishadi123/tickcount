@@ -82,7 +82,6 @@ fun DataScreen(
     onExport: (password: String?) -> String,
     onRead: (text: String, password: String?) -> ReadOutcome,
     onApply: (backup: Backup, mode: ImportMode) -> Int,
-    onExportIcs: () -> String,
     modifier: Modifier = Modifier,
     galleryHealthItems: List<GalleryHealthItem> = emptyList(),
     onRelinkGallery: (Map<String, String>) -> Unit = {},
@@ -178,23 +177,6 @@ fun DataScreen(
         exportPassword = null
     }
 
-    val createIcs = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("text/calendar")
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        val text = onExportIcs()
-        scope.launch {
-            val ok = withContext(Dispatchers.IO) {
-                runCatching {
-                    context.contentResolver.openOutputStream(uri)?.use {
-                        it.write(text.toByteArray(Charsets.UTF_8))
-                    } != null
-                }.getOrDefault(false)
-            }
-            message = Notice(if (ok) R.string.data_ics_exported else R.string.data_write_failed)
-        }
-    }
-
     val openFile = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -233,14 +215,6 @@ fun DataScreen(
             title = stringResource(R.string.data_import),
             body = stringResource(R.string.data_import_body),
             onClick = { openFile.launch(arrayOf("*/*")) },
-        )
-        Spacer(Modifier.height(10.dp))
-        // Not a backup and not an import: the file leaves the app's own format entirely, for
-        // whatever calendar the phone already has.
-        ActionCard(
-            title = stringResource(R.string.data_export_ics),
-            body = stringResource(R.string.data_export_ics_body),
-            onClick = { createIcs.launch("tickcount-${LocalDate.now()}.ics") },
         )
         Spacer(Modifier.height(10.dp))
         // Before a phone migration: every picture the records reference,

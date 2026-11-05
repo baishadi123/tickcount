@@ -32,7 +32,6 @@ import io.github.zzpby.tickcount.data.WidgetTextSize
 import io.github.zzpby.tickcount.data.previewOf
 import io.github.zzpby.tickcount.domain.GalleryRelink
 import io.github.zzpby.tickcount.domain.SortOrder
-import io.github.zzpby.tickcount.domain.icsFor
 import io.github.zzpby.tickcount.notify.Reminders
 import io.github.zzpby.tickcount.ui.widget.refreshAllWidgets
 import kotlinx.coroutines.Dispatchers
@@ -374,17 +373,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
-    }
-
-    /**
-     * The same countdowns as an iCalendar file, for a calendar the app does not own.
-     *
-     * A separate export rather than the backup one: the backup restores this app, this one
-     * hands the dates to another program, and they cannot be the same file.
-     */
-    fun exportIcs(): String {
-        val zone = ZoneId.systemDefault()
-        return icsFor(_events.value, zone, ZonedDateTime.now(zone))
     }
 
     /**

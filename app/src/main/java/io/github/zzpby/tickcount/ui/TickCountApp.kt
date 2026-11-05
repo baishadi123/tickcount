@@ -647,7 +647,6 @@ fun TickCountApp(
                         onExport = viewModel::exportBackup,
                         onRead = viewModel::readBackup,
                         onApply = viewModel::applyBackup,
-                        onExportIcs = viewModel::exportIcs,
                         galleryHealthItems = galleryHealthItems,
                         onRelinkGallery = viewModel::relinkGalleryEntries,
                         onGalleryReady = viewModel::onGalleryPermissionGranted,

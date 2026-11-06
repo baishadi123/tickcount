@@ -113,6 +113,7 @@
     <string name="capsule_arrived_section">已到时间</string>
     <string name="capsule_ready">可以打开了</string>
     <string name="capsule_opened_on">开启于 %1$s</string>
+    <string name="capsule_reseal">重新封上，选它下次开启的日子</string>
     <string name="capsule_message_label">想说的话</string>
     <string name="capsule_message_hint">想对那一天说的话…</string>
     <string name="capsule_voice_label">一段声音</string>
@@ -265,6 +266,7 @@
     <string name="appearance_custom_hint">拖的时候整个应用会立刻换色，这个画面就是预览。</string>
     <string name="appearance_surfaces">各层深浅</string>
     <string name="appearance_background">应用背景</string>
+    <string name="appearance_background_use">显示背景</string>
     <string name="appearance_surface_page">页面底色</string>
     <string name="appearance_panel">面板</string>
     <string name="appearance_card">卡片</string>

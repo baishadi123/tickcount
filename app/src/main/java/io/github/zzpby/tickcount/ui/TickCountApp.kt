@@ -375,7 +375,7 @@ fun TickCountApp(
     var edgeDrag by remember { mutableStateOf(0f) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (appBackground != null) {
+        if (appBackground != null && settings.appBackgroundEnabled) {
             BackgroundCrop(
                 bitmap = appBackground!!,
                 zoom = settings.appBackgroundZoom,
@@ -627,6 +627,7 @@ fun TickCountApp(
                         today = today,
                         onOpen = viewModel::openCapsule,
                         onEdit = { startEditCapsule(it) },
+                        onReseal = viewModel::resealCapsule,
                     )
 
                     screen == AppScreen.WANJIANG -> WanJiangScreen(
@@ -690,6 +691,7 @@ fun TickCountApp(
                         onCustomHue = viewModel::chooseCustomHue,
                         onPickBackground = viewModel::pickAppBackground,
                         onClearBackground = viewModel::clearAppBackground,
+                        onToggleBackground = viewModel::toggleAppBackground,
                         onFrameBackground = viewModel::frameAppBackground,
                     )
 

@@ -132,6 +132,13 @@ data class CountdownEvent(
         /** How far the manual framing may enlarge a background. */
         const val MAX_BACKGROUND_ZOOM = 5f
 
+        /**
+         * How far it may shrink below the plain cover: a picture that fills
+         * less than the page sits centred on it, a print on the wall rather
+         * than the wall itself.
+         */
+        const val MIN_BACKGROUND_ZOOM = 0.5f
+
         /** How many gallery photos one countdown may carry, WeChat's own ceiling. */
         const val MAX_PHOTOS = 16
 

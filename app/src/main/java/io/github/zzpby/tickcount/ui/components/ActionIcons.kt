@@ -5,10 +5,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.Dp
@@ -288,5 +291,58 @@ fun GlobeIcon(
             quadraticTo(cx, cy + radius * 0.20f, cx + radius, cy + radius * 0.06f)
         }
         drawPath(equator, color, style = Stroke(width = stroke, cap = StrokeCap.Round))
+    }
+}
+
+/**
+ * A padlock, hand-drawn like the rest: a shackle over a body with its
+ * keyhole. The mark of sealing a letter back up �� the body stays shut until
+ * the day it names.
+ */
+@Composable
+fun LockIcon(
+    modifier: Modifier = Modifier,
+    iconSize: Dp = 20.dp,
+    color: Color = LocalContentColor.current,
+    strokeWidth: Dp = 2.dp,
+) {
+    Canvas(modifier = modifier.size(iconSize)) {
+        val w = size.width
+        val h = size.height
+        val stroke = strokeWidth.toPx()
+
+        // The shackle: an arch of a circle, open at the bottom.
+        val shackleRadius = w * 0.26f
+        drawArc(
+            color = color,
+            startAngle = 180f,
+            sweepAngle = 180f,
+            useCenter = false,
+            topLeft = Offset(w / 2f - shackleRadius, h * 0.10f),
+            size = androidx.compose.ui.geometry.Size(shackleRadius * 2f, shackleRadius * 2f),
+            style = Stroke(stroke, cap = StrokeCap.Round),
+        )
+
+        // The body: a rounded rectangle sitting on the arch's ends.
+        val bodyWidth = w * 0.72f
+        val bodyHeight = h * 0.42f
+        val bodyTop = h * 0.10f + shackleRadius
+        drawRoundRect(
+            color = color,
+            topLeft = Offset((w - bodyWidth) / 2f, bodyTop),
+            size = androidx.compose.ui.geometry.Size(bodyWidth, bodyHeight),
+            cornerRadius = CornerRadius(w * 0.10f),
+        )
+
+        // The keyhole: a small circle punched clean through the body.
+        val cx = w / 2f
+        val holeY = bodyTop + bodyHeight * 0.38f
+        drawCircle(
+            color = Color.Black,
+            radius = w * 0.075f,
+            center = Offset(cx, holeY),
+            style = Fill,
+            blendMode = BlendMode.Clear,
+        )
     }
 }

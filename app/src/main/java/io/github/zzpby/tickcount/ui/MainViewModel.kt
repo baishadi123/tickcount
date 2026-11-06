@@ -612,6 +612,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return updated
     }
 
+    /**
+     * Seals a letter back up, to a day it names: the opening mark is cleared
+     * and the open day moves to the one picked, so the letter is unopened
+     * news again and the calendar's reminder rides along to the new day.
+     */
+    fun resealCapsule(id: String, opensEpochDay: Long) {
+        val capsule = _capsules.value.firstOrNull { it.id == id } ?: return
+        saveCapsule(
+            capsule.copy(
+                opensEpochDay = opensEpochDay,
+                openedEpochDay = null,
+            )
+        )
+    }
+
     fun removeCapsule(id: String) {
         val capsule = _capsules.value.firstOrNull { it.id == id } ?: return
         _capsules.value = _capsules.value - capsule
@@ -703,11 +718,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         updateSettings(
             _settings.value.copy(
                 appBackground = null,
+                appBackgroundEnabled = true,
                 appBackgroundZoom = CountdownEvent.DEFAULT_BACKGROUND_ZOOM,
                 appBackgroundFocusX = CountdownEvent.DEFAULT_BACKGROUND_FOCUS,
                 appBackgroundFocusY = CountdownEvent.DEFAULT_BACKGROUND_FOCUS,
             )
         )
+    }
+
+    /**
+     * Whether the background picture is shown at all. The picture and its
+     * framing stay as they are — a day off the picture is not a day done
+     * with it.
+     */
+    fun toggleAppBackground(on: Boolean) {
+        updateSettings(_settings.value.copy(appBackgroundEnabled = on))
     }
 
     /** Where the app's background is framed, as the appearance preview set it. */

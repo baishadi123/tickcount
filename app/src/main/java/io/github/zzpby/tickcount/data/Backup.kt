@@ -155,6 +155,7 @@ object BackupCodec {
         .put("widgetPanel", settings.widgetPanel.name)
         .put("widgetTextSize", settings.widgetTextSize.name)
         .put("appBackground", settings.appBackground ?: "")
+        .put("appBackgroundOn", settings.appBackgroundEnabled)
         .put("appBackgroundZoom", settings.appBackgroundZoom.toDouble())
         .put("appBackgroundFocusX", settings.appBackgroundFocusX.toDouble())
         .put("appBackgroundFocusY", settings.appBackgroundFocusY.toDouble())
@@ -169,6 +170,7 @@ object BackupCodec {
         widgetTextSize = json.optString("widgetTextSize")
             .toEnum(WidgetTextSize.entries, AppSettings().widgetTextSize),
         appBackground = json.optString("appBackground").takeIf { it.isNotEmpty() },
+        appBackgroundEnabled = json.optBoolean("appBackgroundOn", true),
         appBackgroundZoom = json.optDouble(
             "appBackgroundZoom",
             CountdownEvent.DEFAULT_BACKGROUND_ZOOM.toDouble(),

@@ -94,6 +94,7 @@
     <string name="capsule_arrived_section">Arrived</string>
     <string name="capsule_ready">Ready to open</string>
     <string name="capsule_opened_on">Opened %1$s</string>
+    <string name="capsule_reseal">Seal it again, for the day it next opens</string>
     <string name="capsule_message_label">The words</string>
     <string name="capsule_message_hint">What you want to say to that day…</string>
     <string name="capsule_voice_label">A voice</string>
@@ -280,6 +281,7 @@
     <string name="appearance_custom_hint">The whole app repaints as you drag, so this screen is the preview.</string>
     <string name="appearance_surfaces">Surface levels</string>
     <string name="appearance_background">App background</string>
+    <string name="appearance_background_use">Show the picture</string>
     <string name="appearance_surface_page">Page</string>
     <string name="appearance_panel">Panels</string>
     <string name="appearance_card">Cards</string>

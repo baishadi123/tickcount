@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -83,6 +84,7 @@ fun AppearanceScreen(
     onCustomHue: (Float) -> Unit,
     onPickBackground: (Uri) -> Unit,
     onClearBackground: () -> Unit,
+    onToggleBackground: (Boolean) -> Unit,
     onFrameBackground: (zoom: Float, focusX: Float, focusY: Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -152,6 +154,24 @@ fun AppearanceScreen(
             onClick = { pickBackground.launch("image/*") },
         )
         if (settings.appBackground != null) {
+            Spacer(Modifier.height(4.dp))
+            // The picture stays, showing or not: a day off the picture is not
+            // a day done with it — removal, below, is the other decision.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.appearance_background_use),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f),
+                )
+                Switch(
+                    checked = settings.appBackgroundEnabled,
+                    onCheckedChange = onToggleBackground,
+                )
+            }
             Spacer(Modifier.height(8.dp))
             val previewBitmap = remember(settings.appBackground) {
                 EventBackgrounds.bitmap(context, settings.appBackground)

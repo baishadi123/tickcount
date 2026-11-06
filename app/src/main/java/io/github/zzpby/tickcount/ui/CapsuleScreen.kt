@@ -82,6 +82,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextIndent
@@ -99,6 +101,7 @@ import io.github.zzpby.tickcount.data.VoiceRecorder
 import io.github.zzpby.tickcount.domain.VoiceWaveform
 import io.github.zzpby.tickcount.ui.components.CheckIcon
 import io.github.zzpby.tickcount.ui.components.CloseIcon
+import io.github.zzpby.tickcount.ui.components.LockIcon
 import io.github.zzpby.tickcount.ui.components.PhotoStack
 import io.github.zzpby.tickcount.ui.components.ReopenIcon
 import io.github.zzpby.tickcount.ui.components.TrashIcon
@@ -140,6 +143,8 @@ fun CapsuleScreen(
     /** Asked on the tap that opens an arrived capsule; returns it stamped. */
     onOpen: (String) -> TimeCapsule?,
     onEdit: (String) -> Unit,
+    /** Asked when an opened letter is sealed back up, to the day it now opens on. */
+    onReseal: (String, Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val dateFormatter = rememberDateFormatter(R.string.date_format_short)
@@ -153,6 +158,9 @@ fun CapsuleScreen(
     // the first-open day inside the ViewModel.
     var reading by rememberSaveable { mutableStateOf<String?>(null) }
     val readingCapsule = capsules.firstOrNull { it.id == reading }
+
+    // Sealing a letter back up: the id waiting for the day it should open on.
+    var resealingId by rememberSaveable { mutableStateOf<String?>(null) }
 
     Column(modifier = modifier.fillMaxSize()) {
         Column(
@@ -211,6 +219,7 @@ fun CapsuleScreen(
                             reading = capsule.id
                         },
                         onLongClick = { onEdit(capsule.id) },
+                        onReseal = { resealingId = capsule.id },
                     )
                 }
             }
@@ -221,6 +230,17 @@ fun CapsuleScreen(
         CapsuleView(
             capsule = readingCapsule,
             onDismiss = { reading = null },
+        )
+    }
+
+    if (resealingId != null) {
+        DatePickerSheet(
+            initial = LocalDate.now().plusDays(7),
+            onPick = { picked ->
+                resealingId?.let { onReseal(it, picked.toEpochDay()) }
+                resealingId = null
+            },
+            onDismiss = { resealingId = null },
         )
     }
 }
@@ -285,6 +305,7 @@ private fun ArrivedCapsuleCard(
     dateFormatter: java.time.format.DateTimeFormatter,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onReseal: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -320,10 +341,23 @@ private fun ArrivedCapsuleCard(
                 )
             }
         }
-        Text(
-            text = "✉️",
-            style = MaterialTheme.typography.titleLarge,
-        )
+        Spacer(Modifier.width(10.dp))
+        // Seal it back up: the lock, only on a letter that has been opened,
+        // asks the day the letter should next open on.
+        val resealLabel = stringResource(R.string.capsule_reseal)
+        IconButton(onClick = onReseal, modifier = Modifier.size(34.dp)) {
+            Box(
+                modifier = Modifier
+                    .semantics { contentDescription = resealLabel }
+                    .size(34.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                LockIcon(
+                    iconSize = 17.dp,
+                    color = scheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 

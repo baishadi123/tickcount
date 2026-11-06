@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -78,10 +79,11 @@ fun SortIcon(
 }
 
 /**
- * A plus sign, drawn on the canvas.
+ * The add mark, drawn as a four-pointed star — a plus whose arms taper to
+ * points, the way a new day is a new star in the app's own sky.
  *
- * Used for the one action the home screen offers, so it matches the other two
- * hand-drawn icons rather than mixing in a font glyph.
+ * Still a plus at a glance, so what it does stays said; but it is drawn,
+ * like everything else here, rather than typed.
  */
 @Composable
 fun PlusIcon(
@@ -92,23 +94,23 @@ fun PlusIcon(
 ) {
     Canvas(modifier = modifier.size(size)) {
         val w = this.size.width
-        val h = this.size.height
-        val stroke = strokeWidth.toPx()
-        val inset = stroke / 2f
+        val c = w / 2f
+        val r = w / 2f
+        // How far the diagonal waist pulls in: a sparkle's arms are long, its
+        // between-spaces barely there.
+        val waist = r * 0.26f
 
-        drawLine(
-            color = color,
-            start = Offset(w / 2f, inset),
-            end = Offset(w / 2f, h - inset),
-            strokeWidth = stroke,
-            cap = StrokeCap.Round,
-        )
-        drawLine(
-            color = color,
-            start = Offset(inset, h / 2f),
-            end = Offset(w - inset, h / 2f),
-            strokeWidth = stroke,
-            cap = StrokeCap.Round,
-        )
+        val path = Path().apply {
+            moveTo(c, c - r)
+            lineTo(c + waist, c - waist)
+            lineTo(c + r, c)
+            lineTo(c + waist, c + waist)
+            lineTo(c, c + r)
+            lineTo(c - waist, c + waist)
+            lineTo(c - r, c)
+            lineTo(c - waist, c - waist)
+            close()
+        }
+        drawPath(path, color = color)
     }
 }

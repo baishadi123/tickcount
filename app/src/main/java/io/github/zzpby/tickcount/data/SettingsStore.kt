@@ -102,6 +102,12 @@ data class AppSettings(
      * as ever, do not.
      */
     val appBackground: String? = null,
+    /**
+     * Whether the picture is actually shown. Off keeps the picture and its
+     * framing for the day it is wanted again — removing the background is for
+     * never wanting it back, and that is a different decision.
+     */
+    val appBackgroundEnabled: Boolean = true,
     /** The framing of [appBackground]: zoom over the plain cover crop. */
     val appBackgroundZoom: Float = CountdownEvent.DEFAULT_BACKGROUND_ZOOM,
     /** The framing of [appBackground]: the point of the picture kept centred. */
@@ -161,6 +167,7 @@ class SettingsStore(context: Context) {
             },
             voyageMusicFile = prefs.getString(KEY_VOYAGE_MUSIC, "") ?: "",
             appBackground = prefs.getString(KEY_APP_BACKGROUND, null)?.takeIf { it.isNotEmpty() },
+            appBackgroundEnabled = prefs.getBoolean(KEY_APP_BACKGROUND_ON, true),
             appBackgroundZoom = prefs.getFloat(
                 KEY_APP_BACKGROUND_ZOOM,
                 CountdownEvent.DEFAULT_BACKGROUND_ZOOM,
@@ -193,6 +200,7 @@ class SettingsStore(context: Context) {
                 remove(KEY_APP_BACKGROUND)
             }
             putFloat(KEY_APP_BACKGROUND_ZOOM, settings.appBackgroundZoom)
+            putBoolean(KEY_APP_BACKGROUND_ON, settings.appBackgroundEnabled)
             putFloat(KEY_APP_BACKGROUND_FOCUS_X, settings.appBackgroundFocusX)
             putFloat(KEY_APP_BACKGROUND_FOCUS_Y, settings.appBackgroundFocusY)
             settings.anniversaryEpochDay?.let { putLong(KEY_ANNIVERSARY, it) }
@@ -221,6 +229,7 @@ class SettingsStore(context: Context) {
         const val KEY_ANNIVERSARY = "anniversary_epoch_day"
         const val KEY_VOYAGE_MUSIC = "voyage_music"
         const val KEY_APP_BACKGROUND = "app_background"
+        const val KEY_APP_BACKGROUND_ON = "app_background_on"
         const val KEY_APP_BACKGROUND_ZOOM = "app_background_zoom"
         const val KEY_APP_BACKGROUND_FOCUS_X = "app_background_focus_x"
         const val KEY_APP_BACKGROUND_FOCUS_Y = "app_background_focus_y"

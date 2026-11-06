@@ -783,8 +783,10 @@ internal fun BackgroundAdjustPreview(
                 .onSizeChanged { viewport = it }
                 .pointerInput(Unit) {
                     detectTransformGestures { _, pan, gestureZoom, _ ->
-                        val newZoom = (zoom.floatValue * gestureZoom)
-                            .coerceIn(CountdownEvent.DEFAULT_BACKGROUND_ZOOM, CountdownEvent.MAX_BACKGROUND_ZOOM)
+                        val newZoom = (zoom.floatValue * gestureZoom).coerceIn(
+                            CountdownEvent.MIN_BACKGROUND_ZOOM,
+                            CountdownEvent.MAX_BACKGROUND_ZOOM,
+                        )
                         zoom.floatValue = newZoom
 
                         // The drag walks the focus point across the picture at the

@@ -9,17 +9,23 @@ import io.github.zzpby.tickcount.domain.MediaRef
 import java.io.File
 
 /**
- * The detail screen's background images, kept in the app's private directory.
+ * The pictures the pages sit on — the album first, the app's own directory
+ * for what must be derived.
  *
- * A picked image is *copied* in rather than referenced by its content URI: a URI handed
- * over by the system picker can be revoked, and a copy needs no storage permission at
- * all — which keeps the app at zero permissions. Images are decoded and scaled down on
- * the way in (a four-megapixel photo is plenty behind text), so a decade of backgrounds
- * still fits in a few megabytes.
+ * A picked photo is a *reference* on Q and up: [ingestPhoto] asks
+ * [GalleryMedia] to tie the picture back to the album it came from, and the
+ * album stays the only original — nothing is copied, and the picture is
+ * found again later by the identity ladder in [GalleryMedia]. The private
+ * directory holds the rest: the framed app background (a derived thing,
+ * cropped and scaled for the page — no album original is exactly that), the
+ * scaled copies older devices and unreadable picks still fall back to, and
+ * the legacy `bg-` files from before references existed.
  *
- * The stored [CountdownEvent.backgroundUri] is a file *name* inside [dir], so the
- * directory can move and the value is stable across devices. A name whose file has gone
- * — a backup restored on another device — simply renders without a background.
+ * The stored [CountdownEvent.backgroundUri] is an entry string either way —
+ * a gallery reference or a file *name* inside [dir] — so the directory can
+ * move and the value is stable across devices. An entry whose reference and
+ * file are both gone — a backup restored on another phone, say — simply
+ * renders without a background.
  */
 object EventBackgrounds {
 
@@ -111,6 +117,18 @@ object EventBackgrounds {
         if (!file.isFile) return null
         return BitmapFactory.decodeFile(file.absolutePath)
     }
+
+    /**
+     * Where [name]'s bytes stream from: the album for a reference, this
+     * phone's own storage for one of our copies — the handle the viewer's
+     * EXIF reading opens.
+     */
+    fun mediaUri(context: Context, name: String?): Uri? =
+        when {
+            name == null -> null
+            MediaRef.isRef(name) -> GalleryMedia.mediaUri(context, name)
+            else -> file(context, name)?.let { Uri.fromFile(it) }
+        }
 
     /** True when our own copy called [name] still sits in the directory. */
     fun exists(context: Context, name: String?): Boolean {

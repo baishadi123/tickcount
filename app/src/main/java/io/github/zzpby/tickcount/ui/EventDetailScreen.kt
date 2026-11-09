@@ -68,6 +68,7 @@ import io.github.zzpby.tickcount.domain.calendarSplit
 import io.github.zzpby.tickcount.domain.countdownTo
 import io.github.zzpby.tickcount.domain.effectiveDate
 import io.github.zzpby.tickcount.domain.effectiveTarget
+import io.github.zzpby.tickcount.ui.components.PhotoViewer
 import io.github.zzpby.tickcount.ui.components.dialogWindowGuard
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.CardShape
@@ -510,128 +511,6 @@ private fun CarouselPage(name: String, maxCardWidthPx: Int, onClick: () -> Unit)
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize(),
                 )
-            }
-        }
-    }
-}
-
-/**
- * The photos one at a time, full-screen on black.
- *
- * The iOS reading gestures: a close button that is always where the thumb
- * expects it, a pull-down that carries the whole stack away, and dots that say
- * where in the pile you are. A tap does nothing — a stray touch should not end
- * the reading.
- */
-@Composable
-private fun PhotoViewer(
-    photos: List<String>,
-    initialPage: Int,
-    onDismiss: () -> Unit,
-) {
-    val context = LocalContext.current
-    val pagerState = rememberPagerState(initialPage = initialPage.coerceIn(0, photos.size - 1)) {
-        photos.size
-    }
-    // The pull-down: the whole stack follows the finger, and past a threshold
-    // the release ends the reading rather than snapping home.
-    var pull by remember { mutableFloatStateOf(0f) }
-
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(
-            modifier = Modifier
-                .dialogWindowGuard()
-                .fillMaxSize()
-                .background(Color.Black),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        translationY = pull
-                        val settle = 1f - (pull / 1400f).coerceIn(0f, 0.4f)
-                        scaleX = settle
-                        scaleY = settle
-                    }
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures(
-                            onDragEnd = {
-                                if (pull > 380f) onDismiss() else pull = 0f
-                            },
-                            onDragCancel = { pull = 0f },
-                        ) { change, dragAmount ->
-                            change.consume()
-                            pull = (pull + dragAmount).coerceAtLeast(0f)
-                        }
-                    },
-            ) {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
-                ) { page ->
-                    val photo = remember(photos[page]) {
-                        EventBackgrounds.bitmap(context, photos[page])
-                    }
-                    if (photo != null) {
-                        Image(
-                            bitmap = photo.asImageBitmap(),
-                            contentDescription = null,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-                }
-            }
-
-            // The count, top centre.
-            Text(
-                text = "${pagerState.currentPage + 1} / ${photos.size}",
-                style = MaterialTheme.typography.labelLarge,
-                color = Color.White.copy(alpha = 0.85f),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 40.dp),
-            )
-
-            // The close button, top right, above the drag layer.
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 34.dp, end = 18.dp)
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.14f))
-                    .clickable(onClick = onDismiss),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "×",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White.copy(alpha = 0.9f),
-                )
-            }
-
-            // The dots, bottom centre.
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 30.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                repeat(photos.size) { index ->
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (index == pagerState.currentPage) {
-                                    Color.White.copy(alpha = 0.9f)
-                                } else {
-                                    Color.White.copy(alpha = 0.3f)
-                                }
-                            ),
-                    )
-                }
             }
         }
     }

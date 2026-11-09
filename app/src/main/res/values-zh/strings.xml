@@ -371,4 +371,15 @@
     <string name="widget_preview_name_third">旅行</string>
     <string name="widget_preview_days_third">还有 21天</string>
     <string name="widget_preview_date">2026年10月16日 星期五</string>
+
+    <!-- The viewer's info panel: what a photo says about itself. -->
+    <string name="exif_show">照片信息</string>
+    <string name="exif_none">这张照片没有留下可读的信息</string>
+    <string name="exif_taken">拍摄时间</string>
+    <string name="exif_camera">相机</string>
+    <string name="exif_aperture">光圈</string>
+    <string name="exif_shutter">快门</string>
+    <string name="exif_iso">感光度</string>
+    <string name="exif_resolution">分辨率</string>
+    <string name="exif_size">大小</string>
 </resources>

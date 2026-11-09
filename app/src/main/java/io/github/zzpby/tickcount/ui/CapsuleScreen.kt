@@ -103,6 +103,7 @@ import io.github.zzpby.tickcount.ui.components.CheckIcon
 import io.github.zzpby.tickcount.ui.components.CloseIcon
 import io.github.zzpby.tickcount.ui.components.LockIcon
 import io.github.zzpby.tickcount.ui.components.PhotoStack
+import io.github.zzpby.tickcount.ui.components.PhotoViewer
 import io.github.zzpby.tickcount.ui.components.ReopenIcon
 import io.github.zzpby.tickcount.ui.components.TrashIcon
 import io.github.zzpby.tickcount.ui.components.VoiceNote
@@ -1217,6 +1218,10 @@ private fun LetterPage(
 
         if (isLast) {
             if (capsule.photos.isNotEmpty()) {
+                // A print on the sheet is a window to the viewer: the letter
+                // shows the photograph, a tap takes it out for reading —
+                // zoom, the strip, everything the shared viewer knows.
+                var viewerPage by remember { mutableIntStateOf(-1) }
                 Spacer(Modifier.height(16.dp))
                 HorizontalPager(
                     state = photoPagerState,
@@ -1241,7 +1246,8 @@ private fun LetterPage(
                                 modifier = Modifier
                                     .width(printWidth)
                                     .height(printWidth / aspect)
-                                    .align(Alignment.Center),
+                                    .align(Alignment.Center)
+                                    .clickable { viewerPage = page },
                             )
                         }
                     }
@@ -1255,6 +1261,13 @@ private fun LetterPage(
                         .fillMaxWidth()
                         .padding(top = 10.dp),
                 )
+                if (viewerPage >= 0) {
+                    PhotoViewer(
+                        photos = capsule.photos,
+                        initialPage = viewerPage,
+                        onDismiss = { viewerPage = -1 },
+                    )
+                }
             }
 
             if (capsule.voice != null) {

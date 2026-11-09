@@ -71,9 +71,10 @@ data class CountdownEvent(
     val backgroundFocusX: Float = DEFAULT_BACKGROUND_FOCUS,
     val backgroundFocusY: Float = DEFAULT_BACKGROUND_FOCUS,
     /**
-     * The gallery photos associated with this countdown, as file names inside the
-     * app's private directory — copied in by the same route as [backgroundUri], so
-     * the app still asks for no permission and nothing can be revoked.
+     * The gallery photos associated with this countdown, as entry strings —
+     * a gallery reference where the system allows one (the album keeps the
+     * only original, [EventBackgrounds.ingestPhoto] does the tying), one of
+     * our own scaled copies where it does not.
      *
      * The detail page shows them as one stacked pile, WeChat-style, and opens the
      * full-screen flip-through on a tap. Empty, as every record written before

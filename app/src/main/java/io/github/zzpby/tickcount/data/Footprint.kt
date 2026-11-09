@@ -9,10 +9,10 @@ import java.util.UUID
 /**
  * One place the two of you went, on a day, with whatever was captured there:
  * a name on the map of the app's own making — photos, moving or still, and
- * even video, copied in as files rather than referenced, the same rule every
- * other picture here follows.
+ * even video, tied back to the album where the system allows one and copied
+ * whole where it does not, the same rule every other picture here follows.
  *
- * [photos] are file names inside [FootprintMedia]'s directory, mixed freely:
+ * [photos] are entry strings [FootprintMedia] answers to, mixed freely:
  * a JPEG beside a GIF beside a video is one visit, not three. [latitude] and
  * [longitude] are where the visit was noted from, when they were noted at all
  * — a footprint is a place by name first, and by coordinates only when the

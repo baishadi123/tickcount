@@ -418,4 +418,15 @@
     <string name="widget_preview_days_third">21 days left</string>
     <string name="widget_preview_date">October 16, 2026</string>
     <string name="widget_preview_clock" translatable="false">3:48:23</string>
+
+    <!-- The viewer's info panel: what a photo says about itself. -->
+    <string name="exif_show">Photo information</string>
+    <string name="exif_none">Nothing the picture cares to say</string>
+    <string name="exif_taken">Captured</string>
+    <string name="exif_camera">Camera</string>
+    <string name="exif_aperture">Aperture</string>
+    <string name="exif_shutter">Shutter</string>
+    <string name="exif_iso">ISO</string>
+    <string name="exif_resolution">Resolution</string>
+    <string name="exif_size">Size</string>
 </resources>

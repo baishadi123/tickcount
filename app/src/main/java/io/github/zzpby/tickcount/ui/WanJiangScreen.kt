@@ -7,8 +7,6 @@ import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.ImageDecoder
-import android.graphics.drawable.AnimatedImageDrawable
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -17,7 +15,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import android.widget.VideoView
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -75,7 +72,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
@@ -91,6 +87,8 @@ import io.github.zzpby.tickcount.ui.components.CloseIcon
 import io.github.zzpby.tickcount.ui.components.EditIcon
 import io.github.zzpby.tickcount.ui.components.MapIcon
 import io.github.zzpby.tickcount.ui.components.TrashIcon
+import io.github.zzpby.tickcount.ui.components.PhotoViewer
+import io.github.zzpby.tickcount.ui.components.ViewerMedia
 import io.github.zzpby.tickcount.ui.components.dialogWindowGuard
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.components.rememberGalleryReadRequest
@@ -599,182 +597,19 @@ private fun MediaCell(name: String, footprintId: String, onOpen: () -> Unit) {
 }
 
 /**
- * The media of one visit, one at a time, full-screen on black: stills and
- * GIFs as pictures — the GIF animating from its own file on API 28+ — and
- * videos through the platform's own player, a tap pausing either.
+ * The visit's media in the shared viewer: stills with the whole gesture
+ * book, moving pictures through their own decoders. A video page keeps its
+ * tap for playing; the strip and the stills carry the flipping.
  */
 @Composable
 private fun MediaViewer(photos: List<String>, initialPhoto: String, onDismiss: () -> Unit) {
-    val context = LocalContext.current
-    val initial = (photos.indexOf(initialPhoto)).coerceAtLeast(0)
-    // Keyed by the media list: another visit's viewer reuses this call site,
-    // and a stale page index would point past its photos.
-    var page by rememberSaveable(photos.toTypedArray()) { mutableStateOf(initial) }
-    var pull by remember { mutableStateOf(0f) }
-
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(
-            modifier = Modifier
-                .dialogWindowGuard()
-                .fillMaxSize()
-                .background(Color.Black),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        translationY = pull
-                        val settle = 1f - (pull / 1400f).coerceIn(0f, 0.4f)
-                        scaleX = settle
-                        scaleY = settle
-                    }
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures(
-                            onDragEnd = { if (pull > 380f) onDismiss() else pull = 0f },
-                            onDragCancel = { pull = 0f },
-                        ) { change, dragAmount ->
-                            change.consume()
-                            pull = (pull + dragAmount).coerceAtLeast(0f)
-                        }
-                    },
-            ) {
-                val name = photos[page.coerceIn(photos.indices)]
-
-                when {
-                    FootprintMedia.isVideo(name) -> VideoPage(context, name)
-                    FootprintMedia.isAnimated(name) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P ->
-                        AnimatedPage(context, name)
-                    else -> {
-                        val bitmap = remember(name) { FootprintMedia.thumbnail(context, name, 2048) }
-                        if (bitmap != null) {
-                            Image(
-                                bitmap = bitmap.asImageBitmap(),
-                                contentDescription = null,
-                                contentScale = ContentScale.Fit,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        }
-                    }
-                }
-            }
-
-            Text(
-                text = "${page + 1} / ${photos.size}",
-                style = MaterialTheme.typography.labelLarge,
-                color = Color.White.copy(alpha = 0.85f),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 40.dp),
-            )
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 34.dp, end = 18.dp)
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.14f))
-                    .clickable(onClick = onDismiss),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "×",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White.copy(alpha = 0.9f),
-                )
-            }
-
-            // The pager is the two arrows rather than a swipe: a swipe down
-            // already carries the page away, and a swipe across fights the
-            // video's own touch.
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 30.dp),
-                horizontalArrangement = Arrangement.spacedBy(28.dp),
-            ) {
-                ViewerArrow(pointsLeft = true, enabled = page > 0) { page-- }
-                ViewerArrow(pointsLeft = false, enabled = page < photos.lastIndex) { page++ }
-            }
-        }
-    }
-}
-
-/** One still of an animated GIF, animated: the platform's own decoder, drawn where it is. */
-@Composable
-private fun AnimatedPage(context: android.content.Context, name: String) {
-    val drawable = remember(name) {
-        runCatching {
-            val source = if (MediaRef.isRef(name)) {
-                val uri = FootprintMedia.mediaUri(context, name) ?: return@runCatching null
-                ImageDecoder.createSource(context.contentResolver, uri)
-            } else {
-                ImageDecoder.createSource(FootprintMedia.file(context, name)!!)
-            }
-            ImageDecoder.decodeDrawable(source)
-        }.getOrNull()
-    }
-    if (drawable != null) {
-        AndroidView(
-            factory = { viewContext ->
-                android.widget.ImageView(viewContext).apply {
-                    setImageDrawable(drawable)
-                    (drawable as? AnimatedImageDrawable)?.start()
-                }
-            },
-            modifier = Modifier.fillMaxSize(),
-        )
-    }
-}
-
-/** A video through the platform's own player: a tap plays, another pauses. */
-@Composable
-private fun VideoPage(context: android.content.Context, name: String) {
-    val media = remember(name) { FootprintMedia.mediaUri(context, name) }
-    if (media == null) return
-    var playing by remember { mutableStateOf(true) }
-    val videoView = remember {
-        VideoView(context).apply {
-            setVideoURI(media)
-            setOnPreparedListener { it.isLooping = true; start() }
-        }
-    }
-    DisposableEffect(Unit) {
-        onDispose {
-            videoView.stopPlayback()
-        }
-    }
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .clickable {
-                if (videoView.isPlaying) videoView.pause() else videoView.start()
-                playing = videoView.isPlaying
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        AndroidView(
-            factory = { videoView },
-            modifier = Modifier.fillMaxSize(),
-        )
-    }
-}
-
-/** One of the viewer's two arrows, drawn rather than an icon set. */
-@Composable
-private fun ViewerArrow(pointsLeft: Boolean, enabled: Boolean, onClick: () -> Unit) {
-    Text(
-        text = if (pointsLeft) "‹" else "›",
-        style = MaterialTheme.typography.headlineLarge,
-        color = Color.White.copy(alpha = if (enabled) 0.85f else 0.3f),
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(Color.White.copy(alpha = if (enabled) 0.12f else 0f))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 2.dp),
+    PhotoViewer(
+        photos = photos,
+        initialPage = photos.indexOf(initialPhoto).coerceAtLeast(0),
+        onDismiss = onDismiss,
+        media = ViewerMedia.Footprints,
     )
 }
-
 /**
  * The footprint editor: the place's name, the day, the media of the visit —
  * and, if the moment offers it, the coordinates it was noted from.

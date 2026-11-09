@@ -10,12 +10,15 @@ import io.github.zzpby.tickcount.domain.MediaRef
 import java.io.File
 
 /**
- * The media a footprint carries, kept in the app's private directory.
+ * The media a footprint carries — the album where the system allows a
+ * reference, the app's private directory for the copies that fall back to
+ * it.
  *
- * Bytes are copied rather than decoded-and-re-encoded, because the point of
- * this page is what was captured *as it was captured*: an animated GIF has to
- * stay animated, and a video cannot be a bitmap at all. The format travels
- * from the picker's own MIME type, and the file name says what it is.
+ * A reference streams straight from the album; a copied file keeps its bytes
+ * whole rather than decoded-and-re-encoded, because the point of this page
+ * is what was captured *as it was captured*: an animated GIF has to stay
+ * animated, and a video cannot be a bitmap at all. The format travels from
+ * the picker's own MIME type, and the file name says what it is.
  *
  * Thumbnails are decoded on demand — a still or a GIF's first frame the
  * ordinary way, a video's frame through the retriever — so the grid stays

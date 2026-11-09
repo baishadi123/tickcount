@@ -1,14 +1,21 @@
 package io.github.zzpby.tickcount.ui.theme
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.composed
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.unit.dp
 import io.github.zzpby.tickcount.R
 
@@ -61,9 +68,9 @@ const val GlassAlpha = 0.52f
  */
 @Composable
 fun glassEdge() = if (isDarkScheme()) {
-    Color.White.copy(alpha = 0.22f)
+    Color.White.copy(alpha = 0.35f)
 } else {
-    Color.White.copy(alpha = 0.60f)
+    Color.White.copy(alpha = 0.85f)
 }
 
 /**
@@ -83,6 +90,53 @@ fun glassPane(alpha: Float = GlassAlpha): Color =
         // no such help, the picture already darkens.
         Color(0xFFEFF5FF).copy(alpha = (alpha + 0.08f).coerceAtMost(0.80f))
     }
+
+/**
+ * A pane of glass without the frost — the recipe for everything that lives in
+ * a list, where per-pane blur would take the frame rate with it: fill, then
+ * the 135° top highlight that is the whole difference between glass and a
+ * grey brick, then the bright edge.
+ *
+ * The layer order is the one the recipe is strict about: background, then
+ * highlight, then border — a border laid under the highlight washes out, and
+ * glass without the highlight reads as plastic.
+ */
+fun Modifier.glassSurface(
+    shape: Shape = CardShape,
+    alpha: Float = GlassAlpha,
+): Modifier = composed {
+    val highlightStrength = if (isDarkScheme()) 0.18f else 0.38f
+    this
+        .clip(shape)
+        .background(glassPane(alpha))
+        .drawWithCache {
+            // Two strokes of the same light: a long wash across the top-left
+            // half, and the hard glint right at the corner — glass catches
+            // both, and it is brightness read at a glance, not subtlety.
+            val wash = Brush.linearGradient(
+                colorStops = arrayOf(
+                    0.00f to Color.White.copy(alpha = highlightStrength),
+                    0.60f to Color.Transparent,
+                ),
+                start = Offset.Zero,
+                end = Offset(size.width, size.height),
+            )
+            val glint = Brush.linearGradient(
+                colorStops = arrayOf(
+                    0.00f to Color.White.copy(alpha = highlightStrength * 0.7f),
+                    0.22f to Color.Transparent,
+                ),
+                start = Offset.Zero,
+                end = Offset(size.width * 0.45f, size.height * 0.45f),
+            )
+            onDrawWithContent {
+                drawRect(wash)
+                drawRect(glint)
+                drawContent()
+            }
+        }
+        .hairline(shape, color = glassEdge())
+}
 
 /**
  * The one-pixel outline a card carries.

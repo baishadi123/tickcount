@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -46,14 +47,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -62,6 +66,8 @@ import io.github.zzpby.tickcount.data.AppLanguage
 import io.github.zzpby.tickcount.data.CountdownEvent
 import io.github.zzpby.tickcount.data.EventBackgrounds
 import io.github.zzpby.tickcount.ui.components.BackgroundCrop
+import io.github.zzpby.tickcount.ui.components.GlassBackdrop
+import io.github.zzpby.tickcount.ui.components.LocalGlassBackdrop
 import io.github.zzpby.tickcount.domain.SearchScope
 import io.github.zzpby.tickcount.domain.SortOrder
 import io.github.zzpby.tickcount.domain.solarLunarDay
@@ -374,7 +380,35 @@ fun TickCountApp(
         !screen.inSettings
     var edgeDrag by remember { mutableStateOf(0f) }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    // The stage's own size, so the panes of frosted glass can reproduce the
+    // piece of the picture that sits behind each of them.
+    var stageSize by remember { mutableStateOf(IntSize.Zero) }
+
+    // What the panes see behind themselves: the picture and its framing, as
+    // the stage draws it. Null whenever there is no picture to show.
+    val backdrop = remember(appBackground, settings, stageSize) {
+        val bitmap = appBackground
+        if (bitmap == null || !settings.appBackgroundEnabled ||
+            stageSize.width == 0 || stageSize.height == 0
+        ) {
+            null
+        } else {
+            GlassBackdrop(
+                image = bitmap.asImageBitmap(),
+                zoom = settings.appBackgroundZoom,
+                focusX = settings.appBackgroundFocusX,
+                focusY = settings.appBackgroundFocusY,
+                stageWidth = stageSize.width.toFloat(),
+                stageHeight = stageSize.height.toFloat(),
+            )
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onSizeChanged { stageSize = it },
+    ) {
         if (appBackground != null && settings.appBackgroundEnabled) {
             BackgroundCrop(
                 bitmap = appBackground!!,
@@ -384,6 +418,7 @@ fun TickCountApp(
                 modifier = Modifier.fillMaxSize(),
             )
         }
+        CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
         Scaffold(
             containerColor = Color.Transparent,
             modifier = Modifier
@@ -720,6 +755,7 @@ fun TickCountApp(
                     )
                 }
             }
+        }
         }
 
         // The drawer, over the screen rather than beside it. Fading the scrim and

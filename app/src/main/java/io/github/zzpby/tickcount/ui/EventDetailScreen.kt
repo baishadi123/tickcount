@@ -68,6 +68,7 @@ import io.github.zzpby.tickcount.domain.calendarSplit
 import io.github.zzpby.tickcount.domain.countdownTo
 import io.github.zzpby.tickcount.domain.effectiveDate
 import io.github.zzpby.tickcount.domain.effectiveTarget
+import io.github.zzpby.tickcount.ui.components.GlassPane
 import io.github.zzpby.tickcount.ui.components.dialogWindowGuard
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.CardShape
@@ -221,17 +222,19 @@ fun EventDetailScreen(
             // The countdown itself, in the iOS register: a small spaced label, a
             // huge light number — the one place the countdown's colour lives —
             // with its unit riding the baseline, and the clock quiet and grey.
-            // On a narrow glass island of its own: the big figure is light and
-            // thin, and over a busy photograph it would dissolve into the
-            // picture without a pane to sit on.
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth(0.72f)
-                    .clip(CardShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.20f))
-                    .padding(vertical = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+            // On a pane of its own: the big figure is light and thin, and over
+            // a busy photograph it would dissolve into the picture without a
+            // pane to sit on.
+            GlassPane(
+                modifier = Modifier.fillMaxWidth(0.72f),
+                alpha = 0.20f,
             ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                 Text(
                     text = heading,
                     style = MaterialTheme.typography.labelLarge,
@@ -286,6 +289,7 @@ fun EventDetailScreen(
                     )
                 }
             }
+            }
 
             // The associated gallery photos, the chosen one first, a tap away
             // from full-screen. The whole photo shows — nothing cropped to
@@ -323,17 +327,14 @@ fun EventDetailScreen(
 
             // The facts, as one grouped card: the day it counts to — with the
             // lunar day named when the date was entered that way — and how it
-            // repeats, if it repeats. The card sits on the washed photo at
-            // half-strength itself, so it reads as a card without putting a
-            // solid slab over the picture.
+            // repeats, if it repeats.
             Spacer(Modifier.height(26.dp))
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(CardShape)
-                    .background(glassPane())
-                    .padding(horizontal = 18.dp, vertical = 6.dp),
-            ) {
+            GlassPane(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 6.dp),
+                ) {
                 // The day itself, named in full with nothing before it: the label it
                 // used to carry was one more word ahead of the longest line on the
                 // page, and the word was the only part that could be spared.
@@ -363,6 +364,7 @@ fun EventDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+            }
             }
 
             if (event.tags.isNotEmpty()) {

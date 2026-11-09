@@ -40,6 +40,7 @@ import io.github.zzpby.tickcount.ui.theme.CardGap
 import io.github.zzpby.tickcount.ui.theme.CardShape
 import io.github.zzpby.tickcount.ui.theme.EVENT_WASH_ALPHA
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.glassSurface
 import io.github.zzpby.tickcount.ui.theme.glassPane
 import io.github.zzpby.tickcount.ui.theme.PillShape
 import io.github.zzpby.tickcount.ui.theme.eventAccent
@@ -86,8 +87,11 @@ fun EventCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = CardGap / 2)
-            .clip(CardShape)
-            .background(glassPane())
+            // The list's pane, without the frost: a pane per card in a
+            // scrolling list would blur the frame rate away with it, so a
+            // card wears the fill, the 135° highlight and the bright edge —
+            // the recipe that reads as glass at list speed.
+            .glassSurface(CardShape)
             // Only a countdown that was given a colour tints its card. Washing the default
             // would wash it in the theme's own accent, making every card look chosen when
             // none of them are.
@@ -98,7 +102,6 @@ fun EventCard(
                     Modifier
                 }
             )
-            .hairline(CardShape)
             // A long press is the way to the three things a countdown's own screen does
             // without the trip into it; a tap still opens that screen.
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)

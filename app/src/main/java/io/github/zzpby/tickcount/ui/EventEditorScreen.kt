@@ -103,6 +103,7 @@ import io.github.zzpby.tickcount.ui.theme.PillShape
 import io.github.zzpby.tickcount.ui.theme.tintWash
 import io.github.zzpby.tickcount.ui.theme.CardShape
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.glassPane
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -360,7 +361,7 @@ fun EventEditorScreen(
                 .weight(1f)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
                 .clip(CardShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f))
+                .background(glassPane(alpha = 0.6f))
                 .hairline(CardShape)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 14.dp, vertical = 10.dp),
@@ -405,7 +406,7 @@ fun EventEditorScreen(
                         .fillMaxWidth()
                         .clip(FieldShape)
                         .clickable { lunarPickerOpen = true }
-                        .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
+                        .background(glassPane())
                         .hairline(FieldShape)
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -778,7 +779,7 @@ internal fun BackgroundAdjustPreview(
                 .fillMaxWidth()
                 .height(previewHeight)
                 .clip(FieldShape)
-                .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
+                .background(glassPane())
                 .hairline(FieldShape)
                 .onSizeChanged { viewport = it }
                 .pointerInput(Unit) {
@@ -863,7 +864,7 @@ internal fun PhotoThumb(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
+                    .background(glassPane())
                     .hairline(RoundedCornerShape(8.dp)),
             )
         }
@@ -987,7 +988,7 @@ internal fun FieldRow(label: String, value: String, onClick: () -> Unit) {
         // The panel colour, not the card colour: a card is white in the white and teal
         // themes, which left the date and time rows as the only white things on a tinted
         // page. This is the tone that moves with the theme.
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha),
+        color = glassPane(),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth(),
     ) {

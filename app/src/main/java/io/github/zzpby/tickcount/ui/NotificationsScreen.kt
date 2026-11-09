@@ -47,6 +47,7 @@ import io.github.zzpby.tickcount.ui.theme.PillShape
 import io.github.zzpby.tickcount.ui.theme.hairline
 import io.github.zzpby.tickcount.ui.theme.tintWash
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.glassPane
 import io.github.zzpby.tickcount.ui.theme.textHalo
 import java.time.Instant
 import java.time.LocalTime
@@ -190,7 +191,7 @@ fun NotificationsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(CardShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
+                    .background(glassPane())
                     .hairline(CardShape)
                     .padding(horizontal = 18.dp, vertical = 14.dp),
             ) {
@@ -265,7 +266,7 @@ fun NotificationsScreen(
         Spacer(Modifier.height(8.dp))
         Text(
             text = stringResource(R.string.notify_footnote),
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodySmall.copy(shadow = textHalo()),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 2.dp),
         )
@@ -306,6 +307,7 @@ private fun StatTile(value: String, label: String, modifier: Modifier = Modifier
     Column(
         modifier = modifier
             .clip(FieldShape)
+            .background(glassPane())
             .hairline(FieldShape)
             .padding(horizontal = 12.dp, vertical = 12.dp),
     ) {

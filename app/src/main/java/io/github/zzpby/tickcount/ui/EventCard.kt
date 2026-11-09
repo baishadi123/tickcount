@@ -40,6 +40,7 @@ import io.github.zzpby.tickcount.ui.theme.CardGap
 import io.github.zzpby.tickcount.ui.theme.CardShape
 import io.github.zzpby.tickcount.ui.theme.EVENT_WASH_ALPHA
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.glassPane
 import io.github.zzpby.tickcount.ui.theme.PillShape
 import io.github.zzpby.tickcount.ui.theme.eventAccent
 import io.github.zzpby.tickcount.ui.theme.hairline
@@ -86,7 +87,7 @@ fun EventCard(
             .fillMaxWidth()
             .padding(vertical = CardGap / 2)
             .clip(CardShape)
-            .background(scheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
+            .background(glassPane())
             // Only a countdown that was given a colour tints its card. Washing the default
             // would wash it in the theme's own accent, making every card look chosen when
             // none of them are.
@@ -316,7 +317,7 @@ private fun TagChip(tag: String, accent: Color) {
         maxLines = 1,
         modifier = Modifier
             .clip(PillShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
+            .background(glassPane())
             .hairline(PillShape)
             .padding(horizontal = 8.dp, vertical = 2.dp),
     )

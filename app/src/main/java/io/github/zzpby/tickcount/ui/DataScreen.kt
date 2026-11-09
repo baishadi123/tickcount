@@ -45,6 +45,7 @@ import io.github.zzpby.tickcount.data.ReadOutcome
 import io.github.zzpby.tickcount.ui.components.EyeIcon
 import io.github.zzpby.tickcount.ui.theme.CardShape
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.glassPane
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -312,7 +313,7 @@ private fun ActionCard(title: String, body: String, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(shaping)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
+            .background(glassPane())
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shaping)
             .clickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 16.dp),

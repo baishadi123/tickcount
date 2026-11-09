@@ -27,6 +27,7 @@ import io.github.zzpby.tickcount.ui.components.SortIcon
 import io.github.zzpby.tickcount.ui.theme.PillShape
 import io.github.zzpby.tickcount.ui.theme.hairline
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.glassPane
 
 /** The name each ordering is offered under. */
 private val SortOrder.labelRes: Int
@@ -57,7 +58,7 @@ fun SortButton(
             modifier = Modifier
                 .size(48.dp)
                 .clip(PillShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
+                .background(glassPane())
                 .hairline(PillShape)
                 .clickable { open = true }
                 .semantics { contentDescription = description },

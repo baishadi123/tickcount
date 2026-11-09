@@ -76,6 +76,9 @@ import io.github.zzpby.tickcount.ui.theme.eventAccent
 import io.github.zzpby.tickcount.ui.theme.textHalo
 import io.github.zzpby.tickcount.ui.theme.tintWash
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.glassPane
+import io.github.zzpby.tickcount.ui.theme.hairline
+import io.github.zzpby.tickcount.ui.theme.PillShape
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.Duration
@@ -328,7 +331,7 @@ fun EventDetailScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(CardShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
+                    .background(glassPane())
                     .padding(horizontal = 18.dp, vertical = 6.dp),
             ) {
                 // The day itself, named in full with nothing before it: the label it
@@ -479,7 +482,7 @@ private fun CarouselPage(name: String, maxCardWidthPx: Int, onClick: () -> Unit)
                 .width(cardWidth)
                 .height(cardHeight)
                 .clip(RoundedCornerShape(20.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
+                .background(glassPane())
                 .clickable(onClick = onClick),
         ) {
             bitmap?.let { pixels ->
@@ -638,20 +641,22 @@ private fun PhotoViewer(
 }
 
 /**
- * A tag, drawn as a pill rather than as a chip.
+ * A tag, drawn as a small pane of glass — the same chip the home card's tags
+ * wear, cut to this page's air.
  *
- * There is nothing to press here, and a chip would ripple when tapped anyway — an
- * invitation that leads nowhere.
+ * There is nothing to press here, and a chip that rippled when tapped would
+ * be an invitation that leads nowhere.
  */
 @Composable
 private fun TagPill(tag: String) {
     Text(
         text = tag,
         style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSecondaryContainer,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .clip(PillShape)
+            .background(glassPane())
+            .hairline(PillShape)
             .padding(horizontal = 12.dp, vertical = 6.dp),
     )
 }

@@ -44,6 +44,7 @@ import io.github.zzpby.tickcount.ui.components.ChevronIcon
 import io.github.zzpby.tickcount.ui.components.currentLocale
 import io.github.zzpby.tickcount.ui.theme.eventAccent
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.glassPane
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -89,7 +90,9 @@ fun MonthCalendar(
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha),
+        // The sheet rides at the lighter strength the big panes use: a whole
+        // month at card strength read as a film over the picture behind it.
+        color = glassPane(alpha = 0.6f),
         tonalElevation = 0.dp,
     ) {
         Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp)) {

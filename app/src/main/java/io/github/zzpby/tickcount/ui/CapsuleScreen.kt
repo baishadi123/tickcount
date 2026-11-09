@@ -118,6 +118,7 @@ import io.github.zzpby.tickcount.ui.theme.XingKai
 import io.github.zzpby.tickcount.ui.theme.XinWei
 import io.github.zzpby.tickcount.ui.theme.hairline
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.glassPane
 import io.github.zzpby.tickcount.ui.theme.textHalo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -178,7 +179,7 @@ fun CapsuleScreen(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = stringResource(R.string.capsule_summary, sealed.size, capsules.size),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium.copy(shadow = textHalo()),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -264,7 +265,7 @@ private fun SealedCapsuleCard(
             .fillMaxWidth()
             .padding(vertical = CardGap / 2)
             .clip(CardShape)
-            .background(scheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
+            .background(glassPane())
             .hairline(CardShape)
             .combinedClickable(onClick = {}, onLongClick = onLongClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -314,7 +315,7 @@ private fun ArrivedCapsuleCard(
             .fillMaxWidth()
             .padding(vertical = CardGap / 2)
             .clip(CardShape)
-            .background(scheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
+            .background(glassPane())
             .hairline(CardShape)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -552,11 +553,16 @@ fun CapsuleEditorScreen(
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
+        // The form as one glass sheet, like every editor.
         Column(
             modifier = Modifier
                 .weight(1f)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .clip(CardShape)
+                .background(glassPane(alpha = 0.6f))
+                .hairline(CardShape)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 8.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
             OutlinedTextField(
                 value = title,
@@ -642,7 +648,7 @@ fun CapsuleEditorScreen(
                     .fillMaxWidth()
                     .clip(FieldShape)
                     .clickable { datePickerOpen = true }
-                    .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
+                    .background(glassPane())
                     .hairline(FieldShape)
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,

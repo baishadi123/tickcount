@@ -48,6 +48,7 @@ import io.github.zzpby.tickcount.data.ThemePreset
 import io.github.zzpby.tickcount.ui.components.HueSlider
 import io.github.zzpby.tickcount.ui.components.SectionLabel
 import io.github.zzpby.tickcount.ui.theme.schemeFor
+import io.github.zzpby.tickcount.ui.theme.textHalo
 
 /**
  * The name each preset is shown under.
@@ -125,7 +126,7 @@ fun AppearanceScreen(
             Spacer(Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.appearance_custom_hint),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodySmall.copy(shadow = textHalo()),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -201,7 +202,7 @@ fun AppearanceScreen(
             Spacer(Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.background_adjust_hint),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodySmall.copy(shadow = textHalo()),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(

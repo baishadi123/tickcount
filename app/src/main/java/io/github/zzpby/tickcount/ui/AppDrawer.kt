@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.glassPane
 import io.github.zzpby.tickcount.data.AppLanguage
 import io.github.zzpby.tickcount.ui.components.GearIcon
 
@@ -116,7 +117,7 @@ fun AppDrawerContent(
         // from the page there is the shadow below and the rounded edge, not a different tone:
         // a grey drawer on a white page reads as a stray piece of the old palette.
         // Glass, like every other panel — the app's picture shows through the drawer too.
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha),
+        color = glassPane(),
         shape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp),
         // A real shadow rather than a tonal elevation: tonal elevation tints the surface
         // towards the primary colour, which on a white theme is a grey — the one thing this

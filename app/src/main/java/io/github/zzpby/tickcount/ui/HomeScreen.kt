@@ -46,6 +46,7 @@ import io.github.zzpby.tickcount.ui.theme.XingKai
 import io.github.zzpby.tickcount.ui.theme.hairline
 import io.github.zzpby.tickcount.ui.theme.tintWash
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.glassPane
 import io.github.zzpby.tickcount.ui.theme.textHalo
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -301,7 +302,7 @@ private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
                 if (selected) {
                     MaterialTheme.colorScheme.secondaryContainer
                 } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha)
+                    glassPane()
                 }
             )
             .hairline(shape)
@@ -383,10 +384,11 @@ private fun ReminderBanner(text: String, onDismiss: () -> Unit) {
 
 /** A centred line of explanation, for a list that has nothing to show. */
 @Composable
-fun CentredNotice(text: String, modifier: Modifier = Modifier) {    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+fun CentredNotice(text: String, modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
             text = text,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyLarge.copy(shadow = textHalo()),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 32.dp),

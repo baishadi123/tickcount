@@ -37,6 +37,7 @@ import io.github.zzpby.tickcount.domain.MediaRef
 import io.github.zzpby.tickcount.ui.components.dialogWindowGuard
 import io.github.zzpby.tickcount.ui.components.rememberGalleryReadRequest
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.glassPane
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -227,7 +228,7 @@ private fun HealthReport(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
+                        .background(glassPane())
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

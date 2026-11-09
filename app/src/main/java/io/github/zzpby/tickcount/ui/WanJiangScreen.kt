@@ -100,6 +100,7 @@ import io.github.zzpby.tickcount.ui.theme.Gutter
 import io.github.zzpby.tickcount.ui.theme.XingKai
 import io.github.zzpby.tickcount.ui.theme.hairline
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
+import io.github.zzpby.tickcount.ui.theme.glassPane
 import io.github.zzpby.tickcount.ui.theme.textHalo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -556,7 +557,7 @@ private fun MediaCell(name: String, footprintId: String, onOpen: () -> Unit) {
             .padding(vertical = 3.dp)
             .size(104.dp)
             .clip(CardShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
+            .background(glassPane())
             .hairline(CardShape)
             .clickable(onClick = onOpen),
     ) {
@@ -873,11 +874,16 @@ fun FootprintEditorScreen(
         if (grants.values.any { it }) locate()
     }
 
+    // The form as one glass sheet, like every editor.
     Column(
         modifier = modifier
             .fillMaxSize()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .clip(CardShape)
+            .background(glassPane(alpha = 0.6f))
+            .hairline(CardShape)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
         OutlinedTextField(
             value = place,
@@ -894,7 +900,7 @@ fun FootprintEditorScreen(
                 .fillMaxWidth()
                 .clip(CardShape)
                 .clickable { datePickerOpen = true }
-                .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
+                .background(glassPane())
                 .hairline(CardShape)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
         ) {
@@ -927,7 +933,7 @@ fun FootprintEditorScreen(
                         )
                     }
                 }
-                .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
+                .background(glassPane())
                 .hairline(CardShape)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
         ) {
@@ -960,7 +966,7 @@ fun FootprintEditorScreen(
                 .fillMaxWidth()
                 .clip(CardShape)
                 .clickable { mapPickerOpen = true }
-                .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
+                .background(glassPane())
                 .hairline(CardShape)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -991,7 +997,7 @@ fun FootprintEditorScreen(
                         )
                     }
                 }
-                .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GlassAlpha))
+                .background(glassPane())
                 .hairline(CardShape)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -1028,7 +1034,7 @@ fun FootprintEditorScreen(
                         modifier = Modifier
                             .size(72.dp)
                             .clip(CardShape)
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = GlassAlpha))
+                            .background(glassPane())
                             .hairline(CardShape)
                             .clickable {
                                 FootprintMedia.delete(context, name)

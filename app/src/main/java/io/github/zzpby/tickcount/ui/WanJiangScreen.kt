@@ -101,6 +101,7 @@ import io.github.zzpby.tickcount.ui.theme.XingKai
 import io.github.zzpby.tickcount.ui.theme.hairline
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
 import io.github.zzpby.tickcount.ui.theme.glassPane
+import io.github.zzpby.tickcount.ui.theme.glassSurface
 import io.github.zzpby.tickcount.ui.theme.textHalo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -556,9 +557,7 @@ private fun MediaCell(name: String, footprintId: String, onOpen: () -> Unit) {
         modifier = Modifier
             .padding(vertical = 3.dp)
             .size(104.dp)
-            .clip(CardShape)
-            .background(glassPane())
-            .hairline(CardShape)
+            .glassSurface()
             .clickable(onClick = onOpen),
     ) {
         val loaded = thumb
@@ -879,9 +878,7 @@ fun FootprintEditorScreen(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 12.dp, vertical = 8.dp)
-            .clip(CardShape)
-            .background(glassPane(alpha = 0.6f))
-            .hairline(CardShape)
+            .glassSurface(alpha = 0.6f, interactive = false)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {

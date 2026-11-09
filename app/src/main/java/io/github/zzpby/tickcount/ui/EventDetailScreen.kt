@@ -68,7 +68,6 @@ import io.github.zzpby.tickcount.domain.calendarSplit
 import io.github.zzpby.tickcount.domain.countdownTo
 import io.github.zzpby.tickcount.domain.effectiveDate
 import io.github.zzpby.tickcount.domain.effectiveTarget
-import io.github.zzpby.tickcount.ui.components.GlassPane
 import io.github.zzpby.tickcount.ui.components.dialogWindowGuard
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.CardShape
@@ -78,6 +77,7 @@ import io.github.zzpby.tickcount.ui.theme.textHalo
 import io.github.zzpby.tickcount.ui.theme.tintWash
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
 import io.github.zzpby.tickcount.ui.theme.glassPane
+import io.github.zzpby.tickcount.ui.theme.glassSurface
 import io.github.zzpby.tickcount.ui.theme.hairline
 import io.github.zzpby.tickcount.ui.theme.PillShape
 import kotlinx.coroutines.Dispatchers
@@ -225,16 +225,13 @@ fun EventDetailScreen(
             // On a pane of its own: the big figure is light and thin, and over
             // a busy photograph it would dissolve into the picture without a
             // pane to sit on.
-            GlassPane(
-                modifier = Modifier.fillMaxWidth(0.72f),
-                alpha = 0.20f,
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(0.72f)
+                    .glassSurface(alpha = 0.20f)
+                    .padding(vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
                 Text(
                     text = heading,
                     style = MaterialTheme.typography.labelLarge,
@@ -289,7 +286,6 @@ fun EventDetailScreen(
                     )
                 }
             }
-            }
 
             // The associated gallery photos, the chosen one first, a tap away
             // from full-screen. The whole photo shows — nothing cropped to
@@ -329,12 +325,12 @@ fun EventDetailScreen(
             // lunar day named when the date was entered that way — and how it
             // repeats, if it repeats.
             Spacer(Modifier.height(26.dp))
-            GlassPane(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 6.dp),
-                ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .glassSurface()
+                    .padding(horizontal = 18.dp, vertical = 6.dp),
+            ) {
                 // The day itself, named in full with nothing before it: the label it
                 // used to carry was one more word ahead of the longest line on the
                 // page, and the word was the only part that could be spared.
@@ -364,7 +360,6 @@ fun EventDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-            }
             }
 
             if (event.tags.isNotEmpty()) {

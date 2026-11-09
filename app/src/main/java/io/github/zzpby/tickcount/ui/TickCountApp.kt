@@ -66,8 +66,7 @@ import io.github.zzpby.tickcount.data.AppLanguage
 import io.github.zzpby.tickcount.data.CountdownEvent
 import io.github.zzpby.tickcount.data.EventBackgrounds
 import io.github.zzpby.tickcount.ui.components.BackgroundCrop
-import io.github.zzpby.tickcount.ui.components.GlassBackdrop
-import io.github.zzpby.tickcount.ui.components.LocalGlassBackdrop
+import io.github.zzpby.tickcount.ui.theme.LocalGlassTint
 import io.github.zzpby.tickcount.domain.SearchScope
 import io.github.zzpby.tickcount.domain.SortOrder
 import io.github.zzpby.tickcount.domain.solarLunarDay
@@ -380,35 +379,34 @@ fun TickCountApp(
         !screen.inSettings
     var edgeDrag by remember { mutableStateOf(0f) }
 
-    // The stage's own size, so the panes of frosted glass can reproduce the
-    // piece of the picture that sits behind each of them.
-    var stageSize by remember { mutableStateOf(IntSize.Zero) }
-
-    // What the panes see behind themselves: the picture and its framing, as
-    // the stage draws it. Null whenever there is no picture to show.
-    val backdrop = remember(appBackground, settings, stageSize) {
-        val bitmap = appBackground
-        if (bitmap == null || !settings.appBackgroundEnabled ||
-            stageSize.width == 0 || stageSize.height == 0
-        ) {
-            null
-        } else {
-            GlassBackdrop(
-                image = bitmap.asImageBitmap(),
-                zoom = settings.appBackgroundZoom,
-                focusX = settings.appBackgroundFocusX,
-                focusY = settings.appBackgroundFocusY,
-                stageWidth = stageSize.width.toFloat(),
-                stageHeight = stageSize.height.toFloat(),
-            )
+    // The picture's own colour, so a pane's floor-light can throw it back:
+    // a warm picture warms its glass, a cold one cools it. Sampled coarsely,
+    // off the main thread, once per picture.
+    var glassTint by remember { mutableStateOf<Color?>(null) }
+    LaunchedEffect(appBackground) {
+        glassTint = appBackground?.let { bmp ->
+            withContext(Dispatchers.Default) {
+                val step = maxOf(1, minOf(bmp.width, bmp.height) / 16)
+                var r = 0L; var g = 0L; var b = 0L; var n = 0L
+                var y = 0
+                while (y < bmp.height) {
+                    var x = 0
+                    while (x < bmp.width) {
+                        val c = bmp.getPixel(x, y)
+                        r += (c shr 16) and 0xFF
+                        g += (c shr 8) and 0xFF
+                        b += c and 0xFF
+                        n++
+                        x += step
+                    }
+                    y += step
+                }
+                if (n == 0L) null else Color((r / n).toInt(), (g / n).toInt(), (b / n).toInt())
+            }
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .onSizeChanged { stageSize = it },
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         if (appBackground != null && settings.appBackgroundEnabled) {
             BackgroundCrop(
                 bitmap = appBackground!!,
@@ -418,7 +416,7 @@ fun TickCountApp(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
+        CompositionLocalProvider(LocalGlassTint provides glassTint) {
         Scaffold(
             containerColor = Color.Transparent,
             modifier = Modifier

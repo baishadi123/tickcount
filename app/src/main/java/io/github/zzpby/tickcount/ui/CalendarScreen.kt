@@ -32,6 +32,7 @@ import io.github.zzpby.tickcount.ui.theme.hairline
 import io.github.zzpby.tickcount.ui.theme.tintWash
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
 import io.github.zzpby.tickcount.ui.theme.glassPane
+import io.github.zzpby.tickcount.ui.theme.glassSurface
 import java.time.LocalDate
 import java.time.YearMonth
 import androidx.compose.foundation.Canvas
@@ -198,9 +199,7 @@ private fun CapsuleDayRow(capsule: TimeCapsule, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = CardGap / 2)
-            .clip(CardShape)
-            .background(glassPane())
-            .hairline(CardShape)
+            .glassSurface()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -254,9 +253,7 @@ private fun WishDayRow(wish: Wish, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = CardGap / 2)
-            .clip(CardShape)
-            .background(glassPane())
-            .hairline(CardShape)
+            .glassSurface()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -379,9 +376,7 @@ private fun SetAnniversaryRow(onSet: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = CardGap / 2)
-            .clip(CardShape)
-            .background(glassPane())
-            .hairline(CardShape)
+            .glassSurface()
             .clickable(onClick = onSet)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,

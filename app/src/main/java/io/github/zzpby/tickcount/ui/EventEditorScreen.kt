@@ -104,6 +104,7 @@ import io.github.zzpby.tickcount.ui.theme.tintWash
 import io.github.zzpby.tickcount.ui.theme.CardShape
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
 import io.github.zzpby.tickcount.ui.theme.glassPane
+import io.github.zzpby.tickcount.ui.theme.glassSurface
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -360,9 +361,7 @@ fun EventEditorScreen(
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
-                .clip(CardShape)
-                .background(glassPane(alpha = 0.6f))
-                .hairline(CardShape)
+                .glassSurface(alpha = 0.6f, interactive = false)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {

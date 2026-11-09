@@ -119,6 +119,7 @@ import io.github.zzpby.tickcount.ui.theme.XinWei
 import io.github.zzpby.tickcount.ui.theme.hairline
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
 import io.github.zzpby.tickcount.ui.theme.glassPane
+import io.github.zzpby.tickcount.ui.theme.glassSurface
 import io.github.zzpby.tickcount.ui.theme.textHalo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -264,9 +265,7 @@ private fun SealedCapsuleCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = CardGap / 2)
-            .clip(CardShape)
-            .background(glassPane())
-            .hairline(CardShape)
+            .glassSurface()
             .combinedClickable(onClick = {}, onLongClick = onLongClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -314,9 +313,7 @@ private fun ArrivedCapsuleCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = CardGap / 2)
-            .clip(CardShape)
-            .background(glassPane())
-            .hairline(CardShape)
+            .glassSurface()
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -558,9 +555,7 @@ fun CapsuleEditorScreen(
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
-                .clip(CardShape)
-                .background(glassPane(alpha = 0.6f))
-                .hairline(CardShape)
+                .glassSurface(alpha = 0.6f, interactive = false)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {

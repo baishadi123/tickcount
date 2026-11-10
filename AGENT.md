@@ -50,8 +50,9 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
 | 提醒（含胶囊到期） | `notify/Reminders.kt`（`EXTRA_KIND` 区分单闹钟）、`notify/ReminderReceiver.kt`、`notify/BootReceiver.kt`；设置页 `ui/NotificationsScreen.kt` |
 | 桌面小组件（单个 / 清单） | `ui/widget/` 整目录 |
 | 农历与每年重复 | `domain/Lunar.kt`、`domain/YearlyRepeat.kt`、`ui/LunarText.kt` |
-| 外观（主题、色相） | `ui/AppearanceScreen.kt`、`ui/theme/` |
-| 数据管理（备份 / 加密 / .ics） | `ui/DataScreen.kt`、`data/Backup.kt`、`data/BackupCrypto.kt`、`domain/Ics.kt` |
+| 外观（主题、色相、玻璃体系、全局背景） | `ui/AppearanceScreen.kt`、`ui/theme/Style.kt`（GlassTokens 分层：大卡全玻璃 `glassSurface`（跟手高光+按压回弹）/编辑静板 `interactive=false`/小件薄纱 `glassPane`）、`ui/theme/` 其余 |
+| 照片查看器（三入口共享）与弹窗防护 | `ui/components/PhotoViewer.kt`（缩放/双击/缩略条/EXIF 玻璃面板；`ViewerMedia` 照片与足迹双源）、`data/PhotoExif.kt`（EXIF 按需 IO 读取）、`ui/components/DialogWindowGuard.kt`（横屏幽灵窗防护，全屏弹窗挂载） |
+| 数据管理（备份 / 加密） | `ui/DataScreen.kt`、`data/Backup.kt`、`data/BackupCrypto.kt`（.ics 导出已退役，2026-11-05） |
 | 抽屉 / 设置 / 标题栏 | `ui/AppDrawer.kt`、`ui/SettingsScreen.kt`、`ui/AppTitleBar.kt`、根画面 `ui/TickCountApp.kt` |
 | 编辑器动作栏图标 | `ui/components/ActionIcons.kt` |
 | 更新日志 / 项目介绍（应用内） | `ui/ChangelogScreen.kt`、`ui/ProjectIntroScreen.kt`、`domain/Changelog.kt`、`domain/Readme.kt` |

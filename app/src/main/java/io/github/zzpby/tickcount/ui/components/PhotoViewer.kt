@@ -256,11 +256,12 @@ fun PhotoViewer(
             // The close button, top right.
             AnimatedVisibility(uiVisible, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.TopEnd)) {
                 GlassCircleButton(
-                    label = "×",
                     contentDescription = null,
                     onClick = onDismiss,
                     modifier = Modifier.padding(top = 34.dp, end = 18.dp),
-                )
+                ) {
+                    CloseIcon(iconSize = 16.dp, color = Color.White.copy(alpha = 0.9f))
+                }
             }
 
             // The information toggle, top left — photographs are the only
@@ -270,11 +271,12 @@ fun PhotoViewer(
             if (currentIsPhoto) {
                 AnimatedVisibility(uiVisible, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.TopStart)) {
                     GlassCircleButton(
-                        label = "i",
                         contentDescription = stringResource(R.string.exif_show),
                         onClick = { infoOpen = !infoOpen },
                         modifier = Modifier.padding(top = 34.dp, start = 18.dp),
-                    )
+                    ) {
+                        InfoIcon(iconSize = 18.dp, color = Color.White.copy(alpha = 0.9f))
+                    }
                 }
             }
 
@@ -560,10 +562,10 @@ private fun InfoRow(label: String, value: String?, labelColor: Color, valueColor
 /** The viewer's own glass circles — close, information — always where the thumb expects them. */
 @Composable
 private fun GlassCircleButton(
-    label: String,
     contentDescription: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    icon: @Composable () -> Unit,
 ) {
     Box(
         modifier = modifier
@@ -573,11 +575,7 @@ private fun GlassCircleButton(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.titleLarge,
-            color = Color.White.copy(alpha = 0.9f),
-        )
+        icon()
     }
 }
 

@@ -82,10 +82,45 @@ fun CloseIcon(
 }
 
 /**
- * An undo arrow: most of a circle with an arrowhead where it begins — the
- * taking-back of a tick, hand-drawn like the other icons here.
+ * An information mark: a dot and a stem, the whole alphabet of asking —
+ * drawn with the same round pen as the others, the stem ending in a
+ * little foot the way a standing stroke does.
  */
 @Composable
+fun InfoIcon(
+    modifier: Modifier = Modifier,
+    iconSize: Dp = 20.dp,
+    color: Color = LocalContentColor.current,
+    strokeWidth: Dp = 2.2.dp,
+) {
+    Canvas(modifier = modifier.size(iconSize)) {
+        val w = size.width
+        val h = size.height
+        val stroke = strokeWidth.toPx()
+        val cx = w * 0.5f
+
+        // The dot, sitting in the upper third.
+        drawCircle(
+            color = color,
+            radius = stroke * 0.62f,
+            center = Offset(cx, h * 0.24f),
+        )
+
+        // The stem, round at both ends and a hair taller than centre.
+        drawLine(
+            color = color,
+            start = Offset(cx, h * 0.44f),
+            end = Offset(cx, h * 0.78f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round,
+        )
+    }
+}
+
+/**
+ * An undo arrow: most of a circle with an arrowhead where it begins — the
+ * taking-back of a tick, hand-drawn like the other icons here.
+ */@Composable
 fun ReopenIcon(
     modifier: Modifier = Modifier,
     iconSize: Dp = 20.dp,

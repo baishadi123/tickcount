@@ -91,6 +91,9 @@ import kotlin.math.min
  */
 class ViewerMedia(
     val kind: (String) -> Kind,
+    /** The page a still shows at full screen — the whole picture, whatever it costs. */
+    val page: (Context, String) -> Bitmap?,
+    /** The little one a strip slot shows — a miniature, whatever is cheapest. */
     val decode: (Context, String, Int) -> Bitmap?,
     val uri: (Context, String) -> Uri?,
 ) {
@@ -100,6 +103,7 @@ class ViewerMedia(
         /** The countdowns' own photos: album references and scaled copies. */
         val Photos = ViewerMedia(
             kind = { Kind.PHOTO },
+            page = { context, entry -> EventBackgrounds.bitmap(context, entry) },
             decode = { context, entry, edge -> EventBackgrounds.thumbnail(context, entry, edge) },
             uri = { context, entry -> EventBackgrounds.mediaUri(context, entry) },
         )
@@ -113,6 +117,7 @@ class ViewerMedia(
                     else -> Kind.PHOTO
                 }
             },
+            page = { context, entry -> FootprintMedia.bitmap(context, entry) },
             decode = { context, entry, edge -> FootprintMedia.thumbnail(context, entry, edge) },
             uri = { context, entry -> FootprintMedia.mediaUri(context, entry) },
         )
@@ -317,10 +322,11 @@ private fun ZoomablePhoto(
     onToggleUi: () -> Unit,
     onZoomChanged: (Boolean) -> Unit,
 ) {
-    // Sampled to the screen's own order of size, not the camera's: a
-    // four-thousand-pixel edge would buy nothing a panel cannot show.
+    // The whole picture, the page's own right: the miniature the strip
+    // reads would go soft the moment the screen is larger than it, and a
+    // camera's original never apologises.
     val bitmap by produceState<Bitmap?>(null, entry) {
-        value = withContext(Dispatchers.IO) { media.decode(context, entry, 2048) }
+        value = withContext(Dispatchers.IO) { media.page(context, entry) }
     }
     var scale by remember(entry) { mutableFloatStateOf(1f) }
     var offset by remember(entry) { mutableStateOf(Offset.Zero) }

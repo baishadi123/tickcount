@@ -80,6 +80,17 @@ object FootprintMedia {
     fun isAnimated(entry: String): Boolean =
         if (MediaRef.isRef(entry)) GalleryMedia.isAnimated(entry) else extensionOf(entry) in ANIMATED_EXTENSIONS
 
+    /**
+     * The picture whole, for a full-screen page: the album's original for a
+     * reference, one of our own files as it was copied. Whatever the strip
+     * does, the reading itself is never a miniature.
+     */
+    fun bitmap(context: Context, entry: String): Bitmap? {
+        if (MediaRef.isRef(entry)) return GalleryMedia.bitmap(context, entry)
+        val own = file(context, entry) ?: return null
+        return runCatching { BitmapFactory.decodeFile(own.absolutePath) }.getOrNull()
+    }
+
     /** The MIME type one of our own file names stands for, by its extension. */
     fun mimeOf(name: String): String? =
         EXTENSION_BY_MIME.entries.firstOrNull { it.value == extensionOf(name) }?.key

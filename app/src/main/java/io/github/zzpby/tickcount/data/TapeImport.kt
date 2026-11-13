@@ -79,7 +79,7 @@ object TapeImport {
                 if (nameIdx >= 0) name = cursor.getString(nameIdx)
                 val modIdx = cursor.getColumnIndex("last_modified")
                 if (modIdx >= 0 && !cursor.isNull(modIdx)) {
-                    lastModified = cursor.getLong(modIdx) * 1000L
+                    lastModified = saneMillis(cursor.getLong(modIdx))
                 }
             }
         }
@@ -111,6 +111,22 @@ object TapeImport {
     }
 
     /** A plain copy for what is already audio. */
+    /**
+     * A date a phone could plausibly have written. Providers disagree about
+     * `last_modified`: the document pickers report milliseconds, some media
+     * providers seconds, and a file with no date at all reports zero. Assuming
+     * one of them is how an imported tape ends up labelled in the year 57741 —
+     * so the unit is read off the magnitude, and anything outside a window a
+     * phone could hold falls back to now.
+     */
+    private fun saneMillis(raw: Long): Long {
+        if (raw <= 0L) return System.currentTimeMillis()
+        val millis = if (raw < 100_000_000_000L) raw * 1000L else raw
+        val now = System.currentTimeMillis()
+        val floor = 946_684_800_000L // 2000-01-01, earlier is not a take we made
+        return millis.takeIf { it in floor..(now + 86_400_000L) } ?: now
+    }
+
     private fun copyAsIs(context: Context, uri: Uri, target: java.io.File): Boolean =
         runCatching {
             context.contentResolver.openInputStream(uri)?.use { input ->

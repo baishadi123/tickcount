@@ -1687,10 +1687,14 @@ private fun CassetteTape(
                         val subLayout = measurer.measure(
                             subtitle,
                             TextStyle(
-                                fontFamily = XingKai,
-                                fontSize = (20f * sx * pxToSp).sp,
-                                letterSpacing = (1.4f * sx * pxToSp).sp,
-                                color = palette.labelInk.copy(alpha = 0.55f),
+                                // Machine print, like the side mark and the
+                                // counter: the hand's own digits blur into
+                                // mush at a wall tape's size, and a date one
+                                // cannot read is worse than no date at all.
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = (26f * sx * pxToSp).sp,
+                                letterSpacing = (1.0f * sx * pxToSp).sp,
+                                color = palette.labelInk.copy(alpha = 0.62f),
                             ),
                             constraints = Constraints(maxWidth = (560f * sx).toInt().coerceAtLeast(8)),
                             maxLines = 1,
@@ -1811,20 +1815,23 @@ private fun CassetteTape(
                 // The lamp: amber, playing, from below — and at night a
                 // pilot glow at rest, the one light left on.
                 val lamp = when {
-                    playing -> 0.24f
-                    dark -> 0.07f
+                    playing -> 0.20f
+                    dark -> 0.06f
                     else -> 0f
                 }
                 if (lamp > 0f) {
                     drawRect(
                         brush = Brush.radialGradient(
+                            // A pool of light under the spools, not a haze over
+                            // the whole window: the stops fall away quickly, so
+                            // the dark glass stays dark and the lamp reads.
                             listOf(
                                 palette.brass.copy(alpha = lamp),
-                                palette.brass.copy(alpha = lamp * 0.3f),
+                                palette.brass.copy(alpha = lamp * 0.18f),
                                 Color.Transparent,
                             ),
                             center = Offset(win.center.x, win.bottom),
-                            radius = win.width * 0.72f,
+                            radius = win.width * 0.46f,
                         ),
                         topLeft = win.topLeft,
                         size = win.size,

@@ -51,6 +51,7 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
 | 桌面小组件（单个 / 清单） | `ui/widget/` 整目录 |
 | 农历与每年重复 | `domain/Lunar.kt`、`domain/YearlyRepeat.kt`、`ui/LunarText.kt` |
 | 外观（主题、色相、玻璃体系、全局背景） | `ui/AppearanceScreen.kt`、`ui/theme/Style.kt`（GlassTokens 分层：大卡全玻璃 `glassSurface`（跟手高光+按压回弹）/编辑静板 `interactive=false`/小件薄纱 `glassPane`）、`ui/theme/` 其余 |
+| 声带（磁带墙：录音 / 导入 / 播放） | `ui/VoiceTapeScreen.kt`（墙+机座+录音棚）、`data/VoiceTape.kt`（模型+编解码+按年存储）、`data/TapeAudio.kt` 所在即 `data/VoiceTape.kt`（录音仓 `vt-`）、`data/TapeImport.kt`（视频抽音轨/音频直取/波形解码）、`ui/components/ActionIcons.kt`（PlayIcon/PauseIcon/InfoIcon） |
 | 照片查看器（三入口共享）与弹窗防护 | `ui/components/PhotoViewer.kt`（缩放/双击/缩略条/EXIF 玻璃面板；`ViewerMedia` 照片与足迹双源）、`data/PhotoExif.kt`（EXIF 按需 IO 读取）、`ui/components/DialogWindowGuard.kt`（横屏幽灵窗防护，全屏弹窗挂载） |
 | 数据管理（备份 / 加密） | `ui/DataScreen.kt`、`data/Backup.kt`、`data/BackupCrypto.kt`（.ics 导出已退役，2026-11-05） |
 | 抽屉 / 设置 / 标题栏 | `ui/AppDrawer.kt`、`ui/SettingsScreen.kt`、`ui/AppTitleBar.kt`、根画面 `ui/TickCountApp.kt` |
@@ -65,14 +66,17 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
 - **UI 层不碰存储**：所有 Screen 经 `MainViewModel`，状态是五张 StateFlow
   （events / wishes / capsules / footprints / settings）。改动一律三步：
   改 flow → `store.save()` → 受影响的旁路（提醒 `reschedule()`、小组件 `refreshAllWidgets()`）。
-- **持久化四处**：事件+心愿+设置在 `SharedPreferences`（EventStore / WishStore /
-  SettingsStore）；胶囊与足迹按年 JSON 文件（`TimeCapsule.kt` / `Footprint.kt`）。
+- **持久化五处**：事件+心愿+设置在 `SharedPreferences`（EventStore / WishStore /
+  SettingsStore）；胶囊与足迹按年 JSON 文件（`TimeCapsule.kt` / `Footprint.kt`）；
+  声带磁带同款按年 JSON（`data/VoiceTape.kt` 的 `VoiceTapeStore`）。
   **照片以相册为真身**：新选取存 `g:` 引用（指纹），显示直读相册；旧私有副本
   （`bg-`、`fp-`）双读兼容，且 `fp-` 会在启动时自动迁移为引用并删副本（权限到位后补跑，
-  迁移映射在 `saveFootprint` 重放防踩）。语音信笺（`cv-`）与背景图仍是私有副本。
-  备份（`Backup.kt`）是五类记录的全集，**媒体像素不随走**——相册照片靠「系统换机迁移
-  相册 + 体检按指纹重连」；**语音信笺例外**：它没有相册真身，以 Base64 随备份 JSON 走
-  （`voices` 映射，恢复时只给存活胶囊写回、`isOurs` 校验）；背景图副本不随走（设计如此）。
+  迁移映射在 `saveFootprint` 重放防踩）。语音信笺（`cv-`）、声带录音（`vt-`）与背景图
+  仍是私有副本。
+  备份（`Backup.kt`）是六类记录的全集，**媒体像素不随走**——相册照片靠「系统换机迁移
+  相册 + 体检按指纹重连」；**两类语音例外**：语音信笺（`voices`）与声带录音（`tapeVoices`）
+  没有相册真身，均以 Base64 随备份 JSON 走（恢复时只给存活记录写回、`isOurs` 校验）；
+  背景图副本不随走（设计如此）。
 - **提醒只有一个闹钟**（`notify/Reminders.kt`），由四处维护：数据持久化后、
   `reschedule()`、开机 `BootReceiver`、闹钟自身触发后重排。
 - **仓库根的两个文档同时是应用内容**：`更新日志.txt` → 更新日志页，
@@ -119,6 +123,15 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
 17. **后台迁移/重连依赖相册读权限**——无权限时指纹搜索全空但静默返回 null。
     依赖它的启动任务要挂在「权限授予」事件上（见 `onGalleryPermissionGranted`），
     不能假设首次启动就有效。
+18. **`Modifier.transformable` 会认领单指 pan**——与 `HorizontalPager` 同用时，
+    过 touch slop 的单指拖动被它消费，翻页从此失灵。修法是手写仲裁：双指归缩放、
+    已放大时单指归平移、静止单指放行（见 `PhotoViewer.kt` 的 ZoomablePhoto）。
+19. **系统缩略图 ≠ 原图**——`loadThumbnail`/`thumbnail()` 返回的是相册格子的
+    压缩小图，全屏查看用它必然发糊（2026-11-09 用户一眼识破）。整页显示必须
+    整流解码（`GalleryMedia.bitmap` / `FootprintMedia.bitmap`），缩略条才用微缩图。
+20. **Compose Dialog 的窗口默认有底、有压暗**——内容想透出 Activity（背景图
+    穿透），必须 `(LocalView.current.parent as DialogWindowProvider).window`
+    清 `windowBackground` + `setDimAmount(0f)`，纱再薄也救不了不透明的窗底。
 
 ## 发版流程
 

@@ -14,6 +14,7 @@ import io.github.zzpby.tickcount.data.BackupCodec
 import io.github.zzpby.tickcount.data.BackupCrypto
 import io.github.zzpby.tickcount.data.CapsuleStore
 import io.github.zzpby.tickcount.data.CapsuleVoice
+import io.github.zzpby.tickcount.data.TapeAudio
 import io.github.zzpby.tickcount.data.CountdownEvent
 import io.github.zzpby.tickcount.data.EventBackgrounds
 import io.github.zzpby.tickcount.data.EventStore
@@ -26,6 +27,8 @@ import io.github.zzpby.tickcount.data.ReadOutcome
 import io.github.zzpby.tickcount.data.SettingsStore
 import io.github.zzpby.tickcount.data.ThemePreset
 import io.github.zzpby.tickcount.data.TimeCapsule
+import io.github.zzpby.tickcount.data.VoiceTape
+import io.github.zzpby.tickcount.data.VoiceTapeStore
 import io.github.zzpby.tickcount.data.Wish
 import io.github.zzpby.tickcount.data.WishStore
 import io.github.zzpby.tickcount.data.WidgetPanel
@@ -80,6 +83,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val capsuleStore = CapsuleStore(application)
     private val _capsules = MutableStateFlow(capsuleStore.load())
     val capsules: StateFlow<List<TimeCapsule>> = _capsules.asStateFlow()
+
+    private val tapeStore = VoiceTapeStore(application)
+    private val _tapes = MutableStateFlow(tapeStore.load())
+    /** The wall of voice tapes, newest first. */
+    val tapes: StateFlow<List<VoiceTape>> = _tapes.asStateFlow()
 
     private val footprintStore = FootprintStore(application)
     private val _footprints = MutableStateFlow(footprintStore.load())
@@ -399,12 +407,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _capsules.value,
                 _footprints.value,
                 voiceLettersFor(_capsules.value),
+                tapes = _tapes.value,
+                tapeVoices = tapeVoicesFor(_tapes.value),
             ),
         )
         return if (password.isNullOrEmpty()) {
             document
         } else {
             BackupCrypto.encrypt(document, password.toCharArray())
+        }
+    }
+
+    /**
+     * The tapes' recordings as file name → Base64, the voice letters' own
+     * rule: a voice has no original but this directory, so it travels.
+     */
+    private fun tapeVoicesFor(tapes: List<VoiceTape>): Map<String, String> {
+        val app = getApplication<Application>()
+        return buildMap {
+            tapes.mapNotNull { it.fileName }.distinct().forEach { name ->
+                TapeAudio.file(app, name)?.let { file ->
+                    runCatching { file.readBytes() }.getOrNull()?.let { bytes ->
+                        put(name, java.util.Base64.getEncoder().encodeToString(bytes))
+                    }
+                }
+            }
         }
     }
 
@@ -475,6 +502,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (replacing) backup.capsules else merged(_capsules.value, backup.capsules) { it.id }
         val footprints =
             if (replacing) backup.footprints else merged(_footprints.value, backup.footprints) { it.id }
+        // The wall honours the same promise: a merge never empties a shelf.
+        val tapes =
+            if (replacing) backup.tapes else merged(_tapes.value, backup.tapes) { it.id }
 
         persist(events)
         _settings.value = backup.settings
@@ -485,6 +515,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         capsuleStore.save(capsules)
         _footprints.value = footprints
         footprintStore.save(footprints)
+        _tapes.value = tapes
+        tapeStore.save(tapes)
         // persist() scheduled from the pre-import capsules and settings, so the
         // one alarm goes back in step with what is stored now.
         reschedule()
@@ -492,6 +524,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // refresh inside persist() ran before they were saved.
         refreshAllWidgets(getApplication())
         restoreVoiceLetters(capsules, backup.voices)
+        restoreTapeVoices(tapes, backup.tapeVoices)
         // An older backup carries its backgrounds on the countdowns; the
         // hand-over runs again so the first of them becomes the app's own.
         adoptLegacyBackground()
@@ -516,6 +549,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (name !in wanted) return@forEach
                 runCatching { java.util.Base64.getDecoder().decode(encoded) }.getOrNull()
                     ?.let { bytes -> CapsuleVoice.restore(app, name, bytes) }
+            }
+        }
+    }
+
+    /** The tapes' own version of the voice letters' homecoming. */
+    private fun restoreTapeVoices(tapes: List<VoiceTape>, voices: Map<String, String>) {
+        if (voices.isEmpty()) return
+        val wanted = tapes.mapNotNull { it.fileName }.toSet()
+        if (wanted.isEmpty()) return
+        val app = getApplication<Application>()
+        viewModelScope.launch(Dispatchers.IO) {
+            voices.forEach { (name, encoded) ->
+                if (name !in wanted) return@forEach
+                runCatching { java.util.Base64.getDecoder().decode(encoded) }.getOrNull()
+                    ?.let { bytes -> TapeAudio.restore(app, name, bytes) }
             }
         }
     }
@@ -574,6 +622,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun draftCapsule(): TimeCapsule = TimeCapsule(id = TimeCapsule.newId(), message = "", opensEpochDay = LocalDate.now().toEpochDay(), createdAt = System.currentTimeMillis())
 
     /** Adds a capsule, or replaces the stored one carrying the same id. */
+    /**
+     * Shelves a tape, new or re-titled. The write is synchronous — a force
+     * stop after the tap loses nothing the wall already had, and a relaunch
+     * reads the same wall back.
+     */
+    fun saveTape(tape: VoiceTape) {
+        val index = _tapes.value.indexOfFirst { it.id == tape.id }
+        val updated = if (index >= 0) {
+            _tapes.value.toMutableList().also { it[index] = tape }
+        } else {
+            _tapes.value + tape
+        }.sortedByDescending { it.createdAt }
+        _tapes.value = updated
+        tapeStore.save(updated)
+    }
+
+    /** Takes a tape off the wall — and its recording with it, by name and only by name. */
+    fun deleteTape(tape: VoiceTape) {
+        val updated = _tapes.value.filterNot { it.id == tape.id }
+        _tapes.value = updated
+        tapeStore.save(updated)
+        tape.fileName?.let { TapeAudio.delete(getApplication(), it) }
+    }
+
     fun saveCapsule(capsule: TimeCapsule) {
         // The same late-save guard as an event's: a letter being edited
         // while its photos become references must not write the old copy

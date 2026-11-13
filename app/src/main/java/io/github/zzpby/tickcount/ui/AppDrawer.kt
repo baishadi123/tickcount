@@ -52,6 +52,9 @@ enum class AppScreen(val labelRes: Int) {
     THINGS(R.string.drawer_things),
     CAPSULE(R.string.drawer_capsule),
     WANJIANG(R.string.drawer_wanjiiang),
+    // The wall of voice tapes: her voice, shelved. Sits beside the capsules,
+    // the other thing that is sealed and kept.
+    VOICE_TAPES(R.string.drawer_tapes),
     VOYAGE(R.string.drawer_voyage),
     CALENDAR(R.string.drawer_calendar),
     SETTINGS(R.string.drawer_settings),
@@ -69,6 +72,7 @@ enum class AppScreen(val labelRes: Int) {
 internal val AppScreen.inDrawer: Boolean
     get() = this == AppScreen.HOME || this == AppScreen.THINGS ||
         this == AppScreen.CAPSULE || this == AppScreen.WANJIANG ||
+        this == AppScreen.VOICE_TAPES ||
         this == AppScreen.CALENDAR || this == AppScreen.VOYAGE
 
 /** The pages the settings screen lists: everything below it in the enum. */

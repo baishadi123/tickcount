@@ -85,6 +85,20 @@
     <!-- 时光胶囊（capsule 页签） -->
     <string name="drawer_capsule">敬心</string>
     <string name="drawer_wanjiiang">万疆</string>
+    <string name="drawer_tapes">烟涛</string>
+
+    <!-- The wall of voice tapes -->
+    <string name="tape_wall_title">她的声音</string>
+    <string name="tape_wall_count">已收录 %1$d 盘</string>
+    <string name="tape_side_a">A 面</string>
+    <string name="tape_scrub_hint">点击播放 · 左右拖动搓带</string>
+    <string name="tape_untitled">未命名</string>
+    <string name="tape_wall_empty">墙还空着——按右上角的录音键，收下第一段她的声音</string>
+    <string name="tape_recording">正在收录</string>
+    <string name="tape_too_short">太短了，没录上</string>
+    <string name="tape_title_hint">这盘磁带叫什么</string>
+    <string name="tape_importing">解析中…</string>
+    <string name="tape_import_failed">这份文件的音轨取不出来</string>
 
     <!-- 万疆：一起去过的地方 -->
     <string name="wanjiiang_summary">%1$d 个地方 · %2$d 张照片</string>

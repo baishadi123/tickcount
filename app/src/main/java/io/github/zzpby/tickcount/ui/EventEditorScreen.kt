@@ -180,6 +180,15 @@ fun EventEditorScreen(
     // same reason the tags are one: it is what a Bundle carries across a rotation.
     var photoNames by rememberSaveable(initial.id) { mutableStateOf(ArrayList(initial.photoUris)) }
 
+    // The session's photo ledger. A ✕ only strikes the name from the working
+    // list; the file itself is sentenced, not executed — the sentence is
+    // carried out when the save commits the record that no longer names it.
+    // A cancelled edit tears the ledger up: every strike keeps its file.
+    var struckPhotos by rememberSaveable(initial.id) { mutableStateOf(ArrayList<String>()) }
+    // What this session picked in, in the same spirit: a cancel owes these
+    // their deletion, for no record will ever name them.
+    var freshPhotos by rememberSaveable(initial.id) { mutableStateOf(ArrayList<String>()) }
+
     // The photo the pile leads with, picked by tapping its thumbnail: which photo
     // is on top is a decision, not the order they arrived in.
     var photoCover by rememberSaveable(initial.id) { mutableStateOf(initial.photoCover) }
@@ -205,7 +214,10 @@ fun EventEditorScreen(
                     }
                 }
             }
-            if (added.isNotEmpty()) photoNames = ArrayList(photoNames + added)
+            if (added.isNotEmpty()) {
+                freshPhotos = ArrayList(freshPhotos + added)
+                photoNames = ArrayList(photoNames + added)
+            }
         }
     }
 
@@ -318,7 +330,12 @@ fun EventEditorScreen(
 
             Spacer(Modifier.weight(1f))
 
-            IconButton(onClick = onDismiss) {
+            // The ✕ owes the ledger a settlement: nothing was struck, and
+            // what was picked in has no record to live in.
+            IconButton(onClick = {
+                freshPhotos.forEach { EventBackgrounds.delete(context, it) }
+                onDismiss()
+            }) {
                 CloseIcon(color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
@@ -335,6 +352,9 @@ fun EventEditorScreen(
                     } else {
                         onSaveMany(wholeOne)
                     }
+                    // The record now stands without them: the sentence is
+                    // carried out. A reference is an untying, not a deletion.
+                    struckPhotos.forEach { EventBackgrounds.delete(context, it) }
                 },
             ) {
                 CheckIcon(
@@ -579,7 +599,9 @@ fun EventEditorScreen(
                                 onPick = { photoCover = name },
                                 selected = photoCover == name,
                                 onDelete = {
-                                    EventBackgrounds.delete(context, name)
+                                    // Struck, not deleted: the file answers for
+                                    // itself only if the save agrees.
+                                    struckPhotos = ArrayList((struckPhotos + name).distinct())
                                     photoNames = ArrayList(photoNames - name)
                                     if (photoCover == name) photoCover = null
                                 },

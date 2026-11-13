@@ -56,6 +56,10 @@ data class Backup(
      * still fits in a file.
      */
     val voices: Map<String, String> = emptyMap(),
+    /** The wall of voice tapes, the same reason the capsules travel. */
+    val tapes: List<VoiceTape> = emptyList(),
+    /** The tapes' recordings, as file name → Base64 — the voices' own rule. */
+    val tapeVoices: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -99,6 +103,8 @@ object BackupCodec {
     private const val KEY_FOOTPRINTS = "footprints"
     private const val KEY_SETTINGS = "settings"
     private const val KEY_VOICES = "voices"
+    private const val KEY_TAPES = "tapes"
+    private const val KEY_TAPE_VOICES = "tapeVoices"
 
     /** [exportedAt] is a parameter rather than read here, so that encoding is repeatable. */
     fun encode(backup: Backup, exportedAt: Long = System.currentTimeMillis()): String =
@@ -116,6 +122,15 @@ object BackupCodec {
                     put(
                         KEY_VOICES,
                         JSONObject().apply { backup.voices.forEach { (name, content) -> put(name, content) } },
+                    )
+                }
+                if (backup.tapes.isNotEmpty()) {
+                    put(KEY_TAPES, VoiceTapeCodec.encode(backup.tapes))
+                }
+                if (backup.tapeVoices.isNotEmpty()) {
+                    put(
+                        KEY_TAPE_VOICES,
+                        JSONObject().apply { backup.tapeVoices.forEach { (name, content) -> put(name, content) } },
                     )
                 }
             }
@@ -141,6 +156,16 @@ object BackupCodec {
                 buildMap {
                     for (name in letters.keys()) {
                         letters.optString(name).takeIf { it.isNotEmpty() }?.let { put(name, it) }
+                    }
+                }
+            } ?: emptyMap(),
+            // The tape wall rides the same rule: absent in older backups,
+            // and then simply empty.
+            tapes = root.optJSONArray(KEY_TAPES)?.let(VoiceTapeCodec::decode) ?: emptyList(),
+            tapeVoices = root.optJSONObject(KEY_TAPE_VOICES)?.let { recordings ->
+                buildMap {
+                    for (name in recordings.keys()) {
+                        recordings.optString(name).takeIf { it.isNotEmpty() }?.let { put(name, it) }
                     }
                 }
             } ?: emptyMap(),

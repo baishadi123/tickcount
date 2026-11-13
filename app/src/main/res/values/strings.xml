@@ -184,6 +184,20 @@
     <string name="drawer_calendar">Calendar</string>
     <string name="drawer_voyage">Voyage</string>
     <string name="drawer_wanjiiang">Wander</string>
+    <string name="drawer_tapes">Swell</string>
+
+    <!-- The wall of voice tapes -->
+    <string name="tape_wall_title">Her Voice</string>
+    <string name="tape_wall_count">%1$d tapes shelved</string>
+    <string name="tape_side_a">SIDE A</string>
+    <string name="tape_scrub_hint">Tap to play · drag to scrub</string>
+    <string name="tape_untitled">Untitled</string>
+    <string name="tape_wall_empty">The wall is bare — press the record key and keep her first words</string>
+    <string name="tape_recording">LISTENING</string>
+    <string name="tape_too_short">Too short to keep</string>
+    <string name="tape_title_hint">Name this tape</string>
+    <string name="tape_importing">MAKING A TAPE…</string>
+    <string name="tape_import_failed">No audio in this file to keep</string>
 
     <!-- 万疆：the places visited together -->
     <string name="wanjiiang_summary">%1$d places · %2$d photos</string>

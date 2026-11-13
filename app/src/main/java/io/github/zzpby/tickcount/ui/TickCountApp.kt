@@ -103,8 +103,9 @@ fun TickCountApp(
 ) {
     val events by viewModel.events.collectAsStateWithLifecycle()
     val wishes by viewModel.wishes.collectAsStateWithLifecycle()
-    val capsules by viewModel.capsules.collectAsStateWithLifecycle()
-    val footprints by viewModel.footprints.collectAsStateWithLifecycle()
+val capsules by viewModel.capsules.collectAsStateWithLifecycle()
+val footprints by viewModel.footprints.collectAsStateWithLifecycle()
+val tapes by viewModel.tapes.collectAsStateWithLifecycle()
     val now by viewModel.now.collectAsStateWithLifecycle()
     val visibleMonth by viewModel.visibleMonth.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -666,6 +667,12 @@ fun TickCountApp(
                     screen == AppScreen.WANJIANG -> WanJiangScreen(
                         footprints = footprints,
                         onEdit = { startEditFootprint(it) },
+                    )
+
+                    screen == AppScreen.VOICE_TAPES -> VoiceTapeScreen(
+                        tapes = tapes,
+                        onSaveTape = viewModel::saveTape,
+                        onDeleteTape = viewModel::deleteTape,
                     )
 
                     screen == AppScreen.SETTINGS -> SettingsScreen(

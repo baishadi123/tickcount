@@ -4,11 +4,12 @@ import android.content.ContentUris
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import android.media.MediaMetadataRetriever
-import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import androidx.exifinterface.media.ExifInterface
 import io.github.zzpby.tickcount.domain.MediaRef
 import java.io.File
 import java.time.LocalDateTime
@@ -31,6 +32,14 @@ import java.util.Locale
  * in the grid, never a crash.
  */
 object GalleryMedia {
+
+    /**
+     * The pixel ceiling a whole-picture decode may be turned under: two
+     * bitmaps live through the turn, so the pair's peak must stay within a
+     * phone's means. 24 megapixels is above every screen and every common
+     * camera; only sensor monsters ever meet it.
+     */
+    private const val UPTURN_PIXEL_CAP = 24_000_000L
 
     /** The MIME types a reference may hold; everything else stays a private copy. */
     private val MIME_EXTENSIONS = mapOf(
@@ -157,15 +166,88 @@ object GalleryMedia {
         }.getOrNull()
     }
 
-    /** The picture whole, for a full-screen page. */
+    /**
+     * The picture whole, for a full-screen page — turned upright the way the
+     * photographer held the camera: the decoder honours pixels, not the
+     * orientation tag beside them, so a portrait taken sideways stays
+     * sideways unless someone reads the tag and turns it.
+     *
+     * Turning means two bitmaps alive at once, the sideways one and the
+     * upright one, so a monster above [UPTURN_PIXEL_CAP] is sampled down to
+     * the cap first — still far beyond any screen, and the peak stays
+     * within a phone's means.
+     */
     fun bitmap(context: Context, entry: String): Bitmap? {
         val ref = MediaRef.parse(entry) ?: return null
         return runCatching {
             val uri = resolveUri(context, ref) ?: return null
+            val orientation = orientationOf(context, uri)
+
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             context.contentResolver.openInputStream(uri)?.use {
-                BitmapFactory.decodeStream(it)
+                BitmapFactory.decodeStream(it, null, bounds)
             }
+            val pixels = bounds.outWidth.toLong() * bounds.outHeight.toLong()
+            val sample = if (pixels > UPTURN_PIXEL_CAP) {
+                // Powers of two only, per the decoder's own rule.
+                var s = 1
+                while (pixels / (s.toLong() * s * 4) > UPTURN_PIXEL_CAP) s *= 2
+                s
+            } else {
+                1
+            }
+
+            val decoded = context.contentResolver.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
+            } ?: return null
+            upright(decoded, orientation)
         }.getOrNull()
+    }
+
+    /** The orientation tag a stream carries, NORMAL when nothing can be read. */
+    private fun orientationOf(context: Context, uri: Uri): Int = runCatching {
+        context.contentResolver.openInputStream(uri)?.use {
+            ExifInterface(it).getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_NORMAL,
+            )
+        } ?: ExifInterface.ORIENTATION_NORMAL
+    }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+
+    /** The orientation tag one of our own files carries, for the copies' pages. */
+    internal fun uprightOf(file: File): Int = runCatching {
+        ExifInterface(file).getAttributeInt(
+            ExifInterface.TAG_ORIENTATION,
+            ExifInterface.ORIENTATION_NORMAL,
+        )
+    }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+
+    /**
+     * Turns [bitmap] the way its [orientation] tag says the camera held it,
+     * recycling the sideways original — the one reading a page deserves is
+     * the upright one, not the one the sensor happened to store.
+     */
+    internal fun upright(bitmap: Bitmap, orientation: Int): Bitmap {
+        val matrix = Matrix()
+        when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+            ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+            ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.postScale(-1f, 1f)
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.postScale(1f, -1f)
+            ExifInterface.ORIENTATION_TRANSPOSE -> {
+                matrix.postRotate(90f)
+                matrix.postScale(-1f, 1f)
+            }
+            ExifInterface.ORIENTATION_TRANSVERSE -> {
+                matrix.postRotate(270f)
+                matrix.postScale(-1f, 1f)
+            }
+            else -> return bitmap
+        }
+        val turned = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        if (turned !== bitmap) bitmap.recycle()
+        return turned
     }
 
     /** True when the reference holds a moving picture. */

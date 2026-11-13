@@ -61,6 +61,8 @@ import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -572,6 +574,13 @@ private fun GlassCircleButton(
             .size(34.dp)
             .clip(CircleShape)
             .background(Color.White.copy(alpha = 0.14f))
+            .then(
+                if (contentDescription != null) {
+                    Modifier.semantics { this.contentDescription = contentDescription }
+                } else {
+                    Modifier
+                }
+            )
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -593,12 +602,16 @@ private fun AnimatedPage(
     media: ViewerMedia,
     onTap: () -> Unit,
 ) {
-    val drawable = remember(entry) {
-        runCatching {
-            val uri = media.uri(context, entry) ?: return@runCatching null
-            ImageDecoder.createSource(context.contentResolver, uri)
-                .let { ImageDecoder.decodeDrawable(it) }
-        }.getOrNull()
+    // The decode is IO work like any other: a moving picture is a whole
+    // file's worth of frames, and none of it belongs on the drawing thread.
+    val drawable by produceState<android.graphics.drawable.Drawable?>(null, entry) {
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                val uri = media.uri(context, entry) ?: return@runCatching null
+                ImageDecoder.createSource(context.contentResolver, uri)
+                    .let { ImageDecoder.decodeDrawable(it) }
+            }.getOrNull()
+        }
     }
     if (drawable != null) {
         Box(
@@ -615,6 +628,7 @@ private fun AnimatedPage(
                         (drawable as? AnimatedImageDrawable)?.start()
                     }
                 },
+                update = { view -> (drawable as? AnimatedImageDrawable)?.start() },
                 modifier = Modifier.fillMaxSize(),
             )
         }

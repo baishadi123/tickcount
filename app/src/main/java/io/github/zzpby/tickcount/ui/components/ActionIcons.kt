@@ -118,6 +118,60 @@ fun InfoIcon(
 }
 
 /**
+ * A play triangle: three strokes of the same round pen, leaning a hair
+ * past vertical the way a drawn glyph does — the deck's go.
+ */
+@Composable
+fun PlayIcon(
+    modifier: Modifier = Modifier,
+    iconSize: Dp = 20.dp,
+    color: Color = LocalContentColor.current,
+) {
+    Canvas(modifier = modifier.size(iconSize)) {
+        val w = size.width
+        val h = size.height
+        val mark = Path().apply {
+            moveTo(w * 0.30f, h * 0.16f)
+            lineTo(w * 0.84f, h * 0.50f)
+            lineTo(w * 0.30f, h * 0.84f)
+            close()
+        }
+        drawPath(mark, color)
+    }
+}
+
+/**
+ * A pause: two uprights of the same round pen, a breath apart — the
+ * deck's hold.
+ */
+@Composable
+fun PauseIcon(
+    modifier: Modifier = Modifier,
+    iconSize: Dp = 20.dp,
+    color: Color = LocalContentColor.current,
+) {
+    Canvas(modifier = modifier.size(iconSize)) {
+        val w = size.width
+        val h = size.height
+        val stroke = w * 0.16f
+        drawLine(
+            color,
+            start = Offset(w * 0.36f, h * 0.18f),
+            end = Offset(w * 0.36f, h * 0.82f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color,
+            start = Offset(w * 0.64f, h * 0.18f),
+            end = Offset(w * 0.64f, h * 0.82f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round,
+        )
+    }
+}
+
+/**
  * An undo arrow: most of a circle with an arrowhead where it begins — the
  * taking-back of a tick, hand-drawn like the other icons here.
  */@Composable

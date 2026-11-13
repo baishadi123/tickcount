@@ -628,6 +628,12 @@ fun FootprintEditorScreen(
     var place by rememberSaveable(initial.id) { mutableStateOf(initial.place) }
     var epochDay by rememberSaveable(initial.id) { mutableStateOf(initial.epochDay) }
     var photoNames by rememberSaveable(initial.id) { mutableStateOf(ArrayList(initial.photos)) }
+
+    // The session's media ledger, the rule the other editors keep: a ✕
+    // strikes the name, the save carries the sentence out, a cancel tears
+    // the ledger up and every file keeps its place.
+    var struckMedia by rememberSaveable(initial.id) { mutableStateOf(ArrayList<String>()) }
+    var freshMedia by rememberSaveable(initial.id) { mutableStateOf(ArrayList<String>()) }
     var latitude by rememberSaveable(initial.id) { mutableStateOf(initial.latitude) }
     var longitude by rememberSaveable(initial.id) { mutableStateOf(initial.longitude) }
     var locationName by rememberSaveable(initial.id) { mutableStateOf(initial.locationName) }
@@ -673,7 +679,10 @@ fun FootprintEditorScreen(
                     }
                 }
             }
-            if (added.isNotEmpty()) photoNames = ArrayList(photoNames + added)
+            if (added.isNotEmpty()) {
+                freshMedia = ArrayList(freshMedia + added)
+                photoNames = ArrayList(photoNames + added)
+            }
         }
     }
 
@@ -869,7 +878,9 @@ fun FootprintEditorScreen(
                             .background(glassPane())
                             .hairline(CardShape)
                             .clickable {
-                                FootprintMedia.delete(context, name)
+                                // Struck, not deleted: the file answers for
+                                // itself only if the save agrees.
+                                struckMedia = ArrayList((struckMedia + name).distinct())
                                 photoNames = ArrayList(photoNames - name)
                             },
                     ) {
@@ -930,7 +941,12 @@ fun FootprintEditorScreen(
                     TrashIcon(color = MaterialTheme.colorScheme.error)
                 }
             }
-            IconButton(onClick = onDismiss) {
+            // The ✕ owes the ledger a settlement: nothing was struck, and
+            // what was picked in has no record to live in.
+            IconButton(onClick = {
+                freshMedia.forEach { FootprintMedia.delete(context, it) }
+                onDismiss()
+            }) {
                 CloseIcon(color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(
@@ -945,6 +961,9 @@ fun FootprintEditorScreen(
                             locationName = locationName,
                         ),
                     )
+                    // The visit is saved without them: the sentence is carried
+                    // out. A reference is an untying, not a deletion.
+                    struckMedia.forEach { FootprintMedia.delete(context, it) }
                 },
                 enabled = place.isNotBlank(),
             ) {

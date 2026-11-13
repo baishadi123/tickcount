@@ -82,13 +82,17 @@ object FootprintMedia {
 
     /**
      * The picture whole, for a full-screen page: the album's original for a
-     * reference, one of our own files as it was copied. Whatever the strip
-     * does, the reading itself is never a miniature.
+     * reference, one of our own files as it was copied — turned upright
+     * either way, the tag read and honoured. Whatever the strip does, the
+     * reading itself is never a miniature and never sideways.
      */
     fun bitmap(context: Context, entry: String): Bitmap? {
         if (MediaRef.isRef(entry)) return GalleryMedia.bitmap(context, entry)
         val own = file(context, entry) ?: return null
-        return runCatching { BitmapFactory.decodeFile(own.absolutePath) }.getOrNull()
+        return runCatching {
+            val decoded = BitmapFactory.decodeFile(own.absolutePath) ?: return null
+            GalleryMedia.upright(decoded, GalleryMedia.uprightOf(own))
+        }.getOrNull()
     }
 
     /** The MIME type one of our own file names stands for, by its extension. */

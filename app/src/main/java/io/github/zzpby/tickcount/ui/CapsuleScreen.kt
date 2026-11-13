@@ -380,6 +380,12 @@ fun CapsuleEditorScreen(
     var datePickerOpen by rememberSaveable { mutableStateOf(false) }
     var photoNames by rememberSaveable(initial.id) { mutableStateOf(ArrayList(initial.photos)) }
 
+    // The session's photo ledger, the same rule the countdown editor keeps:
+    // a ✕ strikes the name, the save carries the sentence out, a cancel
+    // tears the ledger up and every file keeps its place.
+    var struckPhotos by rememberSaveable(initial.id) { mutableStateOf(ArrayList<String>()) }
+    var freshPhotos by rememberSaveable(initial.id) { mutableStateOf(ArrayList<String>()) }
+
     // The voice letter: a take goes straight to its final file, and is only
     // committed to the record on save — a cancelled edit throws the new take
     // away and leaves the voice it came in with untouched.
@@ -490,7 +496,10 @@ fun CapsuleEditorScreen(
                     }
                 }
             }
-            if (added.isNotEmpty()) photoNames = ArrayList(photoNames + added)
+            if (added.isNotEmpty()) {
+                freshPhotos = ArrayList(freshPhotos + added)
+                photoNames = ArrayList(photoNames + added)
+            }
         }
     }
 
@@ -511,6 +520,9 @@ fun CapsuleEditorScreen(
 
             IconButton(onClick = {
                 discardPendingTake()
+                // A cancelled sealing takes nothing with it — except what was
+                // picked in this session, which no record will ever name.
+                freshPhotos.forEach { EventBackgrounds.delete(context, it) }
                 onDismiss()
             }) {
                 CloseIcon(color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -537,6 +549,9 @@ fun CapsuleEditorScreen(
                             voiceBars = voiceBars,
                         )
                     )
+                    // The letter is sealed without them: the strikes become
+                    // deletions. A reference is an untying, not a deletion.
+                    struckPhotos.forEach { EventBackgrounds.delete(context, it) }
                 },
             ) {
                 CheckIcon(
@@ -702,7 +717,9 @@ fun CapsuleEditorScreen(
                             onPick = {},
                             selected = false,
                             onDelete = {
-                                EventBackgrounds.delete(context, name)
+                                // Struck, not deleted: the file answers for
+                                // itself only if the sealing agrees.
+                                struckPhotos = ArrayList((struckPhotos + name).distinct())
                                 photoNames = ArrayList(photoNames - name)
                             },
                         )

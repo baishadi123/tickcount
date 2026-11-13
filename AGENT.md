@@ -51,7 +51,7 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
 | 桌面小组件（单个 / 清单） | `ui/widget/` 整目录 |
 | 农历与每年重复 | `domain/Lunar.kt`、`domain/YearlyRepeat.kt`、`ui/LunarText.kt` |
 | 外观（主题、色相、玻璃体系、全局背景） | `ui/AppearanceScreen.kt`、`ui/theme/Style.kt`（GlassTokens 分层：大卡全玻璃 `glassSurface`（跟手高光+按压回弹）/编辑静板 `interactive=false`/小件薄纱 `glassPane`）、`ui/theme/` 其余 |
-| 声带（磁带墙：录音 / 导入 / 播放） | `ui/VoiceTapeScreen.kt`（墙+机座+录音棚）、`data/VoiceTape.kt`（模型+编解码+按年存储）、`data/TapeAudio.kt` 所在即 `data/VoiceTape.kt`（录音仓 `vt-`）、`data/TapeImport.kt`（视频抽音轨/音频直取/波形解码）、`ui/components/ActionIcons.kt`（PlayIcon/PauseIcon/InfoIcon） |
+| 烟涛（磁带墙：录音 / 导入 / 播放；页名 2026-11-13 由「声带」改） | `ui/VoiceTapeScreen.kt`（墙+机座+录音棚）、`data/VoiceTape.kt`（模型+编解码+按年存储）、`data/TapeAudio.kt` 所在即 `data/VoiceTape.kt`（录音仓 `vt-`）、`data/TapeImport.kt`（视频抽音轨/音频直取/波形解码）、`ui/components/ActionIcons.kt`（PlayIcon/PauseIcon/InfoIcon） |
 | 照片查看器（三入口共享）与弹窗防护 | `ui/components/PhotoViewer.kt`（缩放/双击/缩略条/EXIF 玻璃面板；`ViewerMedia` 照片与足迹双源）、`data/PhotoExif.kt`（EXIF 按需 IO 读取）、`ui/components/DialogWindowGuard.kt`（横屏幽灵窗防护，全屏弹窗挂载） |
 | 数据管理（备份 / 加密） | `ui/DataScreen.kt`、`data/Backup.kt`、`data/BackupCrypto.kt`（.ics 导出已退役，2026-11-05） |
 | 抽屉 / 设置 / 标题栏 | `ui/AppDrawer.kt`、`ui/SettingsScreen.kt`、`ui/AppTitleBar.kt`、根画面 `ui/TickCountApp.kt` |
@@ -168,13 +168,17 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
   去就是二进制；`.md` 免疫）。仓库内新生成的数据文件一律用 `.md` 后缀；`.txt` 只保留
   `更新日志.txt` 一个，动它前先验字节。**它也可能在提交后翻写工作区副本**——以索引
   blob 为准（`git cat-file -p :更新日志.txt`），别信工作区。
-- **PowerShell + GBK 三坑**（2026-11-02 全数踩过）：
+- **PowerShell + GBK 四坑**（2026-11-02 三坑，11-13 补第四）：
   ① 外部程序输出过管道会被按 GBK 解码——`git show | Out-File` 中文全花；字节级取数
   用 `cmd /c "git … > 文件"` 或 `git cat-file -p <sha>`。
   ② `.ps1` 里写中文字面量（无 BOM 被按 ANSI 解析）会烂——中文字符串用
   `[char]0x4E07` 码点拼，或把中文放进独立 UTF-8 数据文件由脚本读。
   ③ `$ErrorActionPreference='Stop'` 时 adb 的 stderr 进度行会终止脚本——脚本容错化
   （Dump 带重试与大小校验）。另：`$home` 是保留变量不可赋值。
+  ④ **别用 `Get-Content | Set-Content` 改写含中文的源码**——管道按 GBK 解码，`—` 变
+  `鈥?`、`象牙` 变 `璞＄墮`，连后面的引号都会被吞掉、直接语法错误（2026-11-13 实录，
+  改一行 import 打烂整个 `VoiceTapeScreen.kt`）。源码一律用编辑器工具改；要批量改，
+  走 Python 显式 `encoding='utf-8'`。
 - **日志拼接以 blob 实际行尾为准**（仓库存 LF、工作区检出 CRLF，autocrlf）：猜错行尾
   会让插入点漂移、整个文件结构错乱（2026-11-02 实录，标题重复 + 孤字行）。拼接后必须
   做结构断言：标题整行唯一、行 1 = 标题 / 行 2 = `====` / 行 4 = 新版本号、旧节完整、

@@ -93,6 +93,7 @@ import io.github.zzpby.tickcount.data.CountdownEvent
 import io.github.zzpby.tickcount.data.EventBackgrounds
 import io.github.zzpby.tickcount.data.Footprint
 import io.github.zzpby.tickcount.data.FootprintMedia
+import io.github.zzpby.tickcount.ui.components.OnAppBackground
 import io.github.zzpby.tickcount.domain.MILESTONE_DAYS
 import io.github.zzpby.tickcount.domain.VoyageStop
 import io.github.zzpby.tickcount.domain.effectiveDate
@@ -370,6 +371,12 @@ fun VoyageScreen(
         } else {
             runCatching { player.start() }
         }
+    }
+    // The night plays only while the night is before the user: behind
+    // anything else the oar ships itself, and returning leaves it shipped
+    // — the song comes back when it is asked for.
+    OnAppBackground {
+        if (!paused) paused = true
     }
 
     // A star arrived at ticks in the hand — only a day that has truly come:

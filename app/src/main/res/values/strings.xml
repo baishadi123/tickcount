@@ -198,6 +198,7 @@
     <string name="tape_title_hint">Name this tape</string>
     <string name="tape_importing">MAKING A TAPE…</string>
     <string name="tape_import_failed">No audio in this file to keep</string>
+    <string name="tape_too_long">Too long — a tape holds ten minutes at most</string>
 
     <!-- 万疆：the places visited together -->
     <string name="wanjiiang_summary">%1$d places · %2$d photos</string>

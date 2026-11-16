@@ -42,6 +42,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
@@ -532,6 +533,11 @@ val tapes by viewModel.tapes.collectAsStateWithLifecycle()
             },
         ) { insets ->
             Box(modifier = Modifier.padding(insets)) {
+                // A page that leaves keeps its place: every branch below is
+                // wrapped in a saveable slot of its own, so a list's scroll
+                // — or a form's half-typing — survives the trip away and
+                // back, the way a page stack remembers.
+                val pages = rememberSaveableStateHolder()
                 when {
                     // The editor is a screen of its own, with the screen's own title bar
                     // above it. It was a dialog until the batch section made it taller than a
@@ -630,13 +636,16 @@ val tapes by viewModel.tapes.collectAsStateWithLifecycle()
                         onDismiss = { footprintEditorOpen = false },
                     )
 
+                    // A countdown's own page — fresh like the editors, for the
+                    // same reason: a restored viewer or scroll is the last
+                    // record's ghost, not this one's memory.
                     detailEvent != null -> EventDetailScreen(
                         event = detailEvent,
                         now = now,
                         onTogglePin = { viewModel.togglePin(detailEvent.id) },
                     )
 
-                     screen == AppScreen.HOME -> HomeScreen(
+                     screen == AppScreen.HOME -> pages.SaveableStateProvider("home") { HomeScreen(
                          entries = countdownList(events, today, settings.sortOrder),
                          today = today,
                          query = searchQuery,
@@ -645,44 +654,44 @@ val tapes by viewModel.tapes.collectAsStateWithLifecycle()
                         onScopeChange = { searchScopeName = it.name },
                         sortOrder = settings.sortOrder,
                         onSortChange = viewModel::chooseSortOrder,
-                        onOpen = { detailId = it },
-                        onLongPress = { actionsForId = it },
-                    )
+                         onOpen = { detailId = it },
+                         onLongPress = { actionsForId = it },
+                    ) }
 
-                    screen == AppScreen.THINGS -> ThingsScreen(
+                    screen == AppScreen.THINGS -> pages.SaveableStateProvider("things") { ThingsScreen(
                         wishes = wishes,
                         today = today,
                         onToggle = viewModel::toggleWish,
                         onEdit = { startEditWish(it) },
-                    )
+                    ) }
 
-                    screen == AppScreen.CAPSULE -> CapsuleScreen(
+                    screen == AppScreen.CAPSULE -> pages.SaveableStateProvider("capsules") { CapsuleScreen(
                         capsules = capsules,
                         today = today,
                         onOpen = viewModel::openCapsule,
                         onEdit = { startEditCapsule(it) },
                         onReseal = viewModel::resealCapsule,
-                    )
+                    ) }
 
-                    screen == AppScreen.WANJIANG -> WanJiangScreen(
+                    screen == AppScreen.WANJIANG -> pages.SaveableStateProvider("wanjiang") { WanJiangScreen(
                         footprints = footprints,
                         onEdit = { startEditFootprint(it) },
-                    )
+                    ) }
 
-                    screen == AppScreen.VOICE_TAPES -> VoiceTapeScreen(
+                    screen == AppScreen.VOICE_TAPES -> pages.SaveableStateProvider("tapes") { VoiceTapeScreen(
                         tapes = tapes,
                         onSaveTape = viewModel::saveTape,
                         onDeleteTape = viewModel::deleteTape,
-                    )
+                    ) }
 
-                    screen == AppScreen.SETTINGS -> SettingsScreen(
+                    screen == AppScreen.SETTINGS -> pages.SaveableStateProvider("settings") { SettingsScreen(
                         current = screen,
                         language = settings.language,
                         onLanguage = { languageOpen = true },
                         onSelect = { screenName = it.name },
-                    )
+                    ) }
 
-                    screen == AppScreen.CALENDAR -> CalendarScreen(
+                    screen == AppScreen.CALENDAR -> pages.SaveableStateProvider("calendar") { CalendarScreen(
                         month = visibleMonth,
                         today = today,
                         selectedDate = calendarDate,
@@ -701,9 +710,9 @@ val tapes by viewModel.tapes.collectAsStateWithLifecycle()
                         onOpenCapsule = { screenName = AppScreen.CAPSULE.name },
                         onOpenWishes = { screenName = AppScreen.THINGS.name },
                         onSetAnniversary = { viewModel.chooseAnniversary(it.toEpochDay()) },
-                    )
+                    ) }
 
-                    screen == AppScreen.VOYAGE -> VoyageScreen(
+                    screen == AppScreen.VOYAGE -> pages.SaveableStateProvider("voyage") { VoyageScreen(
                         events = events,
                         today = today,
                         milestones = milestonesByDate,
@@ -711,9 +720,9 @@ val tapes by viewModel.tapes.collectAsStateWithLifecycle()
                         onOpen = { detailId = it },
                         musicFile = settings.voyageMusicFile,
                         onMusicPicked = viewModel::chooseVoyageMusic,
-                    )
+                    ) }
 
-                    screen == AppScreen.REMINDERS -> NotificationsScreen(
+                    screen == AppScreen.REMINDERS -> pages.SaveableStateProvider("reminders") { NotificationsScreen(
                         settings = settings,
                         nextAt = Reminders.nextAt(
                             events,
@@ -723,9 +732,9 @@ val tapes by viewModel.tapes.collectAsStateWithLifecycle()
                         onRemind = viewModel::chooseRemind,
                         onMinutes = viewModel::chooseRemindMinutes,
                         onTest = viewModel::sendTestNotification,
-                    )
+                    ) }
 
-                    screen == AppScreen.APPEARANCE -> AppearanceScreen(
+                    screen == AppScreen.APPEARANCE -> pages.SaveableStateProvider("appearance") { AppearanceScreen(
                         settings = settings,
                         onPreset = viewModel::chooseTheme,
                         onCustomHue = viewModel::chooseCustomHue,
@@ -733,22 +742,22 @@ val tapes by viewModel.tapes.collectAsStateWithLifecycle()
                         onClearBackground = viewModel::clearAppBackground,
                         onToggleBackground = viewModel::toggleAppBackground,
                         onFrameBackground = viewModel::frameAppBackground,
-                    )
+                    ) }
 
-                    screen == AppScreen.WIDGETS -> WidgetSettingsScreen(
+                    screen == AppScreen.WIDGETS -> pages.SaveableStateProvider("widgets") { WidgetSettingsScreen(
                         settings = settings,
                         onPanel = viewModel::chooseWidgetPanel,
                         onTextSize = viewModel::chooseWidgetTextSize,
-                    )
+                    ) }
 
-                    screen == AppScreen.DATA -> DataScreen(
+                    screen == AppScreen.DATA -> pages.SaveableStateProvider("data") { DataScreen(
                         onExport = viewModel::exportBackup,
                         onRead = viewModel::readBackup,
                         onApply = viewModel::applyBackup,
                         galleryHealthItems = galleryHealthItems,
                         onRelinkGallery = viewModel::relinkGalleryEntries,
                         onGalleryReady = viewModel::onGalleryPermissionGranted,
-                    )
+                    ) }
 
                     screen == AppScreen.CHANGELOG -> ChangelogScreen()
 

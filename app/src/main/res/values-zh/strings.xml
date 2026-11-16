@@ -99,6 +99,7 @@
     <string name="tape_title_hint">这盘磁带叫什么</string>
     <string name="tape_importing">解析中…</string>
     <string name="tape_import_failed">这份文件的音轨取不出来</string>
+    <string name="tape_too_long">太长了，磁带最多收十分钟</string>
 
     <!-- 万疆：一起去过的地方 -->
     <string name="wanjiiang_summary">%1$d 个地方 · %2$d 张照片</string>

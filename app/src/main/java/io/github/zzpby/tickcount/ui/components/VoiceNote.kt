@@ -70,13 +70,36 @@ fun VoiceNote(
     var shownSeconds by remember { mutableIntStateOf(seconds) }
     var broken by remember { mutableStateOf(false) }
 
+    // The letter asks before it reads aloud: a call pauses it where it
+    // stands, and the room's word over it ducks it low.
+    var focus by remember { mutableStateOf<PlaybackFocus?>(null) }
     fun release() {
         runCatching { player?.release() }
         player = null
+        focus?.release()
+        focus = null
     }
 
     DisposableEffect(fileName) {
+        focus = PlaybackFocus(
+            context = context,
+            onLost = {
+                runCatching { player?.pause() }
+                playing = false
+            },
+            onDuck = { ducked ->
+                player?.setVolume(if (ducked) 0.2f else 1f, if (ducked) 0.2f else 1f)
+            },
+        )
         onDispose { release() }
+    }
+    // The letter reads only while the app is before the user: behind
+    // anything else, the voice rests where it paused, waiting to resume.
+    OnAppBackground {
+        if (playing) {
+            runCatching { player?.pause() }
+            playing = false
+        }
     }
 
     fun toggle() {
@@ -92,6 +115,10 @@ fun VoiceNote(
         }
         val file = CapsuleVoice.file(context, fileName)
         if (file == null) {
+            broken = true
+            return
+        }
+        if (focus?.gain() != true) {
             broken = true
             return
         }

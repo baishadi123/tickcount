@@ -30,10 +30,33 @@ data class ImportedTape(
  * takes a moment. An audio file is taken as it is. Either way the length
  * is read from the player and the wave from the samples themselves.
  */
+/** Said in the caller's language: what one import came to. */
+sealed interface ImportOutcome {
+    data class Made(val tape: ImportedTape) : ImportOutcome
+    /** Fine as a file, too long for the wall — the caller words it. */
+    data object TooLong : ImportOutcome
+    /** Nothing could be made of it. */
+    data object Failed : ImportOutcome
+}
+
 object TapeImport {
 
-    /** Takes [uri] in; a tape's parts out — or null when nothing could be made of it. */
-    fun import(context: Context, uri: Uri, tapeId: String): ImportedTape? = runCatching {
+    /** The longest file the wall will take in: ten minutes, twice a recording's own cap. */
+    const val MAX_IMPORT_SECONDS = 600
+
+    /** Takes [uri] in and says what came of it. */
+    fun import(context: Context, uri: Uri, tapeId: String): ImportOutcome {
+        val made = runCatching { importInternal(context, uri, tapeId) }.getOrNull()
+        return when {
+            made == TOO_LONG -> ImportOutcome.TooLong
+            made != null -> ImportOutcome.Made(made)
+            else -> ImportOutcome.Failed
+        }
+    }
+
+    private val TOO_LONG = ImportedTape("", 0, emptyList(), "", 0L)
+
+    private fun importInternal(context: Context, uri: Uri, tapeId: String): ImportedTape? {
         val info = describe(context, uri) ?: return null
         // A video's audio is lifted out before the file exists, because which
         // container it lands in depends on the codec inside the video.
@@ -53,15 +76,23 @@ object TapeImport {
             file.delete()
             return null
         }
+        // The wall is for moments, not concerts: a recording is capped at
+        // five minutes, and an import answers to the same discipline at
+        // ten — a longer file, kept whole, would ride inside every backup
+        // as a Base64 whale.
+        if (seconds > MAX_IMPORT_SECONDS) {
+            file.delete()
+            return TOO_LONG
+        }
         val bars = waveOf(context, Uri.fromFile(file), seconds)
-        ImportedTape(
+        return ImportedTape(
             fileName = file.name,
             seconds = seconds,
             bars = bars,
             displayName = info.displayName,
             takenAt = info.lastModified,
         )
-    }.getOrNull()
+    }
 
     private class SourceInfo(
         val displayName: String,

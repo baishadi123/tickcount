@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -90,13 +91,16 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import io.github.zzpby.tickcount.R
+import io.github.zzpby.tickcount.data.ImportOutcome
 import io.github.zzpby.tickcount.data.TapeAudio
 import io.github.zzpby.tickcount.data.TapeImport
 import io.github.zzpby.tickcount.data.VoiceRecorder
 import io.github.zzpby.tickcount.data.VoiceTape
 import io.github.zzpby.tickcount.data.newTapeId
 import io.github.zzpby.tickcount.ui.components.CloseIcon
+import io.github.zzpby.tickcount.ui.components.OnAppBackground
 import io.github.zzpby.tickcount.ui.components.PauseIcon
+import io.github.zzpby.tickcount.ui.components.PlaybackFocus
 import io.github.zzpby.tickcount.ui.components.PlayIcon
 import io.github.zzpby.tickcount.ui.components.SectionLabel
 import io.github.zzpby.tickcount.ui.components.dialogWindowGuard
@@ -251,10 +255,25 @@ fun VoiceTapeScreen(
     // another tap, or a different tape, ends it.
     var playingId by remember { mutableStateOf<String?>(null) }
     val wallPlayer = remember { mutableStateOf<MediaPlayer?>(null) }
+    // The wall asks before it sounds: a call or another app's song ends it,
+    // a word spoken over it ducks it.
+    val wallFocus = remember {
+        PlaybackFocus(
+            context = context,
+            onLost = {
+                // The loss already took the floor — put the tape away
+                // without asking the focus to let go twice.
+                wallPlayer.value?.runCatching { stop(); release() }
+                wallPlayer.value = null
+                playingId = null
+            },
+        )
+    }
     fun stopWallPlayback() {
         wallPlayer.value?.runCatching { stop(); release() }
         wallPlayer.value = null
         playingId = null
+        wallFocus.release()
     }
     fun toggleWallPlayback(tape: VoiceTape) {
         if (playingId == tape.id) {
@@ -263,6 +282,7 @@ fun VoiceTapeScreen(
         }
         stopWallPlayback()
         val file = tape.fileName?.let { TapeAudio.file(context, it) } ?: return
+        if (!wallFocus.gain()) return
         wallPlayer.value = MediaPlayer().apply {
             runCatching {
                 setDataSource(file.absolutePath)
@@ -273,10 +293,12 @@ fun VoiceTapeScreen(
         }
         if (wallPlayer.value != null) playingId = tape.id
     }
-    // The room empties when the page does.
+    // The room empties when the page does — and when the app slips behind
+    // anything else.
     DisposableEffect(Unit) {
         onDispose { stopWallPlayback() }
     }
+    OnAppBackground { stopWallPlayback() }
 
     val micPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -286,6 +308,7 @@ fun VoiceTapeScreen(
     val scope = rememberCoroutineScope()
     var importing by remember { mutableStateOf(false) }
     var importFailed by remember { mutableStateOf(false) }
+    var importTooLong by remember { mutableStateOf(false) }
     val pickImport = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
@@ -293,29 +316,29 @@ fun VoiceTapeScreen(
         scope.launch(Dispatchers.IO) {
             importing = true
             val id = newTapeId()
-            val imported = TapeImport.import(context, uri, id)
-            importing = false
-            if (imported != null) {
-                onSaveTape(
+            when (val outcome = TapeImport.import(context, uri, id)) {
+                is ImportOutcome.Made -> onSaveTape(
                     VoiceTape(
                         id = id,
-                        title = imported.displayName,
-                        createdAt = imported.takenAt,
-                        fileName = imported.fileName,
-                        seconds = imported.seconds,
-                        bars = imported.bars,
+                        title = outcome.tape.displayName,
+                        createdAt = outcome.tape.takenAt,
+                        fileName = outcome.tape.fileName,
+                        seconds = outcome.tape.seconds,
+                        bars = outcome.tape.bars,
                         colorway = tapes.size % 4,
                     ),
                 )
-            } else {
-                importFailed = true
+                ImportOutcome.TooLong -> importTooLong = true
+                ImportOutcome.Failed -> importFailed = true
             }
+            importing = false
         }
     }
-    LaunchedEffect(importFailed) {
-        if (importFailed) {
+    LaunchedEffect(importFailed, importTooLong) {
+        if (importFailed || importTooLong) {
             kotlinx.coroutines.delay(2200)
             importFailed = false
+            importTooLong = false
         }
     }
 
@@ -328,6 +351,7 @@ fun VoiceTapeScreen(
             grain = grain,
             onDismiss = { deckTape = null },
             onDelete = {
+                stopWallPlayback()
                 onDeleteTape(deckTape!!)
                 deckTape = null
             },
@@ -356,7 +380,8 @@ fun VoiceTapeScreen(
         val cardWidth = ((rowWidth - 22.dp) / 2).coerceAtLeast(120.dp)
 
         // Lazy: a wall of fifty tapes composes the shelves on screen, not all
-        // fifty at once. The month label travels with its first shelf.
+        // fifty at once. The month label travels with its first shelf. Its
+        // place survives the deck the page-holder's way, like every list.
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = Gutter, end = Gutter, top = 26.dp, bottom = 28.dp),
@@ -389,6 +414,9 @@ fun VoiceTapeScreen(
                     Spacer(Modifier.width(14.dp))
                     WallKey(
                         onClick = {
+                            // The room goes quiet before the microphone
+                            // opens: what is playing would record itself.
+                            stopWallPlayback()
                             val granted = context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
                                 PackageManager.PERMISSION_GRANTED
                             if (granted) recording = true else micPermission.launch(Manifest.permission.RECORD_AUDIO)
@@ -413,11 +441,14 @@ fun VoiceTapeScreen(
                     }
                 }
             }
-            if (importFailed) {
+            if (importFailed || importTooLong) {
                 item {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
                         Text(
-                            text = stringResource(R.string.tape_import_failed),
+                            text = when {
+                                importTooLong -> stringResource(R.string.tape_too_long)
+                                else -> stringResource(R.string.tape_import_failed)
+                            },
                             fontSize = 12.sp,
                             color = palette.brass,
                             modifier = Modifier.padding(top = 12.dp),
@@ -849,7 +880,15 @@ private fun RecordSheet(
     }
 
     DisposableEffect(Unit) {
-        onDispose { recorder.release() }
+        onDispose {
+            // Leaving the booth mid-take is a discard: the half file has no
+            // name on any label, so it does not stay behind.
+            if (!review) {
+                recorder.stop()
+                TapeAudio.delete(context, file.name)
+            }
+            recorder.release()
+        }
     }
     // The take begins the moment the booth does.
     LaunchedEffect(Unit) {
@@ -1079,8 +1118,23 @@ private fun TapeDeck(
             }.getOrNull()
         }
     }
+    // The deck asks before it sounds: a call pauses it where it stands,
+    // a word spoken over it ducks it, and the room's return restores it.
+    val deckFocus = remember(player) {
+        PlaybackFocus(
+            context = context,
+            onLost = {
+                player?.pause()
+                playing = false
+            },
+            onDuck = { ducked ->
+                player?.setVolume(if (ducked) 0.2f else 1f, if (ducked) 0.2f else 1f)
+            },
+        )
+    }
     DisposableEffect(player) {
         onDispose {
+            deckFocus.release()
             player?.runCatching { release() }
         }
     }
@@ -1098,6 +1152,7 @@ private fun TapeDeck(
             p.pause()
             playing = false
         } else {
+            if (!deckFocus.gain()) return
             if (progress >= 1f) seekTo(0f)
             p.start()
             playing = true
@@ -1138,6 +1193,14 @@ private fun TapeDeck(
     val enter = remember { androidx.compose.animation.core.Animatable(0f) }
     LaunchedEffect(tape.id) {
         enter.animateTo(1f, tween(380))
+    }
+    // Behind anything else, the machine pauses where it is — back to the
+    // app, the play key resumes from that very groove.
+    OnAppBackground {
+        if (playing) {
+            player?.pause()
+            playing = false
+        }
     }
     fun dismiss() {
         player?.pause()

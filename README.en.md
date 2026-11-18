@@ -1,6 +1,6 @@
 # TickCount
 
-[![Build](https://github.com/ZZPBY/tickcount/actions/workflows/android.yml/badge.svg)](https://github.com/ZZPBY/tickcount/actions/workflows/android.yml)
+[![Build](https://github.com/baishadi123/tickcount/actions/workflows/android.yml/badge.svg)](https://github.com/baishadi123/tickcount/actions/workflows/android.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A minimal countdown calendar for Android. Tap a day, give it a name, and
@@ -18,136 +18,57 @@ see how long is left — or how long it has been.
 
 ## Features
 
-- **Drawer** — the menu at the top left opens a half-screen drawer: Home and Calendar,
-  Reminders and display, Appearance, Backup & data, then Changelog and About this project.
-  Language sits on its own at the foot of the drawer.
-- **Countdown list** — one card each: the days left set large on the left, and the name, tags
-  and date on the right — with the time after the date where there is one. What has gone by
-  sits at the foot of the list, under a **Past** heading; when something falls today or
-  tomorrow, a line at the top of the list says so.
-- **Pinning and sorting** — a pinned countdown leads the list however it is sorted. The sort
-  button offers **By date · nearest first**, **By date · furthest first** and **Date added ·
-  newest first**, and remembers the choice. It governs the part still ahead.
-- **Search and filters** — a box above the list, with a control on the right for searching
-  **Name** (tags included), **Date** or **Time**. Under it, a row of pills narrows the list to
-  **Next 7 days**, or to one tag. The line under the title also says how many fall this year.
-- **Exact minute** — a countdown is either all day, or set to an exact hour and minute.
-- **Tags and colours** — as many tags as you like, and a colour of its own mixed on a hue
-  strip in the editor. Unset, it takes the theme's colour.
-- **Countdown screen** — tap a card to open it: the full years, months, days, hours, minutes
-  and seconds breakdown, plus the pin switch, the date, the time and the tags.
-- **Calendar** — a hand-drawn month grid, with up to three dots on a day that holds several
-  countdowns. Tap a day and that day's countdowns are listed underneath, with the same search
-  and sort.
-- **Fast month switching** — tap the month title for a year-and-month picker with This month,
-  and buttons that step the year by 1 and by 10.
-- **Long-press a card** — pin it, edit it or delete it without opening it first. A delete asks
-  for confirmation before it happens.
-- **Adding several at once** — while creating a countdown, switch on “Add several at once”,
-  give a gap and a count, and a run of countdowns sharing one name, tags, colour and time is
-  added together.
-- **Home-screen widgets** — two of them. **Single countdown** puts one countdown on the home
-  screen, ticking to the second. **Countdown list** shows what is coming next, one per row.
-  Both adapt to their size; their panel — light, dark or the system's — is chosen on the
-  Home-screen widgets page in the drawer, along with the list's text size.
-- **Notifications** — a page of its own in the drawer: a reminder time, one app-wide lead
-  time, and an override for any single countdown. It lists what is coming up with the moment
-  each reminder will arrive, and can send a test notification. Reminders are put back after
-  a restart.
-- **Lunar dates** — a countdown can be picked on the lunar calendar (1900–2100, leap months
-  included), and the card and its screen name the lunar day after the solar one. One day, not
-  a yearly repeat.
-- **Appearance** — large rounded cards with a hairline outline, and the day count set far
-  larger than anything else. Six themes — white, black, teal, mist blue, amber and rose — or
-  mix your own on a hue strip. White is the plain one: a white page with near-black ink. Teal
-  keeps the warm paper page. The other three, and a mixed hue, tint the page, the panels and
-  the outlines to match their accent. The app does not follow the system dark setting and does
-  not take colours from the wallpaper; a choice stays put.
-- **Bilingual** — follows the system language, or you can pick Chinese or English in the
-  drawer. Date formats are localised too.
-- **Backup and restore** — every countdown, and the appearance (including the widgets' panel
-  and text size), sorting and language settings, can be written to a file and read back. An export can be encrypted with AES-256-GCM and a
-  password; an import asks for that password first, then asks **Overwrite** or **Merge**, and
-  says how many countdowns it would add, overwrite or discard before it does any of them.
-  There is also **Export as a calendar file**, which writes .ics for a system calendar.
-- **Changelog and About** — every release is listed in the drawer with the installed version
-  marked, and the project's own introduction is readable in the app, with a repository address
-  ready to copy or to open.
-- **Large fonts** — the title bar, the drawer and the cards keep clear of the status bar and
-  grow with the system font scale, so nothing is squeezed.
+- **Countdown list** — one card each: days left set large, with name, tags and date; the past sits under a **Past** heading; a line at the top says what falls today or tomorrow.
+- **Pinning and sorting** — a pinned countdown leads the list; sort by date (nearest/furthest) or date added.
+- **Search and filters** — search name, date or time; pills narrow to the next 7 days or one tag.
+- **Exact minute** — all day, or set to an exact hour and minute.
+- **Tags and colours** — as many tags as you like, and a colour mixed on a hue strip.
+- **Countdown screen** — tap a card for the full y/mo/d/h/m/s breakdown, pin switch, date and tags.
+- **Calendar** — a hand-drawn month grid with dots for busy days; tap a day to list its countdowns, with the same search and sort. Tap the month title for a year-and-month picker.
+- **Long-press a card** — pin, edit or delete without opening it; deletes confirm first.
+- **Lunar dates** — pick a countdown on the lunar calendar (1900–2100, leap months included); the lunar day is named after the solar one.
+- **Time capsules** — letters with photos and a voice note, sealed until a day; a letter can be re-sealed to a new date. A wall of voice tapes records her voice, plays it back with real tape reels, and imports audio or video (the audio track is kept).
+- **Wishes, footprints, the voyage** — a wish list to tick off; places visited together, on a map; a star chart where milestones light up, with music.
+- **One picture behind everything** — pick a photo once and it sits behind every page, framed by hand.
+- **Notifications** — a reminder time, one app-wide lead, an override per countdown, a test button; reminders return after a restart.
+- **Appearance** — six themes or a mixed hue; glass-surfaced cards and panels throughout.
+- **Bilingual** — Chinese or English, following the system or chosen in the drawer; date formats localised.
+- **Backup and restore** — every record and setting to a file and back, optionally AES-256-GCM encrypted; an import asks **Overwrite** or **Merge** and says what each would do first.
+- **Large fonts** — the UI grows with the system font scale; nothing is squeezed.
 
 ## Adding several at once
 
-The name, the tags, the colour and the time of day are answered once. Switch on “Add several
-at once” in the new-countdown screen and two numbers are all that is left:
-
-- **Days between** — how far apart neighbouring entries are, from 1 to 3650 days.
-- **How many** — how many more of the same countdown to add, from 1 to 100.
-
-The date chosen above is **added as well**, and every entry after it is that many days later
-than the one before. So creating “Raid night” on 14 October with a gap of 2 and a count of 3
-leaves the 14th, the 16th, the 18th and the 20th in the list: four in all.
-
-Whatever the time field says is carried by every entry in the run — all day stays all day,
-and 09:30 stays 09:30. They count as one batch, so ordering by when they were added keeps
-them together, reading forwards by date. Each is an ordinary countdown afterwards, to edit
-or delete on its own.
+The name, tags, colour and time are answered once; switch on "Add several at once" and two numbers remain: **Days between** (1–3650) and **How many** (1–100). The chosen date is added as well, each entry that many days after the last. The time of day is carried by every entry; they count as one batch when sorted by date added, and each is an ordinary countdown afterwards.
 
 ## How the countdown reads
 
-The target is **00:00 local time on the chosen date**, or the exact time of day it is set
-to. Once that moment has passed, the same arithmetic runs backwards, and the label changes
-from “Time left” to “Time since”; on the target day itself it reads “Elapsed today”.
-
-Leading fields that have not started counting yet are filled with dashes, so you can see at
-a glance how far off a date is:
+The target is **00:00 local time on the chosen date**, or its exact time of day. Once passed, the same arithmetic runs backwards — "Time left" becomes "Time since", and "Elapsed today" on the day itself. Leading fields not yet counting are dashes:
 
 | Time left | Shown as |
 |---|---|
-| 4 months, 11 days, 6 hours, 30 minutes and 15 seconds | `----y 04mo 11d 06h 30m 15s` |
+| 4 months, 11 days, … | `----y 04mo 11d 06h 30m 15s` |
 | 2 days and 30 seconds | `----y --mo 02d 00h 00m 30s` |
-| 3 years, 4 months, 11 days, 6 hours, 30 minutes and 15 seconds | `0003y 04mo 11d 06h 30m 15s` |
+| 3 years, 4 months, … | `0003y 04mo 11d 06h 30m 15s` |
 
-Years, months and days are counted on the calendar, while hours, minutes and seconds are
-counted as elapsed time, so the day the clocks change for daylight saving still counts as a
-whole day even if it is actually 23 or 25 hours long.
+Years, months and days count on the calendar; hours, minutes and seconds as elapsed time — a daylight-saving day still counts as a whole day.
 
 ## Home-screen widget
 
-Long-press an empty spot on the home screen → Widgets: there are two to choose from.
+Long-press an empty spot on the home screen → Widgets: two to choose from.
 
-**TickCount · Single countdown** — pick a countdown as well; the picker shows the date and,
-where it has one, the time, so two countdowns with the same name can be told apart before the
-widget is placed. It starts at 4×2 and rearranges itself as you drag: made short and wide, it
-becomes one row of name, days and clock; made larger, it adds the target date and splits the
-days into “1 year 1 month 4 days”. Tapping it opens that countdown. A countdown that names a
-time is counted to that time here too, and says so — on the date line, or after the days in
-the layouts that have no date line — so the widget and the countdown screen agree. The
-seconds are driven by the system itself, without waking the app.
+**Single countdown** — pick a countdown (the picker shows its date and time); it ticks to the second, rearranges as you resize it, and tapping opens that countdown. The seconds are driven by the system itself, without waking the app.
 
-**TickCount · Countdown list** — nothing to pick: it lists what is coming next on its own,
-nearest first, one per row, and tapping a row opens that countdown. A countdown that names
-a time says so after the days — “Today 09:30”. The default 4×2 holds three rows; a taller
-widget holds up to four, and the rows share the height between them; with nothing coming up
-it says so.
+**Countdown list** — nothing to pick: what is coming next, nearest first, one per row; a timed countdown says so after the days. The default 4×2 holds three rows, a taller one four.
 
-Both take their panel from **Home-screen widgets** in the drawer: light, dark, or whatever
-the system is using. The list can also be given a smaller or larger text size; the single
-widget keeps its own, because it already fills its cell with the largest text that fits.
+Both take their panel — light, dark or the system's — from the Home-screen widgets page; the list also has a text size of its own.
 
 ## Download
 
-APKs are published in [Releases](../../releases/latest), and any successful build can
-also be downloaded from the **Actions** tab. What changed in each version is in
-[`更新日志.txt`](更新日志.txt).
+APKs are published in [Releases](../../releases/latest). What changed in each version is in [`更新日志.txt`](更新日志.txt).
 
 ## Building
 
-You need:
-
-- JDK 17
-- Android SDK Platform 37 and Build Tools 36.0.0
-- the SDK path in `local.properties`, or `ANDROID_HOME` exported
+JDK 17; Android SDK Platform 37 and Build Tools 36.0.0 (`local.properties` or `ANDROID_HOME`).
 
 ```bash
 ./gradlew testDebugUnitTest   # unit tests
@@ -162,81 +83,17 @@ On Windows, use `gradlew.bat`.
 |---|---|
 | Language | Kotlin 2.4.20 |
 | UI | Jetpack Compose + Material 3 (Compose BOM 2026.09.00) |
-| Build | AGP 9.4.1, Gradle 9.6.0, with all versions in `gradle/libs.versions.toml` |
+| Build | AGP 9.4.1, Gradle 9.6.0, versions in `gradle/libs.versions.toml` |
 | SDK | compileSdk 37, targetSdk 36, minSdk 27 |
-| Storage | a small JSON document in `SharedPreferences` |
-| Dependencies | at runtime, AndroidX and Compose only |
+| Dependencies | AndroidX, Compose, osmdroid (map), androidx.exifinterface |
 
-`minSdk` is 27. `java.time` arrived in API 26 and the theme's `windowLightNavigationBar`
-in 27, so the project needs neither `coreLibraryDesugaring` nor any compatibility shim,
-and the theme does not have to be split in two by version.
+`java.time` arrived in API 26 and the theme's `windowLightNavigationBar` in 27, so the project needs neither desugaring nor a split theme.
 
-## Project layout
-
-```
-app/src/main/java/io/github/zzpby/tickcount/
-├── MainActivity.kt              edge-to-edge host + the app theme, system-bar icon colours included
-├── data/                        the model and how it is stored
-│   ├── CountdownEvent.kt        the model: id / date / time / tags / colour / pinned
-│   ├── EventCodec.kt            reading and writing the records as JSON, migrations included
-│   ├── EventStore.kt            keeping that document in SharedPreferences
-│   ├── SettingsStore.kt         the stored theme, sort order, language and widget appearance
-│   ├── Backup.kt                the backup file's shape, and the outcome of an import
-│   └── BackupCrypto.kt          password encryption for a backup (PBKDF2 + AES-GCM)
-├── domain/                      pure logic, covered by unit tests
-│   ├── Countdown.kt             the y/mo/d/h/m/s split and the dash placeholder
-│   ├── BatchAdd.kt              adding several at once: one countdown spread over a gap
-│   ├── CalendarMath.kt          building the month grid
-│   ├── CountdownList.kt         ordering, sections and day distance
-│   ├── Search.kt                what the search box looks at, and what counts as a match
-│   ├── Changelog.kt             splitting the changelog into versions
-│   ├── Readme.kt                pulling the introduction's sections out of the README
-│   ├── Ics.kt                   the .ics export: the countdowns as a calendar file
-│   ├── Lunar.kt                 the lunar table, and both directions of the conversion
-│   └── WidgetCountdown.kt       the widget's day split, shape rules and list picking
-└── ui/
-    ├── MainViewModel.kt         the state, and the process's only clock
-    ├── TickCountApp.kt          the root: drawer, screen switching, back, dialogs
-    ├── AppDrawer.kt             the side drawer
-    ├── AppTitleBar.kt           the title bar: menu or back, name, action slot
-    ├── HomeScreen.kt            the countdown list
-    ├── CalendarScreen.kt        the month grid, and the chosen day's countdowns
-    ├── EventCard.kt             the countdown card, shared by both lists
-    ├── SortButton.kt            the sort pill: choosing how a list is ordered
-    ├── SearchField.kt           the search box and its scope control
-    ├── EventDetailScreen.kt     one countdown's own screen
-    ├── EventEditorScreen.kt     new or edit (a whole screen): name, tags, date, time,
-    │                            colour, and adding several at once
-    ├── DeleteConfirmDialog.kt   the confirmation before a delete
-    ├── AppearanceScreen.kt      appearance: the theme, the hue strip, and the surface levels
-    ├── WidgetSettingsScreen.kt  the two home-screen widgets: their panel, and the list's text size
-    ├── NotificationsScreen.kt   notifications: the reminder, a lead per countdown, and a test
-    ├── DataScreen.kt            data management: export, import, the optional encryption, and
-    │                            the .ics export
-    ├── ChangelogScreen.kt       the changelog, taken from `更新日志.txt` in the repository
-    ├── ProjectIntroScreen.kt    the introduction, taken from this file
-    ├── calendar/                the hand-drawn month grid and the month picker
-    ├── components/              the choice pills, Canvas icons (the search one too), the hue strip, the Markdown renderer, localised formats
-    ├── notify/                  reminders: scheduling the inexact alarm, the receiver, and the
-    │                            restart that puts it back
-    ├── widget/                  the two home-screen widgets: drawing, receivers, config screen
-    └── theme/                   the palettes, the type scale, and the shared shape and spacing tokens
-```
-
-The countdown arithmetic, list ordering, search matching, the widget's day split and what
-its list picks, changelog parsing, backup encoding and decoding, and encryption, README
-section extraction and the Markdown parser are all covered by the unit tests in
-`app/src/test/`, along with month lengths, leap days, year boundaries, both daylight-saving
-changes, and the “today is not past” boundary that is so easy to get wrong by a day.
+The layout: `data/` holds the models and stores, `domain/` the pure tested logic, `ui/` the screens, `notify/` reminders, `widget/` the home-screen widgets — see `AGENT.md` for the feature-to-file table. The arithmetic, ordering, search, widget splits, changelog parsing, backup codec, encryption, README extraction and the Markdown parser are all unit-tested, including leap days, year boundaries and both daylight-saving changes.
 
 ## App icon
 
-![icon preview](.tools/图标生成/icon-preview.png)
-
-Vector XML cannot draw Chinese characters, so the launcher's lettering is rasterised by
-[`.tools/图标生成/IconGen.java`](.tools/图标生成/IconGen.java): it loads Microsoft YaHei,
-scales the characters to land exactly inside the 66dp safe circle of an Android adaptive
-icon, and writes a PNG into `res/drawable-xxxhdpi/`.
+Vector XML cannot draw Chinese characters, so the lettering is rasterised by [`.tools/图标生成/IconGen.java`](.tools/图标生成/IconGen.java):
 
 ```bash
 java .tools/图标生成/IconGen.java app/src/main/res/drawable-xxxhdpi/ic_launcher_foreground.png
@@ -244,17 +101,7 @@ java .tools/图标生成/IconGen.java app/src/main/res/drawable-xxxhdpi/ic_launc
 
 ## Privacy
 
-TickCount stores one list of countdowns — date, name, time, tags, colour, pin and when it
-was added — in its own private `SharedPreferences` file, with nothing else in it. The
-colour belongs to each countdown and is used to tell them apart in the calendar and the
-list. The home-screen widget keeps a second file, `tickcount_widgets`, recording only which
-widget shows which countdown; the theme, sort order, language and the widgets' appearance
-live in `tickcount_settings`. All three sit in the app's private directory, and none of them
-leaves the device on its own.
-
-A backup exported from Backup & data goes wherever you choose to put it, encrypted or not,
-as you decide. The stored data leaves the device only if Android's own cloud backup
-is on, which is what `res/xml/backup_rules.xml` decides.
+TickCount keeps its records — countdowns, wishes, capsules, footprints, voice tapes and settings — in its own private directory, and nothing leaves the device on its own. A backup goes wherever you choose, encrypted or not; Android's own cloud backup follows `res/xml/backup_rules.xml`.
 
 ## Licence
 

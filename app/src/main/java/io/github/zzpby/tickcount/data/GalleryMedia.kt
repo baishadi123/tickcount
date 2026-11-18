@@ -39,7 +39,18 @@ object GalleryMedia {
      * phone's means. 24 megapixels is above every screen and every common
      * camera; only sensor monsters ever meet it.
      */
+    /**
+     * The most pixels a full-page bitmap may carry. Two ceilings actually bind:
+     * the turn upright needs the sideways and upright bitmaps alive at once,
+     * and — the one that really kills — a software bitmap wider or taller than
+     * the GPU's texture limit (4096 on most phones) cannot be drawn at all:
+     * the render thread dies with "bitmap too large to be uploaded into a
+     * texture" the moment the image is shown. 4096 on the longest edge is
+     * still well past every phone screen, and it is the ceiling the screen
+     * can never argue with.
+     */
     internal const val UPTURN_PIXEL_CAP = 24_000_000L
+    internal const val MAX_EDGE = 4096
 
     /** The MIME types a reference may hold; everything else stays a private copy. */
     private val MIME_EXTENSIONS = mapOf(
@@ -188,14 +199,15 @@ object GalleryMedia {
                 BitmapFactory.decodeStream(it, null, bounds)
             }
             val pixels = bounds.outWidth.toLong() * bounds.outHeight.toLong()
-            val sample = if (pixels > UPTURN_PIXEL_CAP) {
-                // Powers of two only, per the decoder's own rule.
-                var s = 1
-                while (pixels / (s.toLong() * s * 4) > UPTURN_PIXEL_CAP) s *= 2
-                s
-            } else {
-                1
+            val longest = maxOf(bounds.outWidth, bounds.outHeight).toLong()
+            // Both ceilings: total pixels for the turn's twin bitmaps, and the
+            // longest edge for the GPU's texture limit — the edge binds first
+            // on any modern camera's output.
+            var sample = 1
+            if (pixels > UPTURN_PIXEL_CAP) {
+                while (pixels / (sample.toLong() * sample * 4) > UPTURN_PIXEL_CAP) sample *= 2
             }
+            while (longest / sample > MAX_EDGE) sample *= 2
 
             val decoded = context.contentResolver.openInputStream(uri)?.use {
                 BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })

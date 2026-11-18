@@ -441,8 +441,11 @@ val tapes by viewModel.tapes.collectAsStateWithLifecycle()
             },
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(drawerByDrag) {
-                    if (!drawerByDrag) return@pointerInput
+                .pointerInput(drawerByDrag, countryAlone) {
+                    // The map country keeps its own drag: a rightward swipe
+                    // there pans the country, and an edge-drag that opened the
+                    // drawer instead would steal every pan from the map.
+                    if (!drawerByDrag || countryAlone) return@pointerInput
                     detectHorizontalDragGestures(
                         onDragEnd = {
                             if (edgeDrag > 40.dp.toPx()) drawerOpen = true

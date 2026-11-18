@@ -129,6 +129,7 @@ object EventBackgrounds {
             var sample = 1
             val pixels = bounds.outWidth.toLong() * bounds.outHeight
             while (pixels / (sample.toLong() * sample) > GalleryMedia.UPTURN_PIXEL_CAP) sample *= 2
+            while (maxOf(bounds.outWidth, bounds.outHeight).toLong() / sample > GalleryMedia.MAX_EDGE) sample *= 2
             BitmapFactory.decodeFile(
                 file.absolutePath,
                 BitmapFactory.Options().apply { inSampleSize = sample },

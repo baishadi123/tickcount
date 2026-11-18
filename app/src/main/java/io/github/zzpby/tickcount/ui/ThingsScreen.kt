@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.data.Wish
 import io.github.zzpby.tickcount.domain.daysFromToday
+import io.github.zzpby.tickcount.ui.components.PaperField
 import io.github.zzpby.tickcount.ui.components.CheckIcon
 import io.github.zzpby.tickcount.ui.components.CloseIcon
 import io.github.zzpby.tickcount.ui.components.ReopenIcon
@@ -47,7 +48,6 @@ import io.github.zzpby.tickcount.ui.components.TrashIcon
 import io.github.zzpby.tickcount.ui.components.rememberDateFormatter
 import io.github.zzpby.tickcount.ui.theme.CardGap
 import io.github.zzpby.tickcount.ui.theme.CardShape
-import io.github.zzpby.tickcount.ui.theme.FieldShape
 import io.github.zzpby.tickcount.ui.theme.Gutter
 import io.github.zzpby.tickcount.ui.theme.PillShape
 import io.github.zzpby.tickcount.ui.theme.XingKai
@@ -293,20 +293,17 @@ fun WishEditorScreen(
         // a single bounded pane over the app's picture.
         Column(
             modifier = Modifier
-                .weight(1f)
+                .weight(1f, fill = false)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
                 .glassSurface(alpha = 0.6f, interactive = false)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
-            OutlinedTextField(
+            PaperField(
                 value = title,
                 onValueChange = { title = it.take(Wish.MAX_TITLE_LENGTH) },
-                label = { Text(stringResource(R.string.field_name)) },
-                placeholder = { Text(stringResource(R.string.things_title_hint)) },
-                singleLine = true,
-                shape = FieldShape,
-                modifier = Modifier.fillMaxWidth(),
+                label = stringResource(R.string.field_name),
+                placeholder = stringResource(R.string.things_title_hint),
             )
         }
     }

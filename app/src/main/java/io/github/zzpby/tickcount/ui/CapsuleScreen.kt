@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -78,6 +79,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -99,9 +101,12 @@ import io.github.zzpby.tickcount.data.EventBackgrounds
 import io.github.zzpby.tickcount.data.TimeCapsule
 import io.github.zzpby.tickcount.data.VoiceRecorder
 import io.github.zzpby.tickcount.domain.VoiceWaveform
+import io.github.zzpby.tickcount.ui.components.PaperField
 import io.github.zzpby.tickcount.ui.components.CheckIcon
 import io.github.zzpby.tickcount.ui.components.CloseIcon
-import io.github.zzpby.tickcount.ui.components.LockIcon
+import io.github.zzpby.tickcount.ui.components.WaxSeal
+import io.github.zzpby.tickcount.ui.components.brushStroke
+import io.github.zzpby.tickcount.ui.components.brushWeight
 import io.github.zzpby.tickcount.ui.components.PhotoStack
 import io.github.zzpby.tickcount.ui.components.PhotoViewer
 import io.github.zzpby.tickcount.ui.components.ReopenIcon
@@ -181,7 +186,7 @@ fun CapsuleScreen(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = stringResource(R.string.capsule_summary, sealed.size, capsules.size),
-                    style = MaterialTheme.typography.bodyMedium.copy(shadow = textHalo()),
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -268,10 +273,14 @@ private fun SealedCapsuleCard(
             .padding(vertical = CardGap / 2)
             .glassSurface()
             .combinedClickable(onClick = {}, onLongClick = onLongClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(start = 16.dp, end = 2.dp, top = 3.dp, bottom = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(vertical = 12.dp),
+        ) {
             Text(
                 text = capsule.title.ifBlank {
                     LocalDate.ofEpochDay(capsule.opensEpochDay).format(dateFormatter)
@@ -289,10 +298,22 @@ private fun SealedCapsuleCard(
                 color = scheme.primary,
             )
         }
-        Text(
-            text = "🔒",
-            style = MaterialTheme.typography.titleLarge,
-        )
+        // The seal as it stands: whole wax, this letter's own knot pressed in
+        // — the words stay unread until the day it names. Large and round and
+        // touching the card's edges, so the card reads as sealed by it.
+        val sealedLabel = stringResource(R.string.capsule_days_left, days)
+        Box(
+            modifier = Modifier
+                .padding(start = 6.dp)
+                .semantics { contentDescription = sealedLabel },
+            contentAlignment = Alignment.Center,
+        ) {
+            WaxSeal(
+                color = scheme.primary.copy(alpha = 0.60f),
+                variant = capsule.id.hashCode(),
+                notch = 0f,
+            )
+        }
     }
 }
 
@@ -316,10 +337,14 @@ private fun ArrivedCapsuleCard(
             .padding(vertical = CardGap / 2)
             .glassSurface()
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(start = 16.dp, end = 2.dp, top = 3.dp, bottom = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(vertical = 12.dp),
+        ) {
             Text(
                 text = capsule.title.ifBlank { stringResource(R.string.capsule_ready) },
                 style = MaterialTheme.typography.titleMedium,
@@ -340,22 +365,22 @@ private fun ArrivedCapsuleCard(
                 )
             }
         }
-        Spacer(Modifier.width(10.dp))
-        // Seal it back up: the lock, only on a letter that has been opened,
-        // asks the day the letter should next open on.
+        Spacer(Modifier.width(6.dp))
+        // Broken wax, each half keeping half the knot: read, and one press of
+        // new wax — the day the picker asks for — from whole again. The seal
+        // itself is the button; a broken seal asks to be re-made.
         val resealLabel = stringResource(R.string.capsule_reseal)
-        IconButton(onClick = onReseal, modifier = Modifier.size(34.dp)) {
-            Box(
-                modifier = Modifier
-                    .semantics { contentDescription = resealLabel }
-                    .size(34.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                LockIcon(
-                    iconSize = 17.dp,
-                    color = scheme.onSurfaceVariant,
-                )
-            }
+        Box(
+            modifier = Modifier
+                .semantics { contentDescription = resealLabel }
+                .clickable(onClick = onReseal),
+            contentAlignment = Alignment.Center,
+        ) {
+            WaxSeal(
+                color = scheme.primary.copy(alpha = 0.60f),
+                variant = capsule.id.hashCode(),
+                notch = 1f,
+            )
         }
     }
 }
@@ -569,30 +594,26 @@ fun CapsuleEditorScreen(
         // The form as one glass sheet, like every editor.
         Column(
             modifier = Modifier
-                .weight(1f)
+                .weight(1f, fill = false)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
                 .glassSurface(alpha = 0.6f, interactive = false)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
-            OutlinedTextField(
+            PaperField(
                 value = title,
                 onValueChange = { title = it.take(TimeCapsule.MAX_TITLE_LENGTH) },
-                label = { Text(stringResource(R.string.field_title)) },
-                singleLine = true,
-                shape = FieldShape,
-                modifier = Modifier.fillMaxWidth(),
+                label = stringResource(R.string.field_title),
             )
 
             Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
+            PaperField(
                 value = message,
                 onValueChange = { message = it },
-                label = { Text(stringResource(R.string.capsule_message_label)) },
-                placeholder = { Text(stringResource(R.string.capsule_message_hint)) },
+                label = stringResource(R.string.capsule_message_label),
+                placeholder = stringResource(R.string.capsule_message_hint),
+                singleLine = false,
                 minLines = 4,
-                shape = FieldShape,
-                modifier = Modifier.fillMaxWidth(),
             )
 
             Spacer(Modifier.height(12.dp))
@@ -763,17 +784,33 @@ private fun CapsuleView(
     val flap = remember { Animatable(0f) }
     val rise = remember { Animatable(0f) }
     val page = remember { Animatable(0f) }
+    val crack = remember { Animatable(0f) }
+    val pry = remember { Animatable(0f) }
 
     LaunchedEffect(capsule.id) {
-        // Not an entrance: the envelope is already on the table. The flap is
-        // unsealed unhurriedly, the letter is drawn out slowly — the whole
-        // sequence is one continuous pull, which is what reads as 拆信.
-        delay(550)
-        flap.animateTo(1f, tween(750, easing = FastOutSlowInEasing))
+        // Not an entrance: the envelope is already on the table. The wax is
+        // pried up first — one small flinch, and the letter is known to be
+        // open — then it tears free while the flap is already giving way.
+        // The stages overlap on purpose; a strictly serial animation reads as
+        // a slideshow, and a real letter comes open in one motion.
+        delay(120)
+        launch {
+            // The pry, then the tear: the seal rocks up on its lower edge,
+            // then throws itself off and over.
+            pry.animateTo(1f, tween(180, easing = FastOutSlowInEasing))
+            crack.animateTo(1f, tween(320, easing = FastOutSlowInEasing))
+        }
+        delay(360)
+        // The flap starts while the seal is still in the air.
+        launch { flap.animateTo(1f, tween(600, easing = FastOutSlowInEasing)) }
+        // Once it is half open the letter is drawn out: a short pull that
+        // shows an edge, a beat of friction, then the whole sheet.
         delay(260)
-        rise.animateTo(1f, tween(1150, easing = FastOutSlowInEasing))
-        delay(80)
-        page.animateTo(1f, tween(650, easing = FastOutSlowInEasing))
+        rise.animateTo(0.145f, tween(220, easing = FastOutSlowInEasing))
+        delay(90)
+        rise.animateTo(1f, tween(900, easing = FastOutSlowInEasing))
+        delay(140)
+        page.animateTo(1f, tween(520, easing = FastOutSlowInEasing))
     }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -793,6 +830,8 @@ private fun CapsuleView(
                         // letter; the way out is the button, top left.
                         if (page.value < 1f) {
                             scope.launch {
+                                pry.snapTo(1f)
+                                crack.snapTo(1f)
                                 flap.snapTo(1f)
                                 rise.snapTo(1f)
                                 page.snapTo(1f)
@@ -822,9 +861,12 @@ private fun CapsuleView(
             // The envelope stage, sinking and fading as the sheet takes over.
             if (page.value < 1f) {
                 EnvelopeStage(
+                    pry = pry.value,
+                    crack = crack.value,
                     flap = flap.value,
                     rise = rise.value,
                     page = page.value,
+                    capsuleId = capsule.id,
                     preview = capsule.message,
                 )
             }
@@ -852,22 +894,30 @@ private fun CapsuleView(
 }
 
 /**
- * The envelope and the letter being drawn out of it, one layered stack: dark
- * lining, letter, kraft front with the mark, flap — in that z-order, so the
- * letter genuinely passes out from behind the front.
+ * The back of the envelope, opened: kraft, the flap's V drawn on it, the wax
+ * pressed where the two meet. The letter lives inside and comes out through
+ * the top edge — so the back panel is drawn *over* it, and the flap is the
+ * only thing standing between the paper and the room.
  *
- * The palette is kraft paper and bronze: quiet, and the shading has somewhere
- * to live. The front carries the app's own mark — two rings, one held by each —
- * and nothing else: no date, no word, just the object and its pull.
+ * The flap is one canvas hinged on the top edge: outside while it is closed,
+ * its lining once it has turned past upright, which is what a paper flap does.
+ * It swaps sides — drawn behind everything once it is open — because a flap
+ * thrown back must not sit in front of the letter it just freed.
  */
 @Composable
 private fun EnvelopeStage(
+    pry: Float,
+    crack: Float,
     flap: Float,
     rise: Float,
     page: Float,
+    capsuleId: String,
     preview: String,
 ) {
-    val easeIn = rise * rise
+    val kraftTop = Color(0xFFEAE0CA)
+    val kraftBottom = Color(0xFFDCC9A3)
+    val bronze = Color(0xFFB49B6E)
+    val open = flap > 0.5f
 
     Box(
         modifier = Modifier
@@ -875,115 +925,140 @@ private fun EnvelopeStage(
             .alpha((1f - page).coerceIn(0f, 1f)),
         contentAlignment = Alignment.Center,
     ) {
-        // Headroom above the envelope for the letter to rise into.
         Box(
             modifier = Modifier
                 .width(248.dp)
-                .height(252.dp)
+                .height(250.dp)
                 .graphicsLayer {
-                    // Held in the hand: as the letter is drawn out, the envelope
-                    // leans back a little — the physics of the pull.
-                    rotationX = -7f * rise
+                    // Held in the hand: the envelope leans back as the letter
+                    // is drawn out of it.
+                    rotationX = -3f * rise
                     transformOrigin = TransformOrigin(0.5f, 1f)
-                    alpha = 1f - page * 0.9f
-                    translationY = page * 30.dp.toPx()
-                    shadowElevation = 16.dp.toPx()
-                    shape = RoundedCornerShape(14.dp)
-                    clip = false
+                    alpha = 1f - page * 0.95f
+                    translationY = page * 26.dp.toPx()
                 },
         ) {
-            val envelope = Modifier.align(Alignment.BottomCenter).size(width = 236.dp, height = 158.dp)
-
-            // The inside, the lining the flap uncovers.
-            Box(
-                modifier = envelope
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color(0xFFC7B18C), Color(0xFFAD9469))
-                        )
-                    ),
-            )
-
-            // The letter, drawn out slowly, its shadow growing as it clears.
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 10.dp)
-                    .graphicsLayer {
-                        translationY = -easeIn * 138.dp.toPx()
-                        shadowElevation = (2f + 16f * rise).dp.toPx()
-                        shape = RoundedCornerShape(6.dp)
-                        clip = false
-                    },
+                    .size(width = 248.dp, height = 164.dp),
             ) {
-                RisingLetter(preview = preview)
-            }
+                // Thrown back: the flap lives behind everything from the
+                // moment it passes upright, so the letter rises in front of it.
+                if (open) EnvelopeFlap(flap)
 
-            // The kraft front: gradient, hairline, the mark — and the hinge
-            // shadow under where the flap sat.
-            Box(
-                modifier = envelope
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color(0xFFEDDFC4), Color(0xFFDFCCA6))
-                        )
-                    )
-                    .border(1.dp, Color(0xFFB49B6E).copy(alpha = 0.6f), RoundedCornerShape(14.dp)),
-            ) {
-                EnvelopeMark(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(top = 30.dp),
-                )
+                // The letter, inside: the panel hides it, not folds.
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(2.dp)
-                        .background(Color(0xFFB49B6E).copy(alpha = 0.35f)),
-                )
-            }
-
-            // The flap, hinged on the top edge: kraft without, the darker lining
-            // once it turns past upright — one canvas, both faces.
-            Canvas(
-                modifier = envelope.graphicsLayer {
-                    rotationX = -180f * flap
-                    transformOrigin = TransformOrigin(0.5f, 0f)
-                    cameraDistance = 9f * density
-                },
-            ) {
-                val tip = size.height * 0.66f
-                val outer = Path().apply {
-                    moveTo(0f, 0f)
-                    lineTo(size.width, 0f)
-                    lineTo(size.width / 2f, tip)
-                    close()
+                        .align(Alignment.BottomCenter)
+                        .graphicsLayer {
+                            translationY = -rise * 138.dp.toPx()
+                            // Paper, not a panel: one slow sway as it comes.
+                            rotationZ = kotlin.math.sin(rise * Math.PI.toFloat()) * 0.9f
+                        },
+                ) {
+                    RisingLetter(preview = preview)
                 }
-                val front = lerp(Color(0xFFE7D7B6), Color(0xFFF2E6CB), flap)
-                val lining = lerp(Color(0xFFC7B18C), Color(0xFFB79E72), flap)
-                drawPath(outer, if (flap < 0.5f) front else lining)
-                drawPath(outer, Color(0xFFB49B6E).copy(alpha = 0.7f), style = Stroke(2f))
+
+                // The back panel: opaque, uncreased — the letter's lid.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Brush.verticalGradient(listOf(kraftTop, kraftBottom)))
+                        .border(1.dp, bronze.copy(alpha = 0.55f), RoundedCornerShape(12.dp)),
+                )
+
+                // Closed, it lies on the panel; open, it has been drawn above.
+                if (!open) EnvelopeFlap(flap)
+
+                // The wax, astride the flap's point: pried up on its lower
+                // edge first, then torn off and over.
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .offset(y = 164.dp * 0.40f - 26.dp)
+                        .graphicsLayer {
+                            val q = crack
+                            translationY = -12.dp.toPx() * q - 40.dp.toPx() * q * q
+                            rotationZ = 8f * pry - 70f * q
+                            transformOrigin = TransformOrigin(0.5f, 1f)
+                            alpha = 1f - ((q - 0.45f) / 0.55f).coerceIn(0f, 1f)
+                        },
+                ) {
+                    WaxSeal(
+                        color = Color(0xFF8C6B3F),
+                        variant = capsuleId.hashCode(),
+                        notch = 0f,
+                        size = 52.dp,
+                    )
+                }
             }
         }
     }
 }
 
-/**
- * The mark on the envelope: a double ring, and inside it two rings overlapping —
- * one each, interlocked. Drawn in bronze, quietly, as an emboss rather than a
- * badge.
- */
+/** The flap itself: one canvas, hinged on the top edge of the back. */
 @Composable
-private fun EnvelopeMark(modifier: Modifier = Modifier) {
-    val bronze = Color(0xFFA98C58)
-    Canvas(modifier = modifier.size(56.dp)) {
-        val c = center
-        drawCircle(bronze.copy(alpha = 0.9f), radius = 26f, center = c, style = Stroke(1.6f))
-        drawCircle(bronze.copy(alpha = 0.55f), radius = 22.5f, center = c, style = Stroke(0.8f))
-        drawCircle(bronze, radius = 9f, center = c - Offset(6.5f, 0f), style = Stroke(1.3f))
-        drawCircle(bronze, radius = 9f, center = c + Offset(6.5f, 0f), style = Stroke(1.3f))
+private fun EnvelopeFlap(flap: Float) {
+    val outsideTop = Color(0xFFF7ECD4)
+    val outsideFoot = Color(0xFFE4D3AE)
+    val liningTop = Color(0xFFD3C094)
+    val liningFoot = Color(0xFFBBA675)
+    val bronze = Color(0xFFB49B6E)
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                // Past upright, so it stands open behind the envelope.
+                rotationX = -168f * flap
+                transformOrigin = TransformOrigin(0.5f, 0f)
+                cameraDistance = 8f * density
+            },
+    ) {
+        val w = size.width
+        val h = size.height
+        val tipY = h * 0.40f
+        // The point is rounded off, not a needle: a folded corner carries a
+        // little thickness, and a sharp apex over flat paper reads as pasted on.
+        val roundX = 12.dp.toPx()
+        val roundY = 16.dp.toPx()
+        // Its top corners take the envelope's own 12dp radius. Square ones
+        // would spill past the rounded paper at the shoulders — the one place
+        // the eye reads a flap as a separate sheet lying on another.
+        val corner = 12.dp.toPx()
+        val shape = Path().apply {
+            moveTo(0f, corner)
+            quadraticTo(0f, 0f, corner, 0f)
+            lineTo(w - corner, 0f)
+            quadraticTo(w, 0f, w, corner)
+            lineTo(w / 2f + roundX, tipY - roundY)
+            quadraticTo(w / 2f, tipY, w / 2f - roundX, tipY - roundY)
+            close()
+        }
+
+        // It lies *on* the paper, so it casts: two soft passes below the edge
+        // give the triangle a body and stop it meeting the square abruptly.
+        translate(0f, 2.4.dp.toPx()) { drawPath(shape, Color(0x16000000)) }
+        translate(0f, 1.0.dp.toPx()) { drawPath(shape, Color(0x0E000000)) }
+
+        // Paper has two faces; the swap happens at the edge-on instant of the
+        // turn, so nothing is seen popping.
+        val top = if (flap < 0.5f) outsideTop else liningTop
+        val foot = if (flap < 0.5f) outsideFoot else liningFoot
+        drawPath(
+            shape,
+            Brush.verticalGradient(listOf(top, foot), startY = 0f, endY = tipY),
+        )
+        drawPath(shape, bronze.copy(alpha = 0.55f), style = Stroke(1.1.dp.toPx()))
+
+        // The crease along the hinge: a hairline of light where the paper turns.
+        drawLine(
+            color = Color.White.copy(alpha = 0.30f),
+            start = Offset(0f, 0.7.dp.toPx()),
+            end = Offset(w, 0.7.dp.toPx()),
+            strokeWidth = 1.dp.toPx(),
+        )
     }
 }
 
@@ -996,7 +1071,7 @@ private fun EnvelopeMark(modifier: Modifier = Modifier) {
 private fun RisingLetter(preview: String, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
-            .size(width = 206.dp, height = 138.dp)
+            .size(width = 200.dp, height = 150.dp)
             .clip(RoundedCornerShape(6.dp))
             .background(
                 Brush.verticalGradient(

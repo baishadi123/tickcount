@@ -16,6 +16,12 @@ private const val TABULAR_FIGURES = "tnum"
  * The type scale: deliberately wider than Material's, because most of this app is one number
  * and the word next to it.
  *
+ * The display styles — the big day numbers — are serif, and deliberately not bold. Serif
+ * for feeling, sans for facts: a number set in Noto Serif at a light weight reads as a
+ * printed page rather than a counter, which is what a diary of days wants to be. They still
+ * carry tabular figures, and none of them ticks — everything that changes by the second
+ * is set in the monospace countdown line instead.
+ *
  * The gap between a screen's title and its body is large on purpose. A countdown is read in
  * a glance, and a glance needs one thing much bigger than everything around it — which is
  * what the display styles are for. Body sizes stay at Material's defaults, since prose is
@@ -24,31 +30,35 @@ private const val TABULAR_FIGURES = "tnum"
 val TickCountTypography = Typography().let { base ->
     base.copy(
         displayLarge = base.displayLarge.copy(
+            fontFamily = FontFamily.Serif,
             fontSize = 52.sp,
-            lineHeight = 54.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = (-1.5).sp,
+            lineHeight = 56.sp,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = (-0.5).sp,
             fontFeatureSettings = TABULAR_FIGURES,
         ),
         displayMedium = base.displayMedium.copy(
+            fontFamily = FontFamily.Serif,
             fontSize = 42.sp,
-            lineHeight = 46.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = (-1.2).sp,
+            lineHeight = 47.sp,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = (-0.4).sp,
             fontFeatureSettings = TABULAR_FIGURES,
         ),
         displaySmall = base.displaySmall.copy(
+            fontFamily = FontFamily.Serif,
             fontSize = 34.sp,
-            lineHeight = 40.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = (-0.8).sp,
+            lineHeight = 41.sp,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = (-0.25).sp,
             fontFeatureSettings = TABULAR_FIGURES,
         ),
         headlineLarge = base.headlineLarge.copy(
+            fontFamily = FontFamily.Serif,
             fontSize = 30.sp,
             lineHeight = 36.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = (-0.5).sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = (-0.3).sp,
         ),
         headlineMedium = base.headlineMedium.copy(
             fontSize = 24.sp,

@@ -39,7 +39,7 @@ object GalleryMedia {
      * phone's means. 24 megapixels is above every screen and every common
      * camera; only sensor monsters ever meet it.
      */
-    private const val UPTURN_PIXEL_CAP = 24_000_000L
+    internal const val UPTURN_PIXEL_CAP = 24_000_000L
 
     /** The MIME types a reference may hold; everything else stays a private copy. */
     private val MIME_EXTENSIONS = mapOf(

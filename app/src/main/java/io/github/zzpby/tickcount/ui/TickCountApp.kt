@@ -30,7 +30,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -131,6 +133,9 @@ val tapes by viewModel.tapes.collectAsStateWithLifecycle()
     var screenName by rememberSaveable { mutableStateOf(AppScreen.HOME.name) }
     var detailId by rememberSaveable { mutableStateOf<String?>(null) }
     var drawerOpen by rememberSaveable { mutableStateOf(false) }
+    // Whether WanJiang's map is standing alone at full screen, said by the
+    // page so the bar above can step aside for the country.
+    var mapAlone by rememberSaveable { mutableStateOf(false) }
     var monthPickerOpen by rememberSaveable { mutableStateOf(false) }
     var calendarEpochDay by rememberSaveable { mutableLongStateOf(NO_DAY) }
     var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -419,8 +424,21 @@ val tapes by viewModel.tapes.collectAsStateWithLifecycle()
             )
         }
         CompositionLocalProvider(LocalGlassTint provides glassTint) {
+        // A page that stands alone — the voyage's sky, the map's country —
+        // takes the whole screen, and the scaffold must not hold a strip of
+        // insets over its head: that strip is where the background picture
+        // used to show through above the map.
+        val skyAlone = screen == AppScreen.VOYAGE && detailEvent == null &&
+            !editorOpen && !wishEditorOpen && !capsuleEditorOpen && !footprintEditorOpen
+        val countryAlone = screen == AppScreen.WANJIANG && mapAlone &&
+            !footprintEditorOpen && detailEvent == null
         Scaffold(
             containerColor = Color.Transparent,
+            contentWindowInsets = if (skyAlone || countryAlone) {
+                WindowInsets(0, 0, 0, 0)
+            } else {
+                ScaffoldDefaults.contentWindowInsets
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(drawerByDrag) {
@@ -438,10 +456,10 @@ val tapes by viewModel.tapes.collectAsStateWithLifecycle()
             topBar = {
                 // The voyage page is the sky itself: no bar over it, the system
                 // bars hidden by the screen, the back key the way out. A
-                // countdown opened from a star brings its own bar back.
-                val skyAlone = screen == AppScreen.VOYAGE && detailEvent == null &&
-                    !editorOpen && !wishEditorOpen && !capsuleEditorOpen && !footprintEditorOpen
-                if (!skyAlone) {
+                // countdown opened from a star brings its own bar back. The
+                // map page is a country of its own in the same way — full
+                // screen, its own way back in its top-left corner.
+                if (!(skyAlone || countryAlone)) {
                     AppTitleBar(
                     // The home screen keeps its name for the screen itself, where it is set
                     // at display size: the bar there is only a place to put the buttons.
@@ -676,6 +694,7 @@ val tapes by viewModel.tapes.collectAsStateWithLifecycle()
                     screen == AppScreen.WANJIANG -> pages.SaveableStateProvider("wanjiang") { WanJiangScreen(
                         footprints = footprints,
                         onEdit = { startEditFootprint(it) },
+                        onMapAloneChange = { mapAlone = it },
                     ) }
 
                     screen == AppScreen.VOICE_TAPES -> pages.SaveableStateProvider("tapes") { VoiceTapeScreen(
@@ -738,6 +757,7 @@ val tapes by viewModel.tapes.collectAsStateWithLifecycle()
                         settings = settings,
                         onPreset = viewModel::chooseTheme,
                         onCustomHue = viewModel::chooseCustomHue,
+                        onCustomDark = viewModel::chooseCustomDark,
                         onPickBackground = viewModel::pickAppBackground,
                         onClearBackground = viewModel::clearAppBackground,
                         onToggleBackground = viewModel::toggleAppBackground,

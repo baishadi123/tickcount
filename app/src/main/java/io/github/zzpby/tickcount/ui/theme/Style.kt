@@ -62,6 +62,20 @@ val PanelShape = RoundedCornerShape(30.dp)
 val FieldShape = RoundedCornerShape(18.dp)
 val PillShape = RoundedCornerShape(50)
 
+/**
+ * The shapes Material's own components are cut from, so buttons and dialogs and snackbars
+ * speak the same round language the cards do. Buttons are full pills — every world this
+ * app borrows from agrees on that one — while the container slots stay with the card and
+ * field radii above, one system instead of two.
+ */
+val TickCountShapes = androidx.compose.material3.Shapes(
+    extraSmall = FieldShape,
+    small = PillShape,
+    medium = FieldShape,
+    large = CardShape,
+    extraLarge = PanelShape,
+)
+
 /** The horizontal margin every screen shares, so their contents line up down the page. */
 val Gutter = 20.dp
 

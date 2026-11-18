@@ -10,17 +10,14 @@ import io.github.zzpby.tickcount.data.AppSettings
 import io.github.zzpby.tickcount.data.ThemePreset
 
 /**
- * The palettes, built from a hue rather than from a fixed ramp.
+ * The palettes. Each preset is a world of its own — its own paper, its own ink, its own
+ * accent — rather than one recipe re-tinted around the wheel. What they share is the
+ * structure: a page the colour is unashamed of, cards that lift off it, and ink that
+ * belongs to the same world instead of a grey that wandered in.
  *
- * The first palette was Tailwind's cool greys, and it made every screen read as a document:
- * cool grey is the colour of paper that has already been printed on. These are warm instead,
- * and the warmth follows the theme: choosing a colour tints the page, the panels and the
- * hairlines as well as the accent, so the whole screen changes together. A page that stayed
- * grey while the buttons changed colour was a theme applied to the controls rather than to
- * the app.
- *
- * White is the exception on purpose: it is the plain one, a white page with near-black ink.
- * Black is the same idea in the other direction.
+ * White is the exception on purpose: it is the plain one, a white page with near-black
+ * ink, for the days that call for quiet. Night is the same idea in the other direction —
+ * a coffee-dark table with gold on it.
  */
 private class Surfaces(
     val page: Color,
@@ -32,25 +29,55 @@ private class Surfaces(
     val outlineVariant: Color,
 )
 
+// ---------------------------------------------------------------- the worlds
+
 /**
- * The surfaces for one hue: a page tinted clearly enough to see from across the room, cards
- * that stay near-white so they still lift off it, and ink with the same hue in it so nothing
- * looks like a grey that wandered in.
+ * Paper (Paper Talk): a warm cream page — cream is the resting state, not white — with
+ * clay for the big numbers, gold paper for selection, and espresso for ink. Every colour
+ * is earth: mustard, clay, coffee.
  */
-private fun tintedSurfaces(hue: Float): Surfaces {
-    fun shade(chroma: Float, lightness: Float) = Color.hsl(hue, chroma, lightness)
-    return Surfaces(
-        page = shade(0.34f, 0.940f),
-        panel = shade(0.28f, 0.895f),
-        // Only a hint of the hue, so a card still separates from the page without turning
-        // into a second wash of colour.
-        card = shade(0.08f, 0.988f),
-        onPage = shade(0.22f, 0.125f),
-        onVariant = shade(0.14f, 0.370f),
-        outline = shade(0.22f, 0.835f),
-        outlineVariant = shade(0.18f, 0.900f),
-    )
-}
+private val PaperSurfaces = Surfaces(
+    page = Color(0xFFF7F1E8),
+    panel = Color(0xFFEFE7DA),
+    card = Color(0xFFFFFFFF),
+    onPage = Color(0xFF39221E),
+    onVariant = Color(0xFF8A7565),
+    outline = Color(0xFFE1DCD3),
+    outlineVariant = Color(0xFFEBE5D8),
+)
+
+/** Garden: café cream and ceramic, four greens deep, the page a warm napkin. */
+private val GardenSurfaces = Surfaces(
+    page = Color(0xFFF2F0EB),
+    panel = Color(0xFFEBE8E2),
+    card = Color(0xFFFFFFFF),
+    onPage = Color(0xFF21261F),
+    onVariant = Color(0xFF6E7269),
+    outline = Color(0xFFDAD5CD),
+    outlineVariant = Color(0xFFE6E2DA),
+)
+
+/** Rose: cherry-blossom paper, garnet ink — the theme the app grew up with. */
+private val CoralSurfaces = Surfaces(
+    page = Color(0xFFFEF0F2),
+    panel = Color(0xFFF9E2E7),
+    card = Color(0xFFFFFDFD),
+    onPage = Color(0xFF3A2226),
+    onVariant = Color(0xFF7E6570),
+    outline = Color(0xFFF0D8DD),
+    outlineVariant = Color(0xFFF6E4E8),
+)
+
+/** Still Sea: fog-blue paper, deep-sea ink — the one cool world, and it is still paper. */
+private val SeaSurfaces = Surfaces(
+    page = Color(0xFFE7EDF2),
+    panel = Color(0xFFDCE5EB),
+    card = Color(0xFFFDFEFF),
+    onPage = Color(0xFF152430),
+    onVariant = Color(0xFF54677A),
+    outline = Color(0xFFC6D4DE),
+    outlineVariant = Color(0xFFD4DFE7),
+)
 
 /** White: a white page, near-black ink, and no hue anywhere. */
 private val WhiteSurfaces = Surfaces(
@@ -63,32 +90,15 @@ private val WhiteSurfaces = Surfaces(
     outlineVariant = Color(0xFFEFEFF0),
 )
 
-/**
- * The warm paper the emerald theme has always sat on.
- *
- * Left as it was rather than derived from the hue: this is the palette the rest of the app
- * was designed against, and a page tinted to match the accent made the accent itself read as
- * quieter than it does on paper.
- */
-private val PaperSurfaces = Surfaces(
-    page = Color(0xFFF7F5F0),
-    panel = Color(0xFFEFEBE3),
-    card = Color(0xFFFFFFFF),
-    onPage = Color(0xFF1C1B18),
-    onVariant = Color(0xFF6F6A60),
-    outline = Color(0xFFE3DED3),
-    outlineVariant = Color(0xFFEFEBE2),
-)
-
-/** Black: warm near-black, so the dark theme is the same family as the light ones. */
-private val DarkSurfaces = Surfaces(
-    page = Color(0xFF141311),
-    panel = Color(0xFF242320),
-    card = Color(0xFF1D1C19),
-    onPage = Color(0xFFF3F1EA),
-    onVariant = Color(0xFFA8A296),
-    outline = Color(0xFF352F28),
-    outlineVariant = Color(0xFF2A2622),
+/** Night: a coffee-dark table — cards are dark wood, the text is cream, the gold is gold. */
+private val NightSurfaces = Surfaces(
+    page = Color(0xFF1D1712),
+    panel = Color(0xFF2A211A),
+    card = Color(0xFF362A21),
+    onPage = Color(0xFFF3EAD9),
+    onVariant = Color(0xFFA8987F),
+    outline = Color(0xFF3B2E24),
+    outlineVariant = Color(0xFF2D231C),
 )
 
 // ---------------------------------------------------------------- the schemes
@@ -141,6 +151,7 @@ private fun dark(
     onPrimary: Color,
     primaryContainer: Color,
     onPrimaryContainer: Color,
+    surfaces: Surfaces = NightSurfaces,
 ): ColorScheme = darkColorScheme(
     primary = primary,
     onPrimary = onPrimary,
@@ -158,41 +169,62 @@ private fun dark(
     onError = Color(0xFF450A0A),
     errorContainer = Color(0xFF8A2018),
     onErrorContainer = Color(0xFFFCE7E5),
-    background = DarkSurfaces.page,
-    onBackground = DarkSurfaces.onPage,
-    surface = DarkSurfaces.page,
-    onSurface = DarkSurfaces.onPage,
-    surfaceVariant = DarkSurfaces.panel,
-    onSurfaceVariant = DarkSurfaces.onVariant,
-    surfaceContainerLowest = DarkSurfaces.card,
-    surfaceContainerLow = DarkSurfaces.card,
-    surfaceContainer = DarkSurfaces.panel,
-    surfaceContainerHigh = DarkSurfaces.card,
-    surfaceContainerHighest = DarkSurfaces.panel,
-    outline = DarkSurfaces.outline,
-    outlineVariant = DarkSurfaces.outlineVariant,
-    inverseSurface = DarkSurfaces.onPage,
-    inverseOnSurface = DarkSurfaces.page,
+    background = surfaces.page,
+    onBackground = surfaces.onPage,
+    surface = surfaces.page,
+    onSurface = surfaces.onPage,
+    surfaceVariant = surfaces.panel,
+    onSurfaceVariant = surfaces.onVariant,
+    surfaceContainerLowest = surfaces.card,
+    surfaceContainerLow = surfaces.card,
+    surfaceContainer = surfaces.panel,
+    surfaceContainerHigh = surfaces.card,
+    surfaceContainerHighest = surfaces.panel,
+    outline = surfaces.outline,
+    outlineVariant = surfaces.outlineVariant,
+    inverseSurface = surfaces.onPage,
+    inverseOnSurface = surfaces.page,
     scrim = Color.Black,
 )
 
 /**
- * The accent of a tinted palette: saturated enough to carry a 34sp number, dark enough to
- * read as text on the page, and not so dark that the tint above it looks like a mistake.
+ * The schemes for the five fixed worlds. Each accent is chosen the way its world earns
+ * its living: clay that reads as a number on cream, a green bright enough to act, one
+ * voltage of coral, a sea blue on fog paper, near-black ink on white, gold on coffee.
  */
-private fun accentFor(hue: Float): Color = Color.hsl(hue, 0.52f, 0.36f)
+private val PaperScheme = light(
+    primary = Color(0xFF6B443D),
+    onPrimary = Color(0xFFFDF8F0),
+    primaryContainer = Color(0xFFDDBE78),
+    onPrimaryContainer = Color(0xFF4A3208),
+    surfaces = PaperSurfaces,
+)
 
-private fun tintFor(hue: Float): Color = Color.hsl(hue, 0.55f, 0.92f)
+private val GardenScheme = light(
+    primary = Color(0xFF00754A),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFD4E9E2),
+    onPrimaryContainer = Color(0xFF00382A),
+    surfaces = GardenSurfaces,
+)
 
-private fun onTintFor(hue: Float): Color = Color.hsl(hue, 0.55f, 0.17f)
+private val CoralScheme = light(
+    // The old rose, whole again: the deep low-saturation garnet the day
+    // numbers were set in — a rose, not a pink — on the blossom paper the
+    // theme has always been.
+    primary = Color(0xFF8C2D44),
+    onPrimary = Color(0xFFFFF4F6),
+    primaryContainer = Color(0xFFF5DEE4),
+    onPrimaryContainer = Color(0xFF451022),
+    surfaces = CoralSurfaces,
+)
 
-/** A light palette built from one hue: the page and the ink both carry it. */
-private fun tinted(hue: Float): ColorScheme = light(
-    primary = accentFor(hue),
-    onPrimary = Color.White,
-    primaryContainer = tintFor(hue),
-    onPrimaryContainer = onTintFor(hue),
-    surfaces = tintedSurfaces(hue),
+private val SeaScheme = light(
+    primary = Color(0xFF23689E),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFCFE1EE),
+    onPrimaryContainer = Color(0xFF0E3453),
+    surfaces = SeaSurfaces,
 )
 
 private val WhiteScheme = light(
@@ -205,42 +237,71 @@ private val WhiteScheme = light(
     surfaces = WhiteSurfaces,
 )
 
-/**
- * The emerald the app's icon is built on, kept at the exact value it has always had: it is
- * the palette the rest of the app was designed against.
- */
-private val TealScheme = light(
-    primary = Color(0xFF0F766E),
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFDCEFEA),
-    onPrimaryContainer = Color(0xFF083F3B),
-    surfaces = PaperSurfaces,
+private val NightScheme = dark(
+    primary = Color(0xFFDDAA61),
+    onPrimary = Color(0xFF3A2A05),
+    primaryContainer = Color(0xFF684D07),
+    onPrimaryContainer = Color(0xFFF0DBA4),
 )
 
-private val MistScheme = tinted(214f)
-private val AmberScheme = tinted(28f)
-private val RoseScheme = tinted(345f)
+/**
+ * The custom world dyes paper rather than tinting white: whatever hue the strip picks
+ * soaks into the sheet, so even a mixed hue gets the warm-paper body the fixed worlds have.
+ */
+private fun dyedPaper(hue: Float): ColorScheme = light(
+    primary = Color.hsl(hue, 0.50f, 0.36f),
+    onPrimary = Color.White,
+    primaryContainer = Color.hsl(hue, 0.42f, 0.86f),
+    onPrimaryContainer = Color.hsl(hue, 0.50f, 0.16f),
+    surfaces = Surfaces(
+        page = Color.hsl(hue, 0.26f, 0.91f),
+        panel = Color.hsl(hue, 0.22f, 0.87f),
+        card = Color.hsl(hue, 0.04f, 0.99f),
+        onPage = Color.hsl(hue, 0.20f, 0.13f),
+        onVariant = Color.hsl(hue, 0.12f, 0.38f),
+        outline = Color.hsl(hue, 0.18f, 0.80f),
+        outlineVariant = Color.hsl(hue, 0.15f, 0.86f),
+    ),
+)
 
-private val NightScheme = dark(
-    primary = Color(0xFF7FD6C9),
-    onPrimary = Color(0xFF05201D),
-    primaryContainer = Color(0xFF17332F),
-    onPrimaryContainer = Color(0xFFC8EDE6),
+/**
+ * The same hue steeped into the night table instead of the paper: the coffee-dark
+ * surfaces of Night, carrying the mixed hue, with the accent read at the bright,
+ * low-saturation weight the theme's gold is — so the one who chose the dark does
+ * not have to blink through a white sheet to keep a colour of their own.
+ */
+private fun dyedNight(hue: Float): ColorScheme = dark(
+    primary = Color.hsl(hue, 0.45f, 0.72f),
+    onPrimary = Color.hsl(hue, 0.50f, 0.12f),
+    primaryContainer = Color.hsl(hue, 0.35f, 0.26f),
+    onPrimaryContainer = Color.hsl(hue, 0.40f, 0.85f),
+    surfaces = Surfaces(
+        page = Color.hsl(hue, 0.22f, 0.13f),
+        panel = Color.hsl(hue, 0.20f, 0.18f),
+        card = Color.hsl(hue, 0.16f, 0.24f),
+        onPage = Color.hsl(hue, 0.14f, 0.92f),
+        onVariant = Color.hsl(hue, 0.10f, 0.72f),
+        outline = Color.hsl(hue, 0.18f, 0.28f),
+        outlineVariant = Color.hsl(hue, 0.16f, 0.22f),
+    ),
 )
 
 /** The palette [settings] asks for. */
 fun schemeFor(settings: AppSettings): ColorScheme =
-    schemeFor(settings.preset, settings.customHue)
+    schemeFor(settings.preset, settings.customHue, settings.customDark)
 
-fun schemeFor(preset: ThemePreset, customHue: Float): ColorScheme = when (preset) {
-    ThemePreset.WHITE -> WhiteScheme
-    ThemePreset.BLACK -> NightScheme
-    ThemePreset.TEAL -> TealScheme
-    ThemePreset.MIST -> MistScheme
-    ThemePreset.AMBER -> AmberScheme
-    ThemePreset.ROSE -> RoseScheme
-    ThemePreset.CUSTOM -> tinted(((customHue % 360f) + 360f) % 360f)
-}
+fun schemeFor(preset: ThemePreset, customHue: Float, customDark: Boolean = false): ColorScheme =
+    when (preset) {
+        ThemePreset.WHITE -> WhiteScheme
+        ThemePreset.BLACK -> NightScheme
+        ThemePreset.TEAL -> GardenScheme
+        ThemePreset.MIST -> SeaScheme
+        ThemePreset.AMBER -> PaperScheme
+        ThemePreset.ROSE -> CoralScheme
+        ThemePreset.CUSTOM ->
+            if (customDark) dyedNight(((customHue % 360f) + 360f) % 360f)
+            else dyedPaper(((customHue % 360f) + 360f) % 360f)
+    }
 
 /**
  * The colour a countdown paints itself with, given its own [hue].

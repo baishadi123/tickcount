@@ -85,12 +85,27 @@ object FootprintMedia {
      * reference, one of our own files as it was copied — turned upright
      * either way, the tag read and honoured. Whatever the strip does, the
      * reading itself is never a miniature and never sideways.
+     *
+     * A modern camera's original runs to fifty megapixels, which is two
+     * hundred megabytes of pixels before the turn upright asks for a second
+     * sheet: sampled to the same ceiling the gallery's originals obey — no
+     * screen this side of a wall shows more — the reading stays the whole
+     * picture, and the phone survives opening it.
      */
     fun bitmap(context: Context, entry: String): Bitmap? {
         if (MediaRef.isRef(entry)) return GalleryMedia.bitmap(context, entry)
         val own = file(context, entry) ?: return null
         return runCatching {
-            val decoded = BitmapFactory.decodeFile(own.absolutePath) ?: return null
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(own.absolutePath, bounds)
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+            var sample = 1
+            val pixels = bounds.outWidth.toLong() * bounds.outHeight
+            while (pixels / (sample.toLong() * sample) > GalleryMedia.UPTURN_PIXEL_CAP) sample *= 2
+            val decoded = BitmapFactory.decodeFile(
+                own.absolutePath,
+                BitmapFactory.Options().apply { inSampleSize = sample },
+            ) ?: return null
             GalleryMedia.upright(decoded, GalleryMedia.uprightOf(own))
         }.getOrNull()
     }

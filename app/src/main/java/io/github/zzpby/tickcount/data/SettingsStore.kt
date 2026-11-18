@@ -73,6 +73,12 @@ enum class WidgetTextSize(val scale: Float) {
 data class AppSettings(
     val preset: ThemePreset = ThemePreset.TEAL,
     val customHue: Float = DEFAULT_HUE,
+    /**
+     * Whether the custom hue is steeped into the night table rather than the
+     * paper — the dark twin of the mixed colour, for the one who chose the
+     * dark. Kept beside [customHue] and just as long-suffering about presets.
+     */
+    val customDark: Boolean = false,
     val sortOrder: SortOrder = SortOrder.DATE_ASC,
     val language: AppLanguage = AppLanguage.SYSTEM,
     /** Whether a notification is posted on the day a countdown lands. */
@@ -154,6 +160,7 @@ class SettingsStore(context: Context) {
         return AppSettings(
             preset = preset,
             customHue = prefs.getFloat(KEY_HUE, DEFAULT_HUE),
+            customDark = prefs.getBoolean(KEY_CUSTOM_DARK, false),
             sortOrder = order,
             language = language,
             remind = prefs.getBoolean(KEY_REMIND, false),
@@ -187,6 +194,7 @@ class SettingsStore(context: Context) {
         prefs.edit {
             putString(KEY_THEME, settings.preset.name)
             putFloat(KEY_HUE, settings.customHue)
+            putBoolean(KEY_CUSTOM_DARK, settings.customDark)
             putString(KEY_SORT, settings.sortOrder.name)
             putString(KEY_LANGUAGE, settings.language.name)
             putBoolean(KEY_REMIND, settings.remind)
@@ -218,6 +226,7 @@ class SettingsStore(context: Context) {
         const val PREFS_NAME = "tickcount_settings"
         const val KEY_THEME = "theme"
         const val KEY_HUE = "hue"
+        const val KEY_CUSTOM_DARK = "custom_dark"
         const val KEY_SORT = "sort"
         const val KEY_LANGUAGE = "language"
         const val KEY_SECONDS = "seconds"

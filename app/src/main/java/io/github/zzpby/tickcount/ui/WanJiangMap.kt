@@ -27,6 +27,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -159,6 +162,7 @@ fun WanJiangMap(
                 onClick = onBackToList,
                 modifier = Modifier
                     .align(Alignment.TopStart)
+                    .statusBarsPadding()
                     .padding(12.dp),
             )
         }
@@ -405,13 +409,65 @@ fun WanJiangMap(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
+    // The map is the page: nothing above it, nothing framing it. The years
+    // ride on top of the country as a floating legend along the bottom edge,
+    // the way a printed map carries its key — not as a strip of interface
+    // holding ground the map itself should be covering.
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .fillMaxHeight(),
+    ) {
+        AndroidView(
+            modifier = Modifier
+                .fillMaxSize()
+                .clipToBounds(),
+            factory = { map },
+            onRelease = { it.onDetach() },
+        )
+
+        // Back to the scrapbook, without leaving the page. The system
+        // back key does the same thing; this is the visible half.
+        MapBackButton(
+            onClick = onBackToList,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(12.dp),
+        )
+
+        // The whole country, one tap away — shown only when the map has
+        // wandered closer, so the corner stays quiet at the overview.
+        if (countryPresence > 0.01f) {
+            MapCountryButton(
+                onClick = {
+                    zoomedIn = false
+                    map.controller.animateTo(
+                        CHINA.center,
+                        countryZoomFor(map),
+                        650L,
+                    )
+                },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(12.dp)
+                    .graphicsLayer {
+                        alpha = countryPresence
+                        translationY = (1f - countryPresence) * -4.dp.toPx()
+                    },
+            )
+        }
+
+        // The years, lit or dark, riding the bottom edge over the country.
         if (years.isNotEmpty()) {
             Row(
                 modifier = Modifier
+                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
+                    .navigationBarsPadding()
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 4.dp),
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 years.forEach { year ->
@@ -433,51 +489,6 @@ fun WanJiangMap(
                         },
                     )
                 }
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-        ) {
-            AndroidView(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clipToBounds(),
-                factory = { map },
-                onRelease = { it.onDetach() },
-            )
-
-            // Back to the scrapbook, without leaving the page. The system
-            // back key does the same thing; this is the visible half.
-            MapBackButton(
-                onClick = onBackToList,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(12.dp),
-            )
-
-            // The whole country, one tap away — shown only when the map has
-            // wandered closer, so the corner stays quiet at the overview.
-            if (countryPresence > 0.01f) {
-                MapCountryButton(
-                    onClick = {
-                        zoomedIn = false
-                        map.controller.animateTo(
-                            CHINA.center,
-                            countryZoomFor(map),
-                            650L,
-                        )
-                    },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(12.dp)
-                        .graphicsLayer {
-                            alpha = countryPresence
-                            translationY = (1f - countryPresence) * -4.dp.toPx()
-                        },
-                )
             }
         }
     }

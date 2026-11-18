@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 
 import androidx.compose.material3.MaterialTheme
@@ -64,6 +65,7 @@ import androidx.compose.ui.semantics.contentDescription
 
 import androidx.compose.ui.semantics.semantics
 
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 
 import androidx.compose.ui.text.style.TextAlign
@@ -408,7 +410,9 @@ private fun MonthGrid(
 
     Column(modifier = Modifier.fillMaxWidth()) {
 
-        cells.chunked(7).forEach { week ->
+        val weeks = cells.chunked(7)
+
+        weeks.forEachIndexed { weekIndex, week ->
 
             Row(
 
@@ -453,6 +457,24 @@ private fun MonthGrid(
                     )
 
                 }
+
+            }
+
+            // The rule between two weeks of a printed calendar: days march in
+
+            // rows, and a hairline under a row keeps the grid honest without
+
+            // fencing every cell in.
+
+            if (weekIndex < weeks.lastIndex) {
+
+                HorizontalDivider(
+
+                    thickness = 1.dp,
+
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
+
+                )
 
             }
 
@@ -566,6 +588,14 @@ private fun DayCell(
 
             style = MaterialTheme.typography.bodyMedium,
 
+            // The calendar's numbers are set in the display serif: a wall
+
+            // calendar is a printed thing, and serif digits are what make a
+
+            // grid of days read as hung on a wall rather than a table.
+
+            fontFamily = FontFamily.Serif,
+
             fontWeight = if (isSelected || isToday) FontWeight.SemiBold else FontWeight.Normal,
 
             color = numberColor,
@@ -604,13 +634,23 @@ private fun DayCell(
 
                 accents.take(MAX_DOTS).forEach { accent ->
 
+                    // A ring, not a dot: printed wall calendars marked their days
+
+                    // with hollow signs, and a column of rings down the month
+
+                    // reads as set by a printer rather than stamped by a stamp.
+
                     Box(
 
                         Modifier
 
-                            .size(5.dp)
+                            .size(5.5.dp)
 
-                            .background(
+                            .clip(CircleShape)
+
+                            .border(
+
+                                1.2.dp,
 
                                 if (isSelected) colorScheme.onPrimary else accent,
 

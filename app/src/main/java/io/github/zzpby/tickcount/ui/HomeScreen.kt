@@ -321,7 +321,7 @@ private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
 private fun PastSectionHeading(modifier: Modifier = Modifier) {
     Text(
         text = stringResource(R.string.home_past_section),
-        style = MaterialTheme.typography.labelLarge.copy(shadow = textHalo()),
+        style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier.padding(start = 4.dp, top = 16.dp, bottom = 4.dp),
     )
@@ -388,7 +388,7 @@ fun CentredNotice(text: String, modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
             text = text,
-            style = MaterialTheme.typography.bodyLarge.copy(shadow = textHalo()),
+            style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 32.dp),

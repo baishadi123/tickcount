@@ -31,7 +31,7 @@ see how long is left — or how long it has been.
 - **Wishes, footprints, the voyage** — a wish list to tick off; places visited together, on a map; a star chart where milestones light up, with music.
 - **One picture behind everything** — pick a photo once and it sits behind every page, framed by hand.
 - **Notifications** — a reminder time, one app-wide lead, an override per countdown, a test button; reminders return after a restart.
-- **Appearance** — six themes or a mixed hue; glass-surfaced cards and panels throughout.
+- **Appearance** — six themes or a mixed hue (paper or night steep); glass-surfaced cards and panels throughout.
 - **Bilingual** — Chinese or English, following the system or chosen in the drawer; date formats localised.
 - **Backup and restore** — every record and setting to a file and back, optionally AES-256-GCM encrypted; an import asks **Overwrite** or **Merge** and says what each would do first.
 - **Large fonts** — the UI grows with the system font scale; nothing is squeezed.

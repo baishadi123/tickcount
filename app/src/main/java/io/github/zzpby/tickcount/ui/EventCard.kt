@@ -29,9 +29,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.domain.CountdownListEntry
 import io.github.zzpby.tickcount.domain.daysFromToday
@@ -130,7 +132,16 @@ fun EventCard(
                 accent = accent,
             )
 
-            Spacer(Modifier.width(16.dp))
+            // The column rule, as a printed page has between its columns: the number
+            // is its own column of text, and a hairline says so without shouting.
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight(0.58f)
+                    .width(1.dp)
+                    .background(scheme.outlineVariant),
+            )
+
+            Spacer(Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -188,8 +199,9 @@ fun EventCard(
 }
 
 /**
- * How far off the countdown is, in the three-line form the left column uses: a caption, the
- * number, and what it counts.
+ * How far off the countdown is, set like a printed page number: the caption as a quiet
+ * eyebrow above, the number itself in the display serif as the largest thing on the card,
+ * and the unit riding its baseline rather than queued in a line of its own.
  *
  * Today, tomorrow and yesterday stay words. A "0 days" would be arithmetic where a word is
  * shorter and says more, and it would be the one card in the list that reads as a bug.
@@ -200,7 +212,7 @@ private fun DayCount(days: Long, isPast: Boolean, accent: Color) {
     val scheme = MaterialTheme.colorScheme
 
     Column(
-        modifier = Modifier.width(78.dp),
+        modifier = Modifier.width(92.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         when (days) {
@@ -213,24 +225,28 @@ private fun DayCount(days: Long, isPast: Boolean, accent: Color) {
                         if (isPast) R.string.card_caption_past else R.string.card_caption_future
                     ),
                     style = MaterialTheme.typography.labelSmall,
+                    letterSpacing = 2.sp,
                     color = scheme.onSurfaceVariant,
                 )
-                Text(
-                    text = abs(days).toString(),
-                    style = if (abs(days) >= 1000) {
-                        MaterialTheme.typography.headlineLarge
-                    } else {
-                        MaterialTheme.typography.displaySmall
-                    },
-                    color = if (isPast) scheme.onSurfaceVariant else accent,
-                )
-                Text(
-                    text = stringResource(
-                        if (isPast) R.string.card_unit_past else R.string.card_unit_future
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = scheme.onSurfaceVariant,
-                )
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = abs(days).toString(),
+                        style = if (abs(days) >= 1000) {
+                            MaterialTheme.typography.headlineLarge
+                        } else {
+                            MaterialTheme.typography.displayMedium
+                        },
+                        color = if (isPast) scheme.onSurfaceVariant else accent,
+                    )
+                    Text(
+                        text = stringResource(
+                            if (isPast) R.string.card_unit_past else R.string.card_unit_future
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = scheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 3.dp, bottom = 7.dp),
+                    )
+                }
             }
         }
     }
@@ -241,7 +257,7 @@ private fun DayCount(days: Long, isPast: Boolean, accent: Color) {
 private fun CountWord(text: String, color: Color) {
     Text(
         text = text,
-        style = MaterialTheme.typography.headlineMedium,
+        style = MaterialTheme.typography.headlineMedium.copy(fontFamily = FontFamily.Serif),
         color = color,
     )
 }
@@ -252,16 +268,19 @@ private fun CountWord(text: String, color: Color) {
  */
 @Composable
 private fun PinnedMark() {
+    // The marks follow the world's own quiet ink rather than a grey fixed at
+    // compile time: on a coffee table they are cream, on paper they are coffee.
+    val markColor = MaterialTheme.colorScheme.onSurfaceVariant
     Canvas(modifier = Modifier.size(11.dp)) {
         val head = Size(width = size.width * 0.62f, height = size.height * 0.42f)
         drawRoundRect(
-            color = Color(0xFF6F6A60),
+            color = markColor,
             topLeft = Offset((size.width - head.width) / 2f, 0f),
             size = head,
             cornerRadius = CornerRadius(head.width / 2f),
         )
         drawLine(
-            color = Color(0xFF6F6A60),
+            color = markColor,
             start = Offset(size.width / 2f, head.height * 0.9f),
             end = Offset(size.width / 2f, size.height * 0.95f),
             strokeWidth = 1.6.dp.toPx(),
@@ -275,10 +294,11 @@ private fun PinnedMark() {
  */
 @Composable
 private fun YearlyMark() {
+    val markColor = MaterialTheme.colorScheme.onSurfaceVariant
     Canvas(modifier = Modifier.size(12.dp)) {
         val inset = 1.5.dp.toPx()
         drawArc(
-            color = Color(0xFF6F6A60),
+            color = markColor,
             startAngle = -30f,
             sweepAngle = 300f,
             useCenter = false,
@@ -292,14 +312,14 @@ private fun YearlyMark() {
         val cy = size.height / 2f
         val tip = Offset(cx + r * cos(Math.toRadians(-30.0)).toFloat(), cy + r * sin(Math.toRadians(-30.0)).toFloat())
         drawLine(
-            color = Color(0xFF6F6A60),
+            color = markColor,
             start = tip,
             end = Offset(tip.x - 3.2.dp.toPx(), tip.y - 1.2.dp.toPx()),
             strokeWidth = 1.6.dp.toPx(),
             cap = StrokeCap.Round,
         )
         drawLine(
-            color = Color(0xFF6F6A60),
+            color = markColor,
             start = tip,
             end = Offset(tip.x - 1.2.dp.toPx(), tip.y - 3.2.dp.toPx()),
             strokeWidth = 1.6.dp.toPx(),

@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -78,7 +79,6 @@ import io.github.zzpby.tickcount.R
 import io.github.zzpby.tickcount.data.EventBackgrounds
 import io.github.zzpby.tickcount.data.FootprintMedia
 import io.github.zzpby.tickcount.data.PhotoExif
-import io.github.zzpby.tickcount.ui.theme.textHalo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -249,20 +249,37 @@ fun PhotoViewer(
             AnimatedVisibility(uiVisible, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.TopCenter)) {
                 Text(
                     text = "${pagerState.currentPage + 1} / ${photos.size}",
-                    style = MaterialTheme.typography.labelLarge.copy(shadow = textHalo()),
+                    style = MaterialTheme.typography.labelLarge,
                     color = Color.White.copy(alpha = 0.85f),
                     modifier = Modifier.padding(top = 40.dp),
                 )
             }
 
-            // The close button, top right.
+            // The top-right pair: the album door, then the close. The door
+            // sits at the thumb, one step out of the river — the panel's
+            // deep dive was its hiding place, and a door is for passing
+            // through, not for finding.
             AnimatedVisibility(uiVisible, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.TopEnd)) {
-                GlassCircleButton(
-                    contentDescription = null,
-                    onClick = onDismiss,
-                    modifier = Modifier.padding(top = 34.dp, end = 18.dp),
-                ) {
-                    CloseIcon(iconSize = 16.dp, color = Color.White.copy(alpha = 0.9f))
+                Row {
+                    val currentEntry = photos[pagerState.currentPage.coerceIn(photos.indices)]
+                    GlassCircleButton(
+                        contentDescription = stringResource(R.string.viewer_open_outside),
+                        onClick = { openOutside(context, media, currentEntry) },
+                        modifier = Modifier.padding(top = 34.dp),
+                    ) {
+                        io.github.zzpby.tickcount.ui.components.AlbumMark(
+                            color = Color.White.copy(alpha = 0.9f),
+                            size = 17.dp,
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    GlassCircleButton(
+                        contentDescription = null,
+                        onClick = onDismiss,
+                        modifier = Modifier.padding(top = 34.dp, end = 18.dp),
+                    ) {
+                        CloseIcon(iconSize = 16.dp, color = Color.White.copy(alpha = 0.9f))
+                    }
                 }
             }
 
@@ -305,7 +322,7 @@ fun PhotoViewer(
                     exit = fadeOut(),
                     modifier = Modifier.align(Alignment.BottomCenter),
                 ) {
-                    GlassInfoPanel(exif = exif)
+                GlassInfoPanel(exif = exif)
                 }
             }
         }
@@ -477,6 +494,42 @@ private fun ThumbnailStrip(
                 }
             }
         }
+    }
+}
+
+/**
+ * Hands this entry to the system's own viewer: an album reference goes as
+ * the MediaStore uri it already is; one of our private files travels by the
+ * FileProvider, granted read for the trip — a private copy is invisible to
+ * the album, but any viewer can open a parcel handed to it.
+ */
+private fun openOutside(context: Context, media: ViewerMedia, entry: String) {
+    runCatching {
+        val raw = media.uri(context, entry) ?: run {
+            // A reference whose picture has left the album resolves to nothing;
+            // a door that silently refuses to open reads as a broken button.
+            android.widget.Toast.makeText(
+                context,
+                context.getString(R.string.viewer_open_missing),
+                android.widget.Toast.LENGTH_SHORT,
+            ).show()
+            return
+        }
+        val viewable = if (raw.scheme == "content") {
+            raw
+        } else {
+            androidx.core.content.FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                java.io.File(raw.path ?: return),
+            )
+        }
+        val mime = context.contentResolver.getType(viewable) ?: "*/*"
+        context.startActivity(
+            android.content.Intent(android.content.Intent.ACTION_VIEW)
+                .setDataAndType(viewable, mime)
+                .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION),
+        )
     }
 }
 

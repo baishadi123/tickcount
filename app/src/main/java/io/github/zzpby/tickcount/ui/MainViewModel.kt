@@ -868,6 +868,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
+     * Whether the mixed hue is steeped into the night table. Kept beside the
+     * hue for the same reason the hue is: it belongs to the custom choice.
+     */
+    fun chooseCustomDark(dark: Boolean) {
+        updateSettings(_settings.value.copy(customDark = dark))
+    }
+
+    /**
      * The order the home list is drawn in. Kept beside the theme because it is the
      * same kind of thing: a preference that outlives the process.
      */

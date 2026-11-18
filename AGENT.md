@@ -41,7 +41,7 @@ $env:JAVA_HOME='D:\jdk\jdk-17.0.20'
 | 提醒（含胶囊到期） | `notify/Reminders.kt`、`notify/ReminderReceiver.kt`、`notify/BootReceiver.kt`、`ui/NotificationsScreen.kt` |
 | 桌面小组件 | `ui/widget/` |
 | 农历与每年重复 | `domain/Lunar.kt`、`domain/YearlyRepeat.kt`、`ui/LunarText.kt` |
-| 外观（主题、玻璃、全局背景） | `ui/AppearanceScreen.kt`、`ui/theme/Style.kt`（GlassTokens 分层：大卡 `glassSurface` / 编辑静板 `interactive=false` / 小件 `glassPane`） |
+| 外观（六世界主题、玻璃、全局背景） | `ui/theme/Schemes.kt`（六世界真身+自定义染纸/染夜）、`DESIGN.md`（视觉宪法）、`ui/theme/Type.kt`（衬线大数字）、`ui/AppearanceScreen.kt`、`ui/theme/Style.kt`（GlassTokens 分层：大卡 `glassSurface` / 编辑静板 `interactive=false` / 小件 `glassPane`） |
 | 烟涛（磁带墙，原名声带） | `ui/VoiceTapeScreen.kt`（墙+机座+录音棚）、`data/VoiceTape.kt`（模型+按年存储+`vt-` 录音仓）、`data/TapeImport.kt`（视频抽音轨/波形解码） |
 | 照片查看器（三入口共享）与弹窗防护 | `ui/components/PhotoViewer.kt`（`ViewerMedia` 双源）、`data/PhotoExif.kt`、`ui/components/DialogWindowGuard.kt` |
 | 数据管理（备份 / 加密） | `ui/DataScreen.kt`、`data/Backup.kt`、`data/BackupCrypto.kt`（.ics 已退役） |

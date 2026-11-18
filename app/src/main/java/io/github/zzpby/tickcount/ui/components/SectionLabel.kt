@@ -8,7 +8,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import io.github.zzpby.tickcount.ui.theme.textHalo
 
 /**
  * A small heading over one group of settings, and the gap that belongs under it.
@@ -21,7 +20,7 @@ import io.github.zzpby.tickcount.ui.theme.textHalo
 fun SectionLabel(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.titleSmall.copy(shadow = textHalo()),
+        style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )

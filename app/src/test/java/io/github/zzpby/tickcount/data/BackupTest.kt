@@ -2,6 +2,7 @@ package io.github.zzpby.tickcount.data
 
 import io.github.zzpby.tickcount.domain.SortOrder
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -81,6 +82,29 @@ class BackupTest {
 
         assertEquals(WidgetPanel.DARK, restored.settings.widgetPanel)
         assertEquals(WidgetTextSize.LARGE, restored.settings.widgetTextSize)
+    }
+
+    @Test
+    fun `the anniversary anchor and the reminders travel with the settings`() {
+        val withTheDaysThatMatter = settings.copy(
+            remind = true,
+            remindMinutes = 480,
+            anniversaryEpochDay = 20_000L,
+        )
+        val restored = BackupCodec.decode(
+            BackupCodec.encode(Backup(events, withTheDaysThatMatter), exportedAt = 1L),
+        )
+
+        assertTrue(restored.settings.remind)
+        assertEquals(480, restored.settings.remindMinutes)
+        assertEquals(20_000L, restored.settings.anniversaryEpochDay)
+    }
+
+    @Test
+    fun `a backup without an anniversary lands on null, not on day zero`() {
+        val restored = BackupCodec.decode(BackupCodec.encode(backup(), exportedAt = 1L))
+
+        assertNull(restored.settings.anniversaryEpochDay)
     }
 
     @Test

@@ -38,8 +38,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -97,6 +99,8 @@ import io.github.zzpby.tickcount.data.TapeImport
 import io.github.zzpby.tickcount.data.VoiceRecorder
 import io.github.zzpby.tickcount.data.VoiceTape
 import io.github.zzpby.tickcount.data.newTapeId
+import io.github.zzpby.tickcount.ui.components.brushStroke
+import io.github.zzpby.tickcount.ui.components.brushWeight
 import io.github.zzpby.tickcount.ui.components.CloseIcon
 import io.github.zzpby.tickcount.ui.components.OnAppBackground
 import io.github.zzpby.tickcount.ui.components.PauseIcon
@@ -359,6 +363,11 @@ fun VoiceTapeScreen(
                 val redressed = deckTape!!.copy(colorway = shell)
                 onSaveTape(redressed)
                 deckTape = redressed
+            },
+            onRename = { name ->
+                val retitled = deckTape!!.copy(title = name.take(12))
+                onSaveTape(retitled)
+                deckTape = retitled
             },
         )
         return
@@ -712,12 +721,9 @@ private val MarkSize = 30.dp
 
 /**
  * The weight a brush carries along a stroke: nothing at either end, most of
- * it a little past the middle. The sine is clamped before the root because
- * sin(π), in floats, arrives a hair below zero — and a negative base under a
- * fractional power is NaN, which would void the whole path.
+ * it a little past the middle — now lives in the app's shared hand,
+ * BrushMarks, beside the marks themselves.
  */
-private fun brushWeight(t: Float): Float =
-    sin(Math.PI.toFloat() * t).coerceAtLeast(0f).pow(0.55f)
 
 @Composable
 private fun RecordMark(color: Color) {
@@ -799,44 +805,9 @@ private fun ImportMark(color: Color) {
 }
 
 /**
- * Lays a stroke the way a brush lays one: the centre line offset by half the
- * weight on either side, so the ribbon swells through the middle and dies at
- * the ends instead of stopping square.
+ * Lays a stroke the way a brush lays one — also moved to BrushMarks, the
+ * shared hand the app's drawn marks are all written with.
  */
-private fun DrawScope.brushStroke(points: List<Offset>, widths: FloatArray, color: Color) {
-    val count = points.size
-    if (count < 2) return
-    val normals = ArrayList<Offset>(count)
-    for (index in 0 until count) {
-        val before = points[(index - 1).coerceAtLeast(0)]
-        val after = points[(index + 1).coerceAtMost(count - 1)]
-        var dx = after.x - before.x
-        var dy = after.y - before.y
-        val length = sqrt(dx * dx + dy * dy).takeIf { it > 0.0001f } ?: 1f
-        dx /= length
-        dy /= length
-        normals += Offset(-dy, dx)
-    }
-    val path = Path()
-    path.moveTo(
-        points[0].x + normals[0].x * widths[0],
-        points[0].y + normals[0].y * widths[0],
-    )
-    for (index in 1 until count) {
-        path.lineTo(
-            points[index].x + normals[index].x * widths[index],
-            points[index].y + normals[index].y * widths[index],
-        )
-    }
-    for (index in count - 1 downTo 0) {
-        path.lineTo(
-            points[index].x - normals[index].x * widths[index],
-            points[index].y - normals[index].y * widths[index],
-        )
-    }
-    path.close()
-    drawPath(path, color)
-}
 
 /**
  * The recording booth: one take, live on the glass — the wave drawn as it
@@ -1087,6 +1058,42 @@ private fun RecordSheet(
 }
 
 /**
+ * Renaming a tape: the same hand, the same field, the same twelve letters as
+ * the record sheet — a name changed on the machine is written the same way it
+ * was first written.
+ */
+@Composable
+private fun RenameTapeDialog(
+    initial: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var draft by remember { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.tape_rename)) },
+        text = {
+            androidx.compose.material3.OutlinedTextField(
+                value = draft,
+                onValueChange = { draft = it.take(12) },
+                singleLine = true,
+                textStyle = MaterialTheme.typography.titleMedium.copy(fontFamily = XingKai),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(draft.trim()) }) {
+                Text(stringResource(R.string.action_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
+}
+
+/**
  * The deck: one tape, large, alone on the app's own picture — a third of
  * the height, a fifth of air above and below. The voice is real now: the
  * reels are driven by the player's own position, a drag scrubs the sound
@@ -1099,6 +1106,7 @@ private fun TapeDeck(
     onDismiss: () -> Unit,
     onDelete: () -> Unit,
     onRecolor: (Int) -> Unit,
+    onRename: (String) -> Unit,
 ) {
     val context = LocalContext.current
     var playing by remember { mutableStateOf(false) }
@@ -1383,6 +1391,34 @@ private fun TapeDeck(
                     // Re-dressing: the same four shells, and the tape on the
                     // machine changes into the one tapped, there and then.
                     Spacer(Modifier.height(20.dp))
+
+                    // The label, in the letters' own hand, re-written by a
+                    // tap: the title line above the shells is the tape's
+                    // nameplate, and a nameplate is made to be written on.
+                    var renaming by remember { mutableStateOf(false) }
+                    Text(
+                        text = tape.title.ifEmpty { stringResource(R.string.tape_untitled) },
+                        fontFamily = XingKai,
+                        fontSize = 19.sp,
+                        color = palette.inkStrong,
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .clip(RoundedCornerShape(50))
+                            .clickable { renaming = true }
+                            .padding(horizontal = 14.dp, vertical = 4.dp),
+                    )
+                    if (renaming) {
+                        RenameTapeDialog(
+                            initial = tape.title,
+                            onConfirm = { name ->
+                                renaming = false
+                                if (name != tape.title) onRename(name)
+                            },
+                            onDismiss = { renaming = false },
+                        )
+                    }
+
+                    Spacer(Modifier.height(12.dp))
                     ShellRail(
                         palette = palette,
                         selected = tape.colorway,
@@ -1750,11 +1786,11 @@ private fun CassetteTape(
                         val subLayout = measurer.measure(
                             subtitle,
                             TextStyle(
-                                // Machine print, like the side mark and the
-                                // counter: the hand's own digits blur into
-                                // mush at a wall tape's size, and a date one
-                                // cannot read is worse than no date at all.
-                                fontFamily = FontFamily.Monospace,
+                                // Letterpress, like a date printed on a real
+                                // cassette label: the shell's counters stay
+                                // monospace, but a printed date is serif — the
+                                // hand's title above, the press's note below.
+                                fontFamily = FontFamily.Serif,
                                 fontSize = (26f * sx * pxToSp).sp,
                                 letterSpacing = (1.0f * sx * pxToSp).sp,
                                 color = palette.labelInk.copy(alpha = 0.62f),

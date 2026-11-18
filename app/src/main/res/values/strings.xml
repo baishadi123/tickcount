@@ -16,6 +16,10 @@
     <string name="action_delete">Delete</string>
     <string name="action_save">Save</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_confirm">Confirm</string>
+    <string name="tape_rename">Rewrite the label</string>
+    <string name="viewer_open_outside">Open in the album</string>
+    <string name="viewer_open_missing">That picture is no longer in the album</string>
     <string name="action_close">关闭</string>
     <string name="gallery_health_title">相册体检</string>
     <string name="gallery_health_body">应用引用的每张照片都还在相册里吗——换机之前，先看一眼数字</string>
@@ -265,10 +269,10 @@
 
     <!-- The five palettes, and the strip that mixes the last one -->
     <string name="theme_white">White</string>
-    <string name="theme_black">Black</string>
-    <string name="theme_teal">Teal</string>
-    <string name="theme_mist">Mist blue</string>
-    <string name="theme_amber">Amber</string>
+    <string name="theme_black">Night</string>
+    <string name="theme_teal">Garden</string>
+    <string name="theme_mist">Still sea</string>
+    <string name="theme_amber">Paper</string>
     <string name="theme_rose">Rose</string>
     <string name="theme_custom">Custom</string>
     <string name="appearance_presets">Theme colour</string>
@@ -294,6 +298,7 @@
     <string name="calendar_name">TickCount</string>
     <string name="appearance_custom_hue">Pick a hue</string>
     <string name="appearance_custom_hint">The whole app repaints as you drag, so this screen is the preview.</string>
+    <string name="appearance_custom_night">Steep the same hue into night</string>
     <string name="appearance_surfaces">Surface levels</string>
     <string name="appearance_background">App background</string>
     <string name="appearance_background_use">Show the picture</string>

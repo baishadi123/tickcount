@@ -175,8 +175,12 @@ object BackupCodec {
     private fun settingsToJson(settings: AppSettings): JSONObject = JSONObject()
         .put("theme", settings.preset.name)
         .put("hue", settings.customHue.toDouble())
+        .put("customDark", settings.customDark)
         .put("sort", settings.sortOrder.name)
         .put("language", settings.language.name)
+        .put("remind", settings.remind)
+        .put("remindMinutes", settings.remindMinutes)
+        .put("anniversaryEpochDay", settings.anniversaryEpochDay ?: -1L)
         .put("widgetPanel", settings.widgetPanel.name)
         .put("widgetTextSize", settings.widgetTextSize.name)
         .put("appBackground", settings.appBackground ?: "")
@@ -188,6 +192,14 @@ object BackupCodec {
     private fun settingsFromJson(json: JSONObject): AppSettings = AppSettings(
         preset = json.optString("theme").toEnum(ThemePreset.entries, AppSettings().preset),
         customHue = json.optDouble("hue", DEFAULT_HUE.toDouble()).toFloat(),
+        customDark = json.optBoolean("customDark", false),
+        // -1 is the "not set" the writer uses for a null epoch day, so an old
+        // backup without the field and a new one of a couple without an
+        // anniversary both land on null.
+        remind = json.optBoolean("remind", false),
+        remindMinutes = json.optInt("remindMinutes", 540),
+        anniversaryEpochDay = json.optLong("anniversaryEpochDay", -1L)
+            .takeIf { it >= 0L },
         sortOrder = json.optString("sort").toEnum(SortOrder.entries, AppSettings().sortOrder),
         language = json.optString("language").toEnum(AppLanguage.entries, AppSettings().language),
         widgetPanel = json.optString("widgetPanel")

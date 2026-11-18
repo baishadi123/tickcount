@@ -17,6 +17,10 @@
     <string name="action_delete">删除</string>
     <string name="action_save">保存</string>
     <string name="action_cancel">取消</string>
+    <string name="action_confirm">确定</string>
+    <string name="tape_rename">重写标签</string>
+    <string name="viewer_open_outside">在相册中打开</string>
+    <string name="viewer_open_missing">这张照片已不在相册里</string>
     <string name="action_close">关闭</string>
     <string name="gallery_health_title">相册体检</string>
     <string name="gallery_health_body">应用引用的每张照片都还在相册里吗——换机之前，先看一眼数字</string>
@@ -250,10 +254,10 @@
 
     <!-- 五个主题，以及给最后一个调色的色相条 -->
     <string name="theme_white">白</string>
-    <string name="theme_black">黑</string>
-    <string name="theme_teal">青绿</string>
-    <string name="theme_mist">雾蓝</string>
-    <string name="theme_amber">暖橙</string>
+    <string name="theme_black">夜航</string>
+    <string name="theme_teal">庭园</string>
+    <string name="theme_mist">静海</string>
+    <string name="theme_amber">纸语</string>
     <string name="theme_rose">玫瑰</string>
     <string name="theme_custom">自定义</string>
     <string name="appearance_presets">主题色</string>
@@ -279,6 +283,7 @@
     <string name="notify_footnote">提醒写入系统日历，由日历准点送达——应用不必在后台，被清理也不受影响。若日历里看不到「倒数日」，请在日历应用的日历列表中勾选显示；若收不到提醒，请检查日历应用的通知设置。</string>
     <string name="appearance_custom_hue">拖动选择色相</string>
     <string name="appearance_custom_hint">拖的时候整个应用会立刻换色，这个画面就是预览。</string>
+    <string name="appearance_custom_night">把这瓶颜色泡进夜色</string>
     <string name="appearance_surfaces">各层深浅</string>
     <string name="appearance_background">应用背景</string>
     <string name="appearance_background_use">显示背景</string>

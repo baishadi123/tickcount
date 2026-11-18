@@ -266,7 +266,7 @@ fun NotificationsScreen(
         Spacer(Modifier.height(8.dp))
         Text(
             text = stringResource(R.string.notify_footnote),
-            style = MaterialTheme.typography.bodySmall.copy(shadow = textHalo()),
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 2.dp),
         )

@@ -42,6 +42,7 @@ import io.github.zzpby.tickcount.data.BackupCrypto
 import io.github.zzpby.tickcount.data.ImportMode
 import io.github.zzpby.tickcount.data.ImportPreview
 import io.github.zzpby.tickcount.data.ReadOutcome
+import io.github.zzpby.tickcount.ui.components.PaperField
 import io.github.zzpby.tickcount.ui.components.EyeIcon
 import io.github.zzpby.tickcount.ui.theme.CardShape
 import io.github.zzpby.tickcount.ui.theme.GlassAlpha
@@ -423,14 +424,13 @@ private fun PasswordField(
         if (revealed) R.string.action_hide_password else R.string.action_show_password
     )
 
-    OutlinedTextField(
+    PaperField(
         value = value,
         onValueChange = {
             onValueChange(it)
             onEdit()
         },
-        label = { Text(label) },
-        singleLine = true,
+        label = label,
         isError = isError,
         supportingText = supportingText,
         visualTransformation = if (revealed) {
@@ -446,7 +446,7 @@ private fun PasswordField(
                 EyeIcon(revealed = revealed)
             }
         },
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier,
     )
 }
 

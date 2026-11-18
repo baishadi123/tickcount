@@ -92,6 +92,7 @@ import io.github.zzpby.tickcount.ui.components.BackgroundScrimAlpha
 import io.github.zzpby.tickcount.ui.components.CheckIcon
 import io.github.zzpby.tickcount.ui.components.CloseIcon
 import io.github.zzpby.tickcount.ui.components.HueSlider
+import io.github.zzpby.tickcount.ui.components.PaperField
 import io.github.zzpby.tickcount.ui.components.PhotoStack
 import io.github.zzpby.tickcount.ui.components.PlusIcon
 import io.github.zzpby.tickcount.ui.components.TrashIcon
@@ -379,20 +380,17 @@ fun EventEditorScreen(
         // with the picture breathing around its edges.
         Column(
             modifier = Modifier
-                .weight(1f)
+                .weight(1f, fill = false)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
                 .glassSurface(alpha = 0.6f, interactive = false)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
-                OutlinedTextField(
+                PaperField(
                     value = title,
                     onValueChange = { title = it.take(CountdownEvent.MAX_TITLE_LENGTH) },
-                    label = { Text(stringResource(R.string.field_name)) },
-                    placeholder = { Text(stringResource(R.string.field_name_hint)) },
-                    singleLine = true,
-                    shape = FieldShape,
-                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(R.string.field_name),
+                    placeholder = stringResource(R.string.field_name_hint),
                 )
 
                 TagEditor(
@@ -924,7 +922,7 @@ private fun BatchNumberField(
     imeAction: ImeAction,
     modifier: Modifier = Modifier,
 ) {
-    OutlinedTextField(
+    PaperField(
         value = value,
         onValueChange = { typed ->
             val digits = typed.filter { it.isDigit() }.take(4)
@@ -932,9 +930,7 @@ private fun BatchNumberField(
                 onValueChange(digits)
             }
         },
-        label = { Text(label) },
-        singleLine = true,
-        shape = FieldShape,
+        label = label,
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Number,
             imeAction = imeAction,
@@ -962,14 +958,12 @@ private fun TagEditor(
     val full = tags.size >= CountdownEvent.MAX_TAG_COUNT
 
     Spacer(Modifier.height(10.dp))
-    OutlinedTextField(
+    PaperField(
         value = draft,
         onValueChange = onDraftChange,
-        label = { Text(stringResource(R.string.field_tags)) },
-        placeholder = { Text(stringResource(R.string.field_tags_hint)) },
-        singleLine = true,
+        label = stringResource(R.string.field_tags),
+        placeholder = stringResource(R.string.field_tags_hint),
         enabled = !full,
-        shape = FieldShape,
         trailingIcon = {
             IconButton(onClick = onAdd, enabled = draft.isNotBlank() && !full) {
                 PlusIcon()
@@ -981,7 +975,6 @@ private fun TagEditor(
         keyboardActions = androidx.compose.foundation.text.KeyboardActions(
             onDone = { onAdd() },
         ),
-        modifier = Modifier.fillMaxWidth(),
     )
 
     if (tags.isNotEmpty()) {

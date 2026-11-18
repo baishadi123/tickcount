@@ -82,6 +82,7 @@ import io.github.zzpby.tickcount.domain.ChinaPlaces
 import io.github.zzpby.tickcount.domain.ChinaProvinces
 import io.github.zzpby.tickcount.domain.LocationPick
 import io.github.zzpby.tickcount.domain.MediaRef
+import io.github.zzpby.tickcount.ui.components.PaperField
 import io.github.zzpby.tickcount.ui.components.CheckIcon
 import io.github.zzpby.tickcount.ui.components.CloseIcon
 import io.github.zzpby.tickcount.ui.components.EditIcon
@@ -130,6 +131,8 @@ fun WanJiangScreen(
     footprints: List<Footprint>,
     onEdit: (String) -> Unit,
     modifier: Modifier = Modifier,
+    /** Tells the shell when the map is standing alone, so the bar can step aside. */
+    onMapAloneChange: (Boolean) -> Unit = {},
 ) {
     val dateFormatter = rememberDateFormatter(R.string.date_format_short)
     val context = LocalContext.current
@@ -152,6 +155,12 @@ fun WanJiangScreen(
 
     // The map closes on the back key, exactly as the visible chevron does.
     BackHandler(enabled = mapMode) { mapMode = false }
+
+    // The map standing alone means the whole screen: said upward the moment
+    // it changes, so the bar above is gone before the country is drawn.
+    LaunchedEffect(mapMode, footprints.isNotEmpty()) {
+        onMapAloneChange(mapMode && footprints.isNotEmpty())
+    }
 
     // The map is the one page that earns the turn of the wrist: while it
     // shows, the window follows the sensor; the moment it closes, the app
@@ -223,6 +232,19 @@ fun WanJiangScreen(
         }
     }
 
+    // The map is a country one steps into, not a strip under a heading: it
+    // takes the whole screen and carries its own way back in its top-left
+    // corner — the heading and its counts belong to the list it watches over.
+    if (mapMode && footprints.isNotEmpty()) {
+        WanJiangMap(
+            footprints = footprints,
+            litProvinces = litProvinces,
+            onPickPlace = { sheetPlace = it },
+            onBackToList = { mapMode = false },
+            focus = focus,
+            modifier = modifier.fillMaxSize(),
+        )
+    } else {
     Column(modifier = modifier.fillMaxSize()) {
         Row(
             modifier = Modifier
@@ -286,14 +308,6 @@ fun WanJiangScreen(
 
         if (footprints.isEmpty()) {
             CentredNotice(stringResource(R.string.wanjiiang_empty))
-        } else if (mapMode) {
-            WanJiangMap(
-                footprints = footprints,
-                litProvinces = litProvinces,
-                onPickPlace = { sheetPlace = it },
-                onBackToList = { mapMode = false },
-                focus = focus,
-            )
         } else {
             LazyColumn(
                 state = listState,
@@ -428,6 +442,7 @@ fun WanJiangScreen(
                 }
             }
         }
+    }
     }
 
     if (viewerFor != null) {
@@ -717,22 +732,25 @@ fun FootprintEditorScreen(
         if (grants.values.any { it }) locate()
     }
 
-    // The form as one glass sheet, like every editor.
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 12.dp, vertical = 8.dp)
-            .glassSurface(alpha = 0.6f, interactive = false)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-    ) {
-        OutlinedTextField(
+    // The form as one glass sheet, like every editor — a sheet that sizes
+    // itself to what it holds, not one that claims the whole page: a visit
+    // with a line to say says it on a short pane, and the page's own picture
+    // shows below. A long form still fills and still scrolls: the box gives
+    // the scroll its bounds, the column only its width.
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .glassSurface(alpha = 0.6f, interactive = false)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+        ) {
+        PaperField(
             value = place,
             onValueChange = { place = it.take(Footprint.MAX_PLACE_LENGTH) },
-            label = { Text(stringResource(R.string.footprint_place_hint)) },
-            singleLine = true,
-            shape = CardShape,
-            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(R.string.footprint_place_hint),
         )
 
         Spacer(Modifier.height(12.dp))
@@ -975,6 +993,7 @@ fun FootprintEditorScreen(
                     },
                 )
             }
+        }
         }
     }
 

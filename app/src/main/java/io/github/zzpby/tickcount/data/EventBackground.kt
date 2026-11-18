@@ -108,14 +108,32 @@ object EventBackgrounds {
         File(dir(context), name).delete()
     }
 
-    /** The decoded background called [name], or null when it is gone or unreadable. */
+    /**
+     * The decoded background called [name], or null when it is gone or unreadable.
+     *
+     * Our own copies were written scaled, but a copy is a promise about the past
+     * rather than a guarantee about bytes: whatever arrives is sampled to the same
+     * ceiling every other full-page read in the app obeys, so no forgotten file
+     * can take the viewer down with it.
+     */
     fun bitmap(context: Context, name: String?): Bitmap? {
         if (name == null) return null
         if (MediaRef.isRef(name)) return GalleryMedia.bitmap(context, name)
         if (!isOurs(name)) return null
         val file = File(dir(context), name)
         if (!file.isFile) return null
-        return BitmapFactory.decodeFile(file.absolutePath)
+        return runCatching {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(file.absolutePath, bounds)
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+            var sample = 1
+            val pixels = bounds.outWidth.toLong() * bounds.outHeight
+            while (pixels / (sample.toLong() * sample) > GalleryMedia.UPTURN_PIXEL_CAP) sample *= 2
+            BitmapFactory.decodeFile(
+                file.absolutePath,
+                BitmapFactory.Options().apply { inSampleSize = sample },
+            )
+        }.getOrNull()
     }
 
     /**

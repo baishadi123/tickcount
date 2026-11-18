@@ -48,7 +48,6 @@ import io.github.zzpby.tickcount.data.ThemePreset
 import io.github.zzpby.tickcount.ui.components.HueSlider
 import io.github.zzpby.tickcount.ui.components.SectionLabel
 import io.github.zzpby.tickcount.ui.theme.schemeFor
-import io.github.zzpby.tickcount.ui.theme.textHalo
 
 /**
  * The name each preset is shown under.
@@ -83,6 +82,7 @@ fun AppearanceScreen(
     settings: AppSettings,
     onPreset: (ThemePreset) -> Unit,
     onCustomHue: (Float) -> Unit,
+    onCustomDark: (Boolean) -> Unit,
     onPickBackground: (Uri) -> Unit,
     onClearBackground: () -> Unit,
     onToggleBackground: (Boolean) -> Unit,
@@ -126,9 +126,26 @@ fun AppearanceScreen(
             Spacer(Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.appearance_custom_hint),
-                style = MaterialTheme.typography.bodySmall.copy(shadow = textHalo()),
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // The night twin: the same hue steeped into the coffee table, for
+            // the one who lives in the dark and should not have to blink
+            // through a white sheet to keep a colour of their own.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.appearance_custom_night),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Switch(checked = settings.customDark, onCheckedChange = onCustomDark)
+            }
         }
 
         Spacer(Modifier.height(24.dp))
@@ -202,7 +219,7 @@ fun AppearanceScreen(
             Spacer(Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.background_adjust_hint),
-                style = MaterialTheme.typography.bodySmall.copy(shadow = textHalo()),
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(

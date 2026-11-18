@@ -34,6 +34,7 @@ fun TickCountTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = TickCountTypography,
+        shapes = TickCountShapes,
         content = content,
     )
 }
